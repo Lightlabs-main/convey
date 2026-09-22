@@ -40,6 +40,18 @@ fails closed if that path is unavailable. See [docs/relayer.md](relayer.md).
 - Gas-price variance needs repeated observations over time; one block only confirms the floor at that instant.
 - The issuer API and RPC evidence must be refreshed at deploy time because wrapper certification, trading halts, multipliers, and liquidity can change.
 
+### Bundler RPC capability probe
+
+On 2026-09-22, the public execution RPC was probed for the tracing methods
+required by a safe ERC-4337 v0.7 bundler. `debug_traceCall` with a JavaScript
+tracer, `debug_traceCall` with state overrides, and `trace_call` were not
+available to the probe: the recorded run returned HTTP `403` for each method
+(an earlier direct probe returned JSON-RPC `-32601 rpc method is not
+whitelisted`). The raw response is committed in
+[`docs/verification.rpc-capabilities.json`](verification.rpc-capabilities.json).
+This is why the operator runbook requires a private X Layer tracing RPC and why
+safe mode cannot be relaxed as a workaround.
+
 ### Account-standard mismatch
 
 The specification asks for an “OKX-native ERC-7579” account. The deployed [OKX Smart Wallet source](https://github.com/okxlabs/okx-smart-wallet-evm) inspected at revision `95aa59bbc22acd4573a9932e959384fe56c7b543` is ERC-4337 v0.7 and has modular owner, validator, hook, allowance, execution, and nonce managers, but it does **not** implement the ERC-7579 account interface (`accountId`, `supportsModule`, `installModule`, `uninstallModule`, or `executeFromExecutor`). Its expiring owners, hooks, and token allowances may support a tightly scoped recurring-gift key, but that path is an OKX-specific integration rather than ERC-7579 interoperability.
@@ -56,4 +68,5 @@ These are hard gate failures under the engineering specification. Contract imple
 - [OKX X Layer token list](https://github.com/okx/xlayer-tokenlist)
 - [xStocks public asset API: NVDAx](https://api.backed.fi/api/v2/public/assets/NVDAx)
 - [OKX Smart Wallet source and deployments](https://github.com/okxlabs/okx-smart-wallet-evm)
+- [OKX OKBund source](https://github.com/okx/OKBund)
 - [ERC-7579 specification](https://eips.ethereum.org/EIPS/eip-7579)

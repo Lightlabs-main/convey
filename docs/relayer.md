@@ -81,3 +81,11 @@ pnpm relayer:serve
 The current workspace intentionally fails the check because no real bundler
 endpoint, paymaster address, or funded paymaster has been supplied. No fake
 endpoint is committed to make the check appear green.
+
+## Operator bundler gate
+
+The selected operator bundler is the pinned OKX OKBund v0.7 build. Its runbook,
+fail-closed launcher, and the required RPC/key/funding order are in
+[infra/okbund/README.md](../infra/okbund/README.md). The public X Layer RPC does
+not expose the tracing methods required for safe bundling, so a private tracing
+RPC is required before a bundler key is funded.

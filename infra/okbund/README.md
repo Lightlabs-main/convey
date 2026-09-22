@@ -1,0 +1,127 @@
+# Convey operator bundler
+
+Convey uses an operator-controlled ERC-4337 v0.7 bundler. It does not use
+ZeroDev, Pimlico, Particle, or a paid hosted relay.
+
+The selected implementation is [OKX OKBund](https://github.com/okx/OKBund),
+pinned to commit `77ac3770ba7dd4be949975b142623540e28f60e4` on the `develop`
+branch. The repository contains the v0.7 EntryPoint simulation path under
+`contracts07`; the v0.7 runtime configuration is selected explicitly below.
+The pinned source was compiled locally with Java 21 and Maven on 2026-09-22.
+
+OKBund is upstream software, not a Convey contract. Review the pinned source,
+license, dependency output, and operational logs before exposing it to claims.
+The wrapper in this directory is part of Convey's security boundary: upstream
+configuration has a development private-key fallback, so the wrapper refuses to
+start unless the operator supplies a real secret through the environment.
+
+## Hard prerequisite: a private tracing RPC
+
+The public X Layer RPC at `https://rpc.xlayer.tech` reports chain `196`, but it
+rejects `debug_traceCall` and `trace_call` with `-32601 rpc method is not
+whitelisted`. Safe bundling needs `debug_traceCall` with a JavaScript tracer and
+state overrides for ERC-7562 validation. Do not run with safe mode disabled and
+do not send UserOperations through a public execution RPC as a workaround.
+
+Provide a private X Layer full-node/debug endpoint and verify it before adding a
+bundler key:
+
+```sh
+BUNDLER_EXECUTION_RPC_URL=https://private-xlayer-rpc.example \
+  pnpm verify:bundler-rpc
+```
+
+The command writes the raw probe to
+`docs/verification.rpc-capabilities.json`. The endpoint must be chain `196` and
+both required `debug_traceCall` probes must pass. Keep this endpoint private;
+the browser and the public claim URL must never receive it.
+
+## Build the pinned OKBund source
+
+On the operator host, use Java 21 and keep the checkout outside the Convey
+application deployment if possible:
+
+```sh
+git clone https://github.com/okx/OKBund.git /srv/convey/okbund
+git -C /srv/convey/okbund checkout 77ac3770ba7dd4be949975b142623540e28f60e4
+cd /srv/convey/okbund
+JAVA_HOME=/path/to/java-21 mvn -s settings.xml clean verify
+```
+
+The resulting jar is
+`aa-starter/target/aa-starter-0.0.1.jar`. The upstream Docker compose file is
+for a local development Geth network and must not be used for X Layer
+production.
+
+## Production environment
+
+Set these values in the operator's secret manager or service environment. Do
+not commit them and do not paste private keys into chat:
+
+```sh
+BUNDLER_ENV=prod
+CHAIN_ID=196
+EIP1559=true
+SAFE_MODE=true
+ETH_RPC_URL=https://private-xlayer-rpc.example
+ENTRYPOINT=0x0000000071727de22e5e9d8baf0edac6f37da032
+BUNDLER_PRIVATE_KEY=<dedicated-bundler-hot-key>
+OKBUND_DIR=/srv/convey/okbund
+```
+
+Start it through the checked-in launcher:
+
+```sh
+./infra/okbund/run.sh
+```
+
+OKBund serves its JSON-RPC endpoint at `/rpc` on port `3000` by default. Put
+that endpoint on a private network or behind private HTTPS. Set Convey's
+`BUNDLER_RPC_URL` to that private endpoint, for example
+`http://127.0.0.1:3000/rpc` when the gateway is on the same host. Never expose
+the endpoint directly to browsers or the public internet.
+
+The bundler hot wallet needs OKB for the native bundle transactions. After the
+secret is installed, derive its address without printing the secret:
+
+```sh
+pnpm operator:addresses
+```
+
+Fund only the printed `BUNDLER_PRIVATE_KEY` address, using a live balance and
+gas estimate to choose the amount. Record the funding transaction hash in the
+operator log. Do not fund an address derived from a key pasted into source or
+chat.
+
+## Convey-side gate
+
+After the private endpoint is live and the bundler wallet is funded:
+
+```sh
+pnpm relayer:check
+```
+
+This must see chain `196`, the exact v0.7 EntryPoint, and a live OKBund
+`eth_supportedEntryPoints` response. It will still fail until the Convey
+paymaster and its EntryPoint deposit/stake exist.
+
+The Convey paymaster, escrow address, and claim selector are deliberately not
+invented here. They are outputs of the post-gate contract deployment and audit
+steps. The paymaster will need a separate signer secret and funded EntryPoint
+deposit/stake; the escrow selector will be generated from the deployed ABI and
+then allowlisted by the private claim gateway.
+
+## Required operator inputs, in order
+
+1. Private X Layer RPC URL with `debug_traceCall` JavaScript-tracer and state-
+   override support.
+2. A dedicated `BUNDLER_PRIVATE_KEY`, installed through a secret manager, plus
+   OKB funding for its derived bundle-sender address.
+3. After the contract code is written and reviewed: a deployer key and OKB for
+   deployment, a separate paymaster signer key, and the paymaster's EntryPoint
+   deposit and stake.
+4. A private HTTPS route from the Convey gateway to OKBund and TLS/auth
+   configuration for the gateway.
+
+Until item 1 passes, no key or funding is requested. A funded bundler without a
+trace-capable execution RPC would only produce an unsafe validation path.
