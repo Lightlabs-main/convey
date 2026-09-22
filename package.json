@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "verify": "node script/verify.ts"
+    "verify": "node script/verify.ts",
+    "account:inspect": "node --env-file=.env script/account.ts"
+  },
+  "dependencies": {
+    "viem": "^2.56.8"
   }
 }

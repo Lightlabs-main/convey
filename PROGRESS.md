@@ -12,6 +12,8 @@
 - Corrected quote terminology: comparison with an issuer-derived nominal amount is an executable delta, not AMM price impact.
 - Selected the deployed OKX Smart Wallet as the account path. Ticker will describe it accurately as an OKX-specific modular ERC-4337 v0.7 account, not ERC-7579.
 - Added local and example environment configuration for the verified EntryPoint, OKX factory, bundler, paymaster, and dedicated operator keys.
+- Implemented `pnpm account:inspect` from the official OKX factory ABI. It derives the dedicated owner's counterfactual account without logging the private key and confirms EntryPoint/factory state on chain.
+- Derived counterfactual OKX account `0x6B17C1b2663f8fBecd97D038DfC81712e99a54ca`; mainnet bytecode is currently absent, as expected before the first sponsored UserOperation.
 
 ## Next
 
