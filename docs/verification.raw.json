@@ -1,0 +1,687 @@
+{
+  "observedAt": "2026-09-22T01:56:40.134Z",
+  "rpcUrl": "https://rpc.xlayer.tech",
+  "chainId": 196,
+  "pinnedBlock": {
+    "number": 71272554,
+    "hex": "0x43f886a",
+    "hash": "0x9cc4c50ce07ee3dfad3dcda52c325b914b5624cf067f781f7a5cf88ebda55ed8",
+    "timestamp": "2026-09-22T01:46:30.000Z",
+    "baseFeeWei": "20000000",
+    "gasPriceWei": "20000001"
+  },
+  "entryPoints": {
+    "v06": {
+      "address": "0x5ff137d4b0fdcd49dca30c7cf57e578a026d2789",
+      "codeBytes": 23689
+    },
+    "v07": {
+      "address": "0x0000000071727de22e5e9d8baf0edac6f37da032",
+      "codeBytes": 16035
+    },
+    "v08": {
+      "address": "0x4337084d9e255ff0702461cf8895ce9e3b5ff108",
+      "codeBytes": 21738
+    }
+  },
+  "usdt0": {
+    "address": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+    "decimals": 6
+  },
+  "uniswapV3": {
+    "factory": "0x4b2ab38dbf28d31d467aa8993f6c2585981d6804",
+    "quoterV2": "0xd1b797d92d87b688193a2b976efc8d577d204343"
+  },
+  "assets": [
+    {
+      "symbol": "NVDAx",
+      "wrapper": "0xa8ddb5cd96b5222afe198316e9a57caa642850d5",
+      "underlying": "0xc845b2894dbddd03858fd2d643b4ef725fe0849d",
+      "decimals": 18,
+      "multiplier": {
+        "currentMultiplier": 1.001701196801074,
+        "newMultiplier": 0,
+        "activationDateTime": 0,
+        "reason": null
+      },
+      "issuerQuoteUsd": 227.535,
+      "directUsdt0Pools": [
+        {
+          "fee": 500,
+          "pool": "0x802c2b4b97f0835cb06b55e3addcefa03b88fa3f"
+        },
+        {
+          "fee": 3000,
+          "pool": "0xa575234cc82be1dd41d133ca33e879287d6751a0"
+        },
+        {
+          "fee": 10000,
+          "pool": "0x292a28c5a775d7d6db2af7981e4e070cc0f6a3a3"
+        }
+      ],
+      "usdgPools": [
+        {
+          "fee": 100,
+          "pool": "0x2baf6c8235289c9fcd4b11e74ec7a976a3d35bb0"
+        },
+        {
+          "fee": 500,
+          "pool": "0x2a2b11730c2b6d99a58034a869dd810d7300a7b2"
+        }
+      ],
+      "stablePools": [
+        {
+          "fee": 100,
+          "pool": "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+        }
+      ],
+      "quotes": {
+        "$5": {
+          "amountIn": "21937321562714744",
+          "bestAmountOut": "4993462",
+          "executableUsd": 4.993462,
+          "priceImpactPercent": 0.13075999999999866,
+          "fee": null,
+          "pool": null,
+          "fees": [
+            500,
+            100
+          ],
+          "pools": [
+            "0x2a2b11730c2b6d99a58034a869dd810d7300a7b2",
+            "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+          ],
+          "via": "USDG",
+          "candidates": [
+            {
+              "fee": 500,
+              "pool": "0x802c2b4b97f0835cb06b55e3addcefa03b88fa3f",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fee": 3000,
+              "pool": "0xa575234cc82be1dd41d133ca33e879287d6751a0",
+              "amountOut": "4978546",
+              "gasEstimate": "103219"
+            },
+            {
+              "fee": 10000,
+              "pool": "0x292a28c5a775d7d6db2af7981e4e070cc0f6a3a3",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                100,
+                100
+              ],
+              "pools": [
+                "0x2baf6c8235289c9fcd4b11e74ec7a976a3d35bb0",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                500,
+                100
+              ],
+              "pools": [
+                "0x2a2b11730c2b6d99a58034a869dd810d7300a7b2",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "amountOut": "4993462",
+              "gasEstimate": "193653"
+            }
+          ]
+        },
+        "$20": {
+          "amountIn": "87749286250858976",
+          "bestAmountOut": "19973805",
+          "executableUsd": 19.973805,
+          "priceImpactPercent": 0.1309750000000065,
+          "fee": null,
+          "pool": null,
+          "fees": [
+            500,
+            100
+          ],
+          "pools": [
+            "0x2a2b11730c2b6d99a58034a869dd810d7300a7b2",
+            "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+          ],
+          "via": "USDG",
+          "candidates": [
+            {
+              "fee": 500,
+              "pool": "0x802c2b4b97f0835cb06b55e3addcefa03b88fa3f",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fee": 3000,
+              "pool": "0xa575234cc82be1dd41d133ca33e879287d6751a0",
+              "amountOut": "19899019",
+              "gasEstimate": "103225"
+            },
+            {
+              "fee": 10000,
+              "pool": "0x292a28c5a775d7d6db2af7981e4e070cc0f6a3a3",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                100,
+                100
+              ],
+              "pools": [
+                "0x2baf6c8235289c9fcd4b11e74ec7a976a3d35bb0",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                500,
+                100
+              ],
+              "pools": [
+                "0x2a2b11730c2b6d99a58034a869dd810d7300a7b2",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "amountOut": "19973805",
+              "gasEstimate": "193653"
+            }
+          ]
+        },
+        "$50": {
+          "amountIn": "219373215627147424",
+          "bestAmountOut": "49934274",
+          "executableUsd": 49.934274,
+          "priceImpactPercent": 0.1314519999999959,
+          "fee": null,
+          "pool": null,
+          "fees": [
+            500,
+            100
+          ],
+          "pools": [
+            "0x2a2b11730c2b6d99a58034a869dd810d7300a7b2",
+            "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+          ],
+          "via": "USDG",
+          "candidates": [
+            {
+              "fee": 500,
+              "pool": "0x802c2b4b97f0835cb06b55e3addcefa03b88fa3f",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fee": 3000,
+              "pool": "0xa575234cc82be1dd41d133ca33e879287d6751a0",
+              "amountOut": "49671890",
+              "gasEstimate": "103191"
+            },
+            {
+              "fee": 10000,
+              "pool": "0x292a28c5a775d7d6db2af7981e4e070cc0f6a3a3",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                100,
+                100
+              ],
+              "pools": [
+                "0x2baf6c8235289c9fcd4b11e74ec7a976a3d35bb0",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                500,
+                100
+              ],
+              "pools": [
+                "0x2a2b11730c2b6d99a58034a869dd810d7300a7b2",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "amountOut": "49934274",
+              "gasEstimate": "193653"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "symbol": "TSLAx",
+      "wrapper": "0xc3fdbe3a68ee5de461d30415a8165cf9aefe1171",
+      "underlying": "0x8ad3c73f833d3f9a523ab01476625f269aeb7cf0",
+      "decimals": 18,
+      "multiplier": {
+        "currentMultiplier": 1,
+        "newMultiplier": 0,
+        "activationDateTime": 0,
+        "reason": null
+      },
+      "issuerQuoteUsd": 377.07,
+      "directUsdt0Pools": [
+        {
+          "fee": 100,
+          "pool": "0x0a6be92d8b015e626a9f81526c3cbd65176d662a"
+        },
+        {
+          "fee": 500,
+          "pool": "0x9d138b1e5ced5e38cc906538d7f67784ed8413e6"
+        },
+        {
+          "fee": 3000,
+          "pool": "0x45d0ed1e574d574f5726fed4b5acfbdc95675d10"
+        }
+      ],
+      "usdgPools": [
+        {
+          "fee": 100,
+          "pool": "0xa7f2017dca5449c3946cc4fc21e8b571aaf15413"
+        },
+        {
+          "fee": 500,
+          "pool": "0xe1071db4691b325c709854dc3d5ccd5d77e62ed1"
+        }
+      ],
+      "stablePools": [
+        {
+          "fee": 100,
+          "pool": "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+        }
+      ],
+      "quotes": {
+        "$5": {
+          "amountIn": "13260137375023206",
+          "bestAmountOut": "4433312",
+          "executableUsd": 4.433312,
+          "priceImpactPercent": 11.333760000000002,
+          "fee": null,
+          "pool": null,
+          "fees": [
+            500,
+            100
+          ],
+          "pools": [
+            "0xe1071db4691b325c709854dc3d5ccd5d77e62ed1",
+            "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+          ],
+          "via": "USDG",
+          "candidates": [
+            {
+              "fee": 100,
+              "pool": "0x0a6be92d8b015e626a9f81526c3cbd65176d662a",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fee": 500,
+              "pool": "0x9d138b1e5ced5e38cc906538d7f67784ed8413e6",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fee": 3000,
+              "pool": "0x45d0ed1e574d574f5726fed4b5acfbdc95675d10",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                100,
+                100
+              ],
+              "pools": [
+                "0xa7f2017dca5449c3946cc4fc21e8b571aaf15413",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                500,
+                100
+              ],
+              "pools": [
+                "0xe1071db4691b325c709854dc3d5ccd5d77e62ed1",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "amountOut": "4433312",
+              "gasEstimate": "344785"
+            }
+          ]
+        },
+        "$20": {
+          "amountIn": "53040549500092824",
+          "bestAmountOut": "5338550",
+          "executableUsd": 5.33855,
+          "priceImpactPercent": 73.30725,
+          "fee": null,
+          "pool": null,
+          "fees": [
+            500,
+            100
+          ],
+          "pools": [
+            "0xe1071db4691b325c709854dc3d5ccd5d77e62ed1",
+            "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+          ],
+          "via": "USDG",
+          "candidates": [
+            {
+              "fee": 100,
+              "pool": "0x0a6be92d8b015e626a9f81526c3cbd65176d662a",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fee": 500,
+              "pool": "0x9d138b1e5ced5e38cc906538d7f67784ed8413e6",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fee": 3000,
+              "pool": "0x45d0ed1e574d574f5726fed4b5acfbdc95675d10",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                100,
+                100
+              ],
+              "pools": [
+                "0xa7f2017dca5449c3946cc4fc21e8b571aaf15413",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                500,
+                100
+              ],
+              "pools": [
+                "0xe1071db4691b325c709854dc3d5ccd5d77e62ed1",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "amountOut": "5338550",
+              "gasEstimate": "2328653"
+            }
+          ]
+        },
+        "$50": {
+          "amountIn": "132601373750232064",
+          "bestAmountOut": "5338550",
+          "executableUsd": 5.33855,
+          "priceImpactPercent": 89.3229,
+          "fee": null,
+          "pool": null,
+          "fees": [
+            500,
+            100
+          ],
+          "pools": [
+            "0xe1071db4691b325c709854dc3d5ccd5d77e62ed1",
+            "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+          ],
+          "via": "USDG",
+          "candidates": [
+            {
+              "fee": 100,
+              "pool": "0x0a6be92d8b015e626a9f81526c3cbd65176d662a",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fee": 500,
+              "pool": "0x9d138b1e5ced5e38cc906538d7f67784ed8413e6",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fee": 3000,
+              "pool": "0x45d0ed1e574d574f5726fed4b5acfbdc95675d10",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                100,
+                100
+              ],
+              "pools": [
+                "0xa7f2017dca5449c3946cc4fc21e8b571aaf15413",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                500,
+                100
+              ],
+              "pools": [
+                "0xe1071db4691b325c709854dc3d5ccd5d77e62ed1",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "amountOut": "5338550",
+              "gasEstimate": "2328653"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "symbol": "AAPLx",
+      "wrapper": "0x943bf64d566c32a2bcd41ac92fb63c111cc9de8f",
+      "underlying": "0x9d275685dc284c8eb1c79f6aba7a63dc75ec890a",
+      "decimals": 18,
+      "multiplier": {
+        "currentMultiplier": 1.0032690125398187,
+        "newMultiplier": 0,
+        "activationDateTime": 0,
+        "reason": null
+      },
+      "issuerQuoteUsd": 339.105,
+      "directUsdt0Pools": [
+        {
+          "fee": 500,
+          "pool": "0x232a6679ea123ea8dea06d6caa707ec337400871"
+        },
+        {
+          "fee": 3000,
+          "pool": "0xb63b6c848b89de0a80ac0a9f1a80332926841167"
+        }
+      ],
+      "usdgPools": [
+        {
+          "fee": 100,
+          "pool": "0x326fdfaae35740a19d324bfdd9dbb237a35d7a5b"
+        },
+        {
+          "fee": 500,
+          "pool": "0xc44bd9c8589026d28d1632d7b86b2efb6cdc8fd2"
+        }
+      ],
+      "stablePools": [
+        {
+          "fee": 100,
+          "pool": "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+        }
+      ],
+      "quotes": {
+        "$5": {
+          "amountIn": "14696652055895350",
+          "bestAmountOut": "4991697",
+          "executableUsd": 4.991697,
+          "priceImpactPercent": 0.16605999999999455,
+          "fee": null,
+          "pool": null,
+          "fees": [
+            500,
+            100
+          ],
+          "pools": [
+            "0xc44bd9c8589026d28d1632d7b86b2efb6cdc8fd2",
+            "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+          ],
+          "via": "USDG",
+          "candidates": [
+            {
+              "fee": 500,
+              "pool": "0x232a6679ea123ea8dea06d6caa707ec337400871",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fee": 3000,
+              "pool": "0xb63b6c848b89de0a80ac0a9f1a80332926841167",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                100,
+                100
+              ],
+              "pools": [
+                "0x326fdfaae35740a19d324bfdd9dbb237a35d7a5b",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                500,
+                100
+              ],
+              "pools": [
+                "0xc44bd9c8589026d28d1632d7b86b2efb6cdc8fd2",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "amountOut": "4991697",
+              "gasEstimate": "203376"
+            }
+          ]
+        },
+        "$20": {
+          "amountIn": "58786608223581400",
+          "bestAmountOut": "19966602",
+          "executableUsd": 19.966602,
+          "priceImpactPercent": 0.1669899999999913,
+          "fee": null,
+          "pool": null,
+          "fees": [
+            500,
+            100
+          ],
+          "pools": [
+            "0xc44bd9c8589026d28d1632d7b86b2efb6cdc8fd2",
+            "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+          ],
+          "via": "USDG",
+          "candidates": [
+            {
+              "fee": 500,
+              "pool": "0x232a6679ea123ea8dea06d6caa707ec337400871",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fee": 3000,
+              "pool": "0xb63b6c848b89de0a80ac0a9f1a80332926841167",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                100,
+                100
+              ],
+              "pools": [
+                "0x326fdfaae35740a19d324bfdd9dbb237a35d7a5b",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                500,
+                100
+              ],
+              "pools": [
+                "0xc44bd9c8589026d28d1632d7b86b2efb6cdc8fd2",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "amountOut": "19966602",
+              "gasEstimate": "203376"
+            }
+          ]
+        },
+        "$50": {
+          "amountIn": "146966520558953504",
+          "bestAmountOut": "49915545",
+          "executableUsd": 49.915545,
+          "priceImpactPercent": 0.16890999999999678,
+          "fee": null,
+          "pool": null,
+          "fees": [
+            500,
+            100
+          ],
+          "pools": [
+            "0xc44bd9c8589026d28d1632d7b86b2efb6cdc8fd2",
+            "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+          ],
+          "via": "USDG",
+          "candidates": [
+            {
+              "fee": 500,
+              "pool": "0x232a6679ea123ea8dea06d6caa707ec337400871",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fee": 3000,
+              "pool": "0xb63b6c848b89de0a80ac0a9f1a80332926841167",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                100,
+                100
+              ],
+              "pools": [
+                "0x326fdfaae35740a19d324bfdd9dbb237a35d7a5b",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "error": "Error: eth_call: {\"code\":3,\"message\":\"execution reverted: Unexpected error\",\"data\":\"0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000010556e6578706563746564206572726f7200000000000000000000000000000000\"}"
+            },
+            {
+              "fees": [
+                500,
+                100
+              ],
+              "pools": [
+                "0xc44bd9c8589026d28d1632d7b86b2efb6cdc8fd2",
+                "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
+              ],
+              "via": "USDG",
+              "amountOut": "49915545",
+              "gasEstimate": "203416"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
