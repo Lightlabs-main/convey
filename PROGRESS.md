@@ -10,7 +10,8 @@
 - Inspected the deployed wallet's published source and found that it is modular but does not implement ERC-7579, contrary to the requested stack description.
 - Re-ran `pnpm verify` successfully on 2026-09-22 and made the mixed evidence model explicit: on-chain reads are pinned; issuer API values are live and timestamped.
 - Corrected quote terminology: comparison with an issuer-derived nominal amount is an executable delta, not AMM price impact.
-- Selected the deployed OKX Smart Wallet as the account path. Ticker will describe it accurately as an OKX-specific modular ERC-4337 v0.7 account, not ERC-7579.
+- Selected the deployed OKX Smart Wallet as the account path. Convey will describe it accurately as an OKX-specific modular ERC-4337 v0.7 account, not ERC-7579.
+- Adopted Convey as the product name across repository metadata and documentation.
 - Added local and example environment configuration for the verified EntryPoint, OKX factory, bundler, paymaster, and dedicated operator keys.
 - Implemented `pnpm account:inspect` from the official OKX factory ABI. It derives the dedicated owner's counterfactual account without logging the private key and confirms EntryPoint/factory state on chain.
 - Derived counterfactual OKX account `0x6B17C1b2663f8fBecd97D038DfC81712e99a54ca`; mainnet bytecode is currently absent, as expected before the first sponsored UserOperation.
