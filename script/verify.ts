@@ -2,6 +2,7 @@ import { writeFile } from "node:fs/promises";
 
 const RPC_URL = process.env.XLAYER_RPC_URL ?? "https://rpc.xlayer.tech";
 const PINNED_BLOCK = process.env.XLAYER_PINNED_BLOCK ?? "0x43f886a";
+const OUTPUT_PATH = process.env.XLAYER_VERIFICATION_OUTPUT ?? "docs/verification.raw.json";
 const EXPECTED_CHAIN_ID = 196n;
 
 const addresses = {
@@ -149,7 +150,10 @@ async function main() {
         amountIn: amountIn.toString(),
         bestAmountOut: bestAmountOut?.toString() ?? null,
         executableUsd: bestAmountOut === null ? null : Number(bestAmountOut) / 1e6,
-        priceImpactPercent: bestAmountOut === null ? null : ((usd - Number(bestAmountOut) / 1e6) / usd) * 100,
+        // This compares an executable pool quote with a nominal amount derived
+        // from the issuer's current indicative quote. It is not AMM price impact:
+        // measuring that requires a spot/TWAP baseline from the same block.
+        executableDeltaFromNominalPercent: bestAmountOut === null ? null : ((usd - Number(bestAmountOut) / 1e6) / usd) * 100,
         fee: executable?.fee ?? null,
         pool: executable?.pool ?? null,
         fees: executable?.fees ?? null,
@@ -163,6 +167,11 @@ async function main() {
 
   const result = {
     observedAt: new Date().toISOString(),
+    evidenceModel: {
+      onchain: `eth_call and bytecode reads pinned to block ${Number(BigInt(block.number))}`,
+      issuerApi: "live, timestamped at observedAt; the API does not expose historical snapshots",
+      warning: "Reruns at the same pinned block can produce different input amounts because issuer quotes and multipliers are live",
+    },
     rpcUrl: RPC_URL,
     chainId: Number(chainId),
     pinnedBlock: { number: Number(BigInt(block.number)), hex: block.number, hash: block.hash, timestamp: new Date(Number(BigInt(block.timestamp)) * 1000).toISOString(), baseFeeWei: BigInt(block.baseFeePerGas).toString(), gasPriceWei: gasPrice.toString() },
@@ -180,7 +189,7 @@ async function main() {
     uniswapV3: { factory: addresses.uniswapV3Factory, quoterV2: addresses.quoterV2 },
     assets: verifiedAssets,
   };
-  await writeFile("docs/verification.raw.json", `${JSON.stringify(result, (_, value) => typeof value === "bigint" ? value.toString() : value, 2)}\n`);
+  await writeFile(OUTPUT_PATH, `${JSON.stringify(result, (_, value) => typeof value === "bigint" ? value.toString() : value, 2)}\n`);
   console.log(JSON.stringify(result, (_, value) => typeof value === "bigint" ? value.toString() : value, 2));
 }
 

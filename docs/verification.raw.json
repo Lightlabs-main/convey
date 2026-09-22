@@ -1,5 +1,10 @@
 {
-  "observedAt": "2026-09-22T02:32:02.986Z",
+  "observedAt": "2026-09-22T09:19:01.568Z",
+  "evidenceModel": {
+    "onchain": "eth_call and bytecode reads pinned to block 71272554",
+    "issuerApi": "live, timestamped at observedAt; the API does not expose historical snapshots",
+    "warning": "Reruns at the same pinned block can produce different input amounts because issuer quotes and multipliers are live"
+  },
   "rpcUrl": "https://rpc.xlayer.tech",
   "chainId": 196,
   "pinnedBlock": {
@@ -53,7 +58,7 @@
         "activationDateTime": 0,
         "reason": null
       },
-      "issuerQuoteUsd": 227.375,
+      "issuerQuoteUsd": 226.545,
       "directUsdt0Pools": [
         {
           "fee": 500,
@@ -86,10 +91,10 @@
       ],
       "quotes": {
         "$5": {
-          "amountIn": "21952758490477400",
-          "bestAmountOut": "4996976",
-          "executableUsd": 4.996976,
-          "priceImpactPercent": 0.06047999999999831,
+          "amountIn": "22033187498167248",
+          "bestAmountOut": "5015284",
+          "executableUsd": 5.015284,
+          "executableDeltaFromNominalPercent": -0.30568000000000595,
           "fee": null,
           "pool": null,
           "fees": [
@@ -110,7 +115,7 @@
             {
               "fee": 3000,
               "pool": "0xa575234cc82be1dd41d133ca33e879287d6751a0",
-              "amountOut": "4982048",
+              "amountOut": "5000297",
               "gasEstimate": "103219"
             },
             {
@@ -140,16 +145,16 @@
                 "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
               ],
               "via": "USDG",
-              "amountOut": "4996976",
+              "amountOut": "5015284",
               "gasEstimate": "193653"
             }
           ]
         },
         "$20": {
-          "amountIn": "87811033961909600",
-          "bestAmountOut": "19987860",
-          "executableUsd": 19.98786,
-          "priceImpactPercent": 0.06069999999999354,
+          "amountIn": "88132749992668992",
+          "bestAmountOut": "20061090",
+          "executableUsd": 20.06109,
+          "executableDeltaFromNominalPercent": -0.30545000000000044,
           "fee": null,
           "pool": null,
           "fees": [
@@ -170,7 +175,7 @@
             {
               "fee": 3000,
               "pool": "0xa575234cc82be1dd41d133ca33e879287d6751a0",
-              "amountOut": "19913008",
+              "amountOut": "19985889",
               "gasEstimate": "103225"
             },
             {
@@ -200,16 +205,16 @@
                 "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
               ],
               "via": "USDG",
-              "amountOut": "19987860",
+              "amountOut": "20061090",
               "gasEstimate": "193653"
             }
           ]
         },
         "$50": {
-          "amountIn": "219527584904774016",
-          "bestAmountOut": "49969411",
-          "executableUsd": 49.969411,
-          "priceImpactPercent": 0.06117799999999818,
+          "amountIn": "220331874981672480",
+          "bestAmountOut": "50152484",
+          "executableUsd": 50.152484,
+          "executableDeltaFromNominalPercent": -0.30496800000000235,
           "fee": null,
           "pool": null,
           "fees": [
@@ -230,7 +235,7 @@
             {
               "fee": 3000,
               "pool": "0xa575234cc82be1dd41d133ca33e879287d6751a0",
-              "amountOut": "49706755",
+              "amountOut": "49888403",
               "gasEstimate": "103191"
             },
             {
@@ -260,7 +265,7 @@
                 "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
               ],
               "via": "USDG",
-              "amountOut": "49969411",
+              "amountOut": "50152484",
               "gasEstimate": "193653"
             }
           ]
@@ -278,7 +283,7 @@
         "activationDateTime": 0,
         "reason": null
       },
-      "issuerQuoteUsd": 376.99,
+      "issuerQuoteUsd": 376.195,
       "directUsdt0Pools": [
         {
           "fee": 100,
@@ -311,10 +316,10 @@
       ],
       "quotes": {
         "$5": {
-          "amountIn": "13262951271917028",
-          "bestAmountOut": "4434143",
-          "executableUsd": 4.434143,
-          "priceImpactPercent": 11.317140000000006,
+          "amountIn": "13290979412272890",
+          "bestAmountOut": "4442425",
+          "executableUsd": 4.442425,
+          "executableDeltaFromNominalPercent": 11.151499999999999,
           "fee": null,
           "pool": null,
           "fees": [
@@ -364,16 +369,16 @@
                 "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
               ],
               "via": "USDG",
-              "amountOut": "4434143",
-              "gasEstimate": "344775"
+              "amountOut": "4442425",
+              "gasEstimate": "344759"
             }
           ]
         },
         "$20": {
-          "amountIn": "53051805087668112",
+          "amountIn": "53163917649091560",
           "bestAmountOut": "5338550",
           "executableUsd": 5.33855,
-          "priceImpactPercent": 73.30725,
+          "executableDeltaFromNominalPercent": 73.30725,
           "fee": null,
           "pool": null,
           "fees": [
@@ -429,10 +434,10 @@
           ]
         },
         "$50": {
-          "amountIn": "132629512719170256",
+          "amountIn": "132909794122728912",
           "bestAmountOut": "5338550",
           "executableUsd": 5.33855,
-          "priceImpactPercent": 89.3229,
+          "executableDeltaFromNominalPercent": 89.3229,
           "fee": null,
           "pool": null,
           "fees": [
@@ -500,7 +505,7 @@
         "activationDateTime": 0,
         "reason": null
       },
-      "issuerQuoteUsd": 338.575,
+      "issuerQuoteUsd": 339.435,
       "directUsdt0Pools": [
         {
           "fee": 500,
@@ -529,10 +534,10 @@
       ],
       "quotes": {
         "$5": {
-          "amountIn": "14719657964747526",
-          "bestAmountOut": "4999511",
-          "executableUsd": 4.999511,
-          "priceImpactPercent": 0.009779999999999234,
+          "amountIn": "14682363914783074",
+          "bestAmountOut": "4986845",
+          "executableUsd": 4.986845,
+          "executableDeltaFromNominalPercent": 0.263100000000005,
           "fee": null,
           "pool": null,
           "fees": [
@@ -577,16 +582,16 @@
                 "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
               ],
               "via": "USDG",
-              "amountOut": "4999511",
+              "amountOut": "4986845",
               "gasEstimate": "203376"
             }
           ]
         },
         "$20": {
-          "amountIn": "58878631858990104",
-          "bestAmountOut": "19997856",
-          "executableUsd": 19.997856,
-          "priceImpactPercent": 0.01072000000000628,
+          "amountIn": "58729455659132296",
+          "bestAmountOut": "19947190",
+          "executableUsd": 19.94719,
+          "executableDeltaFromNominalPercent": 0.26405000000000456,
           "fee": null,
           "pool": null,
           "fees": [
@@ -631,16 +636,16 @@
                 "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
               ],
               "via": "USDG",
-              "amountOut": "19997856",
+              "amountOut": "19947190",
               "gasEstimate": "203376"
             }
           ]
         },
         "$50": {
-          "amountIn": "147196579647475264",
-          "bestAmountOut": "49993679",
-          "executableUsd": 49.993679,
-          "priceImpactPercent": 0.012641999999999598,
+          "amountIn": "146823639147830752",
+          "bestAmountOut": "49867018",
+          "executableUsd": 49.867018,
+          "executableDeltaFromNominalPercent": 0.26596399999999676,
           "fee": null,
           "pool": null,
           "fees": [
@@ -685,7 +690,7 @@
                 "0x0cbe0dbe1400e57f371a38bd3b9bc80f7c3676da"
               ],
               "via": "USDG",
-              "amountOut": "49993679",
+              "amountOut": "49867018",
               "gasEstimate": "203416"
             }
           ]
