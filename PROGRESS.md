@@ -1,4 +1,4 @@
-# Progress
+ # Progress
 
 ## Done
 
@@ -25,6 +25,7 @@
 
 - Run an operator-controlled ERC-4337 v0.7 bundler behind the relay gateway and deploy the Convey paymaster; no hosted provider is selected.
 - Obtain a private X Layer RPC with JavaScript-tracer `debug_traceCall` and state-override support, then rerun `pnpm verify:bundler-rpc`.
+- Resize or replace the provided Lightsail host before node setup; its live capacity is 2 vCPUs, about 909 MiB RAM, and 38 GB disk, which is below the X Layer node requirement.
 - After that probe passes, install a dedicated `BUNDLER_PRIVATE_KEY` through a secret manager, derive its address with `pnpm operator:addresses`, and fund that address with OKB for bundle transactions.
 - Validate the chain-196 private bundler/paymaster endpoint against EntryPoint v0.7 and the deployed OKX wallet factory with `pnpm relayer:check`.
 - Submit one real sponsored smart-account deployment on X Layer mainnet and record its UserOperation and transaction hash.
@@ -36,6 +37,7 @@
 
 - A private bundler endpoint, deployed Convey paymaster address, funded paymaster deposit/stake, and operator credentials are unavailable in the workspace.
 - The public X Layer RPC rejects the trace methods OKBund needs for safe validation; a private tracing RPC/full node is required before a bundler key is useful.
+- The supplied Lightsail instance is under-sized for an X Layer mainnet RPC node; Docker is available, but node deployment is gated on a larger host.
 - The relay SDK and gateway are implemented, but a live endpoint is still required; the SDK does not substitute for a deployed bundler or paymaster.
 - Per the verification gate, contracts and product layers are intentionally not started.
 
