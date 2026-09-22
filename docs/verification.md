@@ -69,4 +69,5 @@ These are hard gate failures under the engineering specification. Contract imple
 - [xStocks public asset API: NVDAx](https://api.backed.fi/api/v2/public/assets/NVDAx)
 - [OKX Smart Wallet source and deployments](https://github.com/okxlabs/okx-smart-wallet-evm)
 - [OKX OKBund source](https://github.com/okx/OKBund)
+- [X Layer self-hosted RPC toolkit](https://github.com/okx/xlayer-toolkit/tree/main/rpc-setup)
 - [ERC-7579 specification](https://eips.ethereum.org/EIPS/eip-7579)

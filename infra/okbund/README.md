@@ -15,6 +15,39 @@ The wrapper in this directory is part of Convey's security boundary: upstream
 configuration has a development private-key fallback, so the wrapper refuses to
 start unless the operator supplies a real secret through the environment.
 
+## Where the RPC comes from
+
+The endpoint is produced by an X Layer execution node; it is not an OKX Wallet
+API key. OKX publishes the [X Layer RPC node toolkit](https://github.com/okx/xlayer-toolkit/tree/main/rpc-setup)
+and documents a one-click mainnet setup. Use a Linux host with at least 8 GB
+RAM and 100 GB SSD; 16 GB RAM and 500 GB SSD is the safer production shape for
+an archive-style node. Docker 20.10+ and Docker Compose 2.0+ are required by
+the toolkit.
+
+For this OKBund integration, use the toolkit's `op-geth` preset. The current
+one-click script defaults its `RPC_TYPE` variable to `reth`; change that local
+default to `geth` before running it, or use an already generated
+`mainnet-geth` setup. The toolkit's mainnet op-geth config enables the `debug`
+HTTP module and the geth snapshot is supported by the same setup. We still
+accept the node only after `pnpm verify:bundler-rpc` passes against it.
+
+On the node host, the setup looks like this:
+
+```sh
+git clone https://github.com/okx/xlayer-toolkit.git /opt/xlayer-toolkit
+cd /opt/xlayer-toolkit/rpc-setup
+cp one-click-setup.sh one-click-setup.geth.sh
+sed -i 's/^RPC_TYPE="reth"/RPC_TYPE="geth"/' one-click-setup.geth.sh
+chmod +x one-click-setup.geth.sh
+./one-click-setup.geth.sh
+```
+
+Choose X Layer `mainnet` and snapshot sync when prompted. The generated node
+normally exposes HTTP RPC on port `8545`; confirm the actual port with
+`make status`. Keep that port behind the host firewall/private network. The
+bundler and Convey gateway should preferably run on the same host and use
+`http://127.0.0.1:8545`, so the debug API is never internet-facing.
+
 ## Hard prerequisite: a private tracing RPC
 
 The public X Layer RPC at `https://rpc.xlayer.tech` reports chain `196`, but it
