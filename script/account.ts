@@ -76,5 +76,5 @@ console.log(JSON.stringify({
   salt: salt.toString(),
   erc4337V07FactoryData: factoryData,
   bundlerConfigured: Boolean(process.env.BUNDLER_RPC_URL),
-  paymasterConfigured: Boolean(process.env.PAYMASTER_RPC_URL),
+  paymasterConfigured: Boolean(process.env.PAYMASTER_ADDRESS),
 }, null, 2));

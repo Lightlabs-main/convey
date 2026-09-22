@@ -5,7 +5,15 @@
   "type": "module",
   "scripts": {
     "verify": "node script/verify.ts",
-    "account:inspect": "node --env-file=.env script/account.ts"
+    "account:inspect": "node --env-file=.env script/account.ts",
+    "test": "node --test test/*.test.ts",
+    "relayer:check": "node --env-file=.env script/relayer-check.ts",
+    "relayer:serve": "node --env-file=.env script/relayer-server.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./relayer": "./src/relayer/index.ts",
+    "./relayer/server": "./src/relayer/server-index.ts"
   },
   "dependencies": {
     "viem": "^2.56.8"
