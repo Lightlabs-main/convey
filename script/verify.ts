@@ -12,6 +12,8 @@ const addresses = {
   quoterV2: "0xd1b797d92d87b688193a2b976efc8d577d204343",
   usdt0: "0x779ded0c9e1022225f8e0630b35a9b54be713736",
   usdg: "0x4ae46a509f6b1d9056937ba4500cb143933d2dc8",
+  okxSmartWalletFactory: "0xdd3fea01cd550c9effc893f346690b9a649f35ef",
+  okxSmartWalletImplementation: "0xe40ccb2d94975c51bff0c004efdfd9b3a5796fa4",
 } as const;
 
 const assets = [
@@ -69,6 +71,14 @@ async function main() {
     if (codeBytes === 0) throw new Error(`EntryPoint ${version} has no code`);
     entryPoints[version] = { address, codeBytes };
   }
+
+  const [okxFactoryCode, okxImplementationCode, okxWalletEntryPointResult] = await Promise.all([
+    rpc("eth_getCode", [addresses.okxSmartWalletFactory, PINNED_BLOCK]),
+    rpc("eth_getCode", [addresses.okxSmartWalletImplementation, PINNED_BLOCK]),
+    call(addresses.okxSmartWalletImplementation, "0xb0d691fe"),
+  ]);
+  const okxWalletEntryPoint = addressFromWord(okxWalletEntryPointResult);
+  if (okxWalletEntryPoint !== addresses.entryPointV07) throw new Error(`OKX wallet uses unexpected EntryPoint ${okxWalletEntryPoint}`);
 
   const usdt0Decimals = Number(uint(await call(addresses.usdt0, "0x313ce567")));
   if (usdt0Decimals !== 6) throw new Error(`USDT0 decimals ${usdt0Decimals}, expected 6`);
@@ -157,6 +167,15 @@ async function main() {
     chainId: Number(chainId),
     pinnedBlock: { number: Number(BigInt(block.number)), hex: block.number, hash: block.hash, timestamp: new Date(Number(BigInt(block.timestamp)) * 1000).toISOString(), baseFeeWei: BigInt(block.baseFeePerGas).toString(), gasPriceWei: gasPrice.toString() },
     entryPoints,
+    okxSmartWallet: {
+      factory: addresses.okxSmartWalletFactory,
+      factoryCodeBytes: (okxFactoryCode.length - 2) / 2,
+      implementation: addresses.okxSmartWalletImplementation,
+      implementationCodeBytes: (okxImplementationCode.length - 2) / 2,
+      entryPoint: okxWalletEntryPoint,
+      sourceRevisionInspected: "95aa59bbc22acd4573a9932e959384fe56c7b543",
+      erc7579InterfaceFoundInSource: false,
+    },
     usdt0: { address: addresses.usdt0, decimals: usdt0Decimals },
     uniswapV3: { factory: addresses.uniswapV3Factory, quoterV2: addresses.quoterV2 },
     assets: verifiedAssets,
