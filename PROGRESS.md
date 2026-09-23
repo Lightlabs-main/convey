@@ -10,7 +10,8 @@
 - Inspected the deployed wallet's published source and found that it is modular but does not implement ERC-7579, contrary to the requested stack description.
 - Re-ran `pnpm verify` successfully on 2026-09-22 and made the mixed evidence model explicit: on-chain reads are pinned; issuer API values are live and timestamped.
 - Corrected quote terminology: comparison with an issuer-derived nominal amount is an executable delta, not AMM price impact.
-- Selected the deployed OKX Smart Wallet as the account path. Ticker will describe it accurately as an OKX-specific modular ERC-4337 v0.7 account, not ERC-7579.
+- Selected the deployed OKX Smart Wallet as the account path, as allowed by the specification's explicit mismatch resolution. Ticker describes it accurately as an OKX-specific modular ERC-4337 v0.7 account, not ERC-7579.
+- Researched X Layer sponsor and account options; recorded the Particle bootstrap-sponsor test, private OKBund path, and rejected/uncertain provider fits in [`docs/aa-provider-research.md`](docs/aa-provider-research.md).
 - Adopted Ticker as the product name across package metadata, SDK names, environment variables, and operator documentation.
 - Added local and example environment configuration slots for the verified EntryPoint and OKX factory plus the self-hosted bundler/paymaster and dedicated operator keys.
 - Implemented `pnpm account:inspect` from the official OKX factory ABI. It derives the dedicated owner's counterfactual account without logging the private key and confirms EntryPoint/factory state on chain.
@@ -25,8 +26,8 @@
 
 ## Next
 
-- Provision an existing sponsored UserOperation path for the verification gate and an operator-controlled v0.7 bundler; no bundler endpoint or paymaster path is configured. The proposed contract/account shape is in [`docs/architecture.md`](docs/architecture.md).
-- Resolve the ERC-7579 account mismatch: the deployed OKX Smart Wallet candidate is EntryPoint v0.7 but does not implement ERC-7579.
+- Prove the Particle sponsorship API accepts an OKX Smart Wallet v0.7 operation; preserve the private submission path through Ticker relay and OKBund. Provider fit and the acceptance probe are in [`docs/aa-provider-research.md`](docs/aa-provider-research.md).
+- Bring up the pinned operator-controlled OKBund v0.7 service behind the Ticker gateway, using the verified NodeFlare endpoint as its tracing execution RPC.
 - Install a dedicated `BUNDLER_PRIVATE_KEY` through a secret manager, derive its address with `pnpm operator:addresses`, and fund it with OKB for bundle transactions.
 - Confirm whether the existing Lightsail host can run only the OKBund and relay processes (2 vCPUs, about 909 MiB RAM, 38 GB disk); NodeFlare removes the need to host an X Layer node.
 - Submit one real gasless smart-account deployment and sponsored transaction on X Layer mainnet, then record the factory, UserOperation, and transaction hash.
@@ -36,11 +37,12 @@
 
 ## Blocked
 
-- A private bundler endpoint, sponsoring paymaster path, funded paymaster deposit/stake, and bundler/deployer/paymaster operator credentials are unavailable in the workspace. The NodeFlare tracing gate is verified, but no bundler or paymaster operation has been deployed.
-- The verified OKX account candidate does not meet the spec's ERC-7579 requirement. No alternative ERC-7579 account factory has been verified on X Layer.
+- The first sponsored v0.7 UserOperation still needs a live sponsor response and inclusion through the private bundler. Particle is the X Layer bootstrap candidate; its published sponsor example uses v0.6, so v0.7 support must be established with the exact OKX account operation.
+- The operator-controlled OKBund endpoint, funded bundler account, and paymaster deposit/stake have not yet been brought online.
 - The supplied Lightsail instance is under-sized for an X Layer mainnet RPC node. NodeFlare removes the need to host a tracing node, but the available host has not been confirmed for production OKBund and relay workloads.
 - The relay SDK and gateway are implemented, but a live endpoint is still required; the SDK does not substitute for a deployed bundler or paymaster.
-- Per the verification gate, contracts and product layers are intentionally not started.
+- The account-standard decision is settled on the deployed OKX modular ERC-4337 v0.7 account; it is not labeled ERC-7579. Recurring gift scope/revocation still requires implementation-specific proof.
+- Per the verification gate, product escrow and app layers are intentionally not started.
 
 ## Verification results
 

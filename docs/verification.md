@@ -27,12 +27,19 @@ The input quantity for each row is derived from the issuer's underlying quote an
 
 Direct TSLA and AAPL USDT0 pools were present but returned no executable quote. NVDA also has a direct 0.3% route, but the USDG route produced the best output. The TSLA result shows severe exhaustion around $5.34 and must be exposed as hold-only unless liquidity improves at runtime.
 
-## Relay decision and remaining blockers
+## Relay and sponsorship decision
 
-Ticker will operate its own claim relay gateway and SDK. It will not depend on
-ZeroDev or a hosted subscription. The gateway forwards claims only to an
-operator-controlled ERC-4337 v0.7 bundler over a private `BUNDLER_RPC_URL` and
-fails closed if that path is unavailable. See [docs/relayer.md](relayer.md).
+Ticker will operate its own claim relay gateway and SDK. The gateway forwards
+claims only to an operator-controlled ERC-4337 v0.7 bundler over a private
+`BUNDLER_RPC_URL` and fails closed if that path is unavailable. See
+[docs/relayer.md](relayer.md). NodeFlare is the execution RPC behind OKBund;
+it is not itself the bundler.
+
+Particle is the selected bootstrap sponsor candidate because its official
+announcement covers X Layer ERC-4337 and gas sponsorship. Its published
+sponsorship API example uses EntryPoint v0.6 fields, so acceptance requires a
+live v0.7 operation with the selected OKX account. Research and the exact
+acceptance probe are in [docs/aa-provider-research.md](aa-provider-research.md).
 
 - No private bundler endpoint, deployed paymaster, escrow address/claim selector, or funded paymaster deposit/stake is configured yet.
 - No real counterfactual smart-account deployment and sponsored UserOperation can be submitted or recorded until those resources exist.
@@ -58,11 +65,15 @@ The probe derives `https://rpc.nodeflare.app/xlayer/v1/<key>` from
 endpoint and keyed-path format are documented by
 [NodeFlare](https://nodeflare.app/chains/xlayer).
 
-### Account-standard mismatch
+### Account-standard decision
 
 The specification asks for an “OKX-native ERC-7579” account. The deployed [OKX Smart Wallet source](https://github.com/okxlabs/okx-smart-wallet-evm) inspected at revision `95aa59bbc22acd4573a9932e959384fe56c7b543` is ERC-4337 v0.7 and has modular owner, validator, hook, allowance, execution, and nonce managers, but it does **not** implement the ERC-7579 account interface (`accountId`, `supportsModule`, `installModule`, `uninstallModule`, or `executeFromExecutor`). Its expiring owners, hooks, and token allowances may support a tightly scoped recurring-gift key, but that path is an OKX-specific integration rather than ERC-7579 interoperability.
 
-This must be resolved explicitly: either use the deployed OKX wallet and describe it accurately, or select a separately deployed ERC-7579 account plus compatible bundler/paymaster. Calling the current OKX wallet ERC-7579 would be incorrect.
+Decision: use the deployed OKX wallet and describe it accurately as an
+OKX-specific modular ERC-4337 v0.7 account. The specification expressly permits
+this resolution. Calling the current OKX wallet ERC-7579 would be incorrect.
+Recurring gifts remain contingent on tests proving that the wallet's expiring
+owner/hook controls can enforce the required scope and revocation behavior.
 
 These are hard gate failures under the engineering specification. Contract implementation must not begin until the self-hosted bundler/paymaster deployment is live and one sponsored mainnet UserOperation succeeds.
 

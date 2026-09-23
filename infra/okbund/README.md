@@ -1,7 +1,9 @@
 # Ticker operator bundler
 
-Ticker uses an operator-controlled ERC-4337 v0.7 bundler. It does not use
-ZeroDev, Pimlico, Particle, or a paid hosted relay.
+Ticker uses an operator-controlled ERC-4337 v0.7 bundler for all UserOperation
+submission. It does not use a hosted bundler or relay. Particle is being checked
+only as a bootstrap paymaster sponsor for the initial account-abstraction gate;
+claim operations remain on Ticker's private relay and OKBund.
 
 The selected implementation is [OKX OKBund](https://github.com/okx/OKBund),
 pinned to commit `77ac3770ba7dd4be949975b142623540e28f60e4` on the `develop`
