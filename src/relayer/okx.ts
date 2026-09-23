@@ -8,6 +8,11 @@ import {
 } from "viem";
 import { XLAYER_CHAIN_ID, XLAYER_ENTRYPOINT_V07 } from "./config.ts";
 import { assertClaimExecutionCalldata, encodeOkxClaimExecution, type ClaimCall } from "./claim-policy.ts";
+import {
+  signClaimPaymasterAuthorization,
+  type ClaimPaymasterAuthorization,
+  type ClaimPaymasterSponsorSigner,
+} from "./claim-paymaster.ts";
 import { JsonRpcClient } from "./rpc.ts";
 import type { Address, Hex, PackedUserOperation, RpcUserOperationV07 } from "./types.ts";
 import {
@@ -120,7 +125,17 @@ export interface OkxClaimPaymaster {
   address: Address;
   verificationGasLimit: bigint;
   postOpGasLimit: bigint;
-  data: Hex;
+  /** Opaque pre-signed data for callers that sign sponsorship separately. */
+  data?: Hex;
+  /** Convey claim authorization signed over the operation fields. */
+  authorization?: {
+    giftId: bigint;
+    maxCost: bigint;
+    validAfter: bigint;
+    validUntil: bigint;
+    sponsorNonce: bigint;
+    signer: ClaimPaymasterSponsorSigner;
+  };
 }
 
 export interface BuildOkxClaimUserOperationOptions {
@@ -157,6 +172,8 @@ export interface BuiltOkxClaimUserOperation {
   userOpHash: Hex;
   userOperation: PackedUserOperation;
   rpcUserOperation: RpcUserOperationV07;
+  claimPaymasterDigest?: Hex;
+  claimPaymasterSignature?: Hex;
 }
 
 function byteLength(value: Hex): number {
@@ -287,7 +304,10 @@ function validateOptions(options: BuildOkxClaimUserOperationOptions): void {
   for (const [name, value] of Object.entries(options.gas)) assertPositive(value, `gas.${name}`);
   assertPositive(options.paymaster.verificationGasLimit, "paymaster.verificationGasLimit");
   assertPositive(options.paymaster.postOpGasLimit, "paymaster.postOpGasLimit");
-  assertHex(options.paymaster.data, "paymaster.data");
+  if (options.paymaster.data !== undefined) assertHex(options.paymaster.data, "paymaster.data");
+  if (!options.paymaster.data && !options.paymaster.authorization) {
+    throw new Error("paymaster.data or paymaster.authorization is required");
+  }
   if (options.validUntil !== undefined) fixedHex(options.validUntil, 6, "validUntil");
 }
 
@@ -349,13 +369,16 @@ export async function buildOkxClaimUserOperation(
   const callData = encodeOkxClaimExecution([claimCall(options.escrow, options.claimData)]);
   assertClaimExecutionCalldata(callData, options.escrow, options.claimFunctionSelector);
 
-  const paymasterAndData = packPaymasterAndData(
+  const placeholderPaymasterData = options.paymaster.authorization
+    ? `0x${"00".repeat(141)}` as Hex
+    : options.paymaster.data!;
+  let paymasterAndData = packPaymasterAndData(
     options.paymaster.address,
     options.paymaster.verificationGasLimit,
     options.paymaster.postOpGasLimit,
-    options.paymaster.data,
+    placeholderPaymasterData,
   );
-  const unsignedOperation: PackedUserOperation = {
+  let unsignedOperation: PackedUserOperation = {
     sender: account,
     nonce,
     initCode,
@@ -366,6 +389,31 @@ export async function buildOkxClaimUserOperation(
     paymasterAndData,
     signature: "0x",
   };
+
+  let claimPaymasterDigest: Hex | undefined;
+  let claimPaymasterSignature: Hex | undefined;
+  if (options.paymaster.authorization) {
+    const authorization: ClaimPaymasterAuthorization = {
+      entryPoint: options.entryPoint,
+      paymaster: options.paymaster.address,
+      giftId: options.paymaster.authorization.giftId,
+      maxCost: options.paymaster.authorization.maxCost,
+      paymasterVerificationGasLimit: options.paymaster.verificationGasLimit,
+      paymasterPostOpGasLimit: options.paymaster.postOpGasLimit,
+      validAfter: options.paymaster.authorization.validAfter,
+      validUntil: options.paymaster.authorization.validUntil,
+      sponsorNonce: options.paymaster.authorization.sponsorNonce,
+    };
+    const sponsorship = await signClaimPaymasterAuthorization(
+      unsignedOperation,
+      authorization,
+      options.paymaster.authorization.signer,
+    );
+    claimPaymasterDigest = sponsorship.digest;
+    claimPaymasterSignature = sponsorship.signature;
+    paymasterAndData = sponsorship.paymasterAndData;
+    unsignedOperation = { ...unsignedOperation, paymasterAndData };
+  }
 
   // Convert through the checked codec so packed fields cannot silently drift
   // from the JSON-RPC v0.7 representation sent to Convey's private gateway.
@@ -420,5 +468,7 @@ export async function buildOkxClaimUserOperation(
     userOpHash,
     userOperation,
     rpcUserOperation,
+    claimPaymasterDigest,
+    claimPaymasterSignature,
   };
 }

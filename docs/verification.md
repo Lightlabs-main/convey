@@ -323,6 +323,12 @@ Live registry reads after each receipt confirmed `certified = true`,
 policy above. The registration records are also in
 [`docs/product-deployment.json`](product-deployment.json).
 
+The off-chain claim authorization codec was compared with the deployed
+paymaster's `accountOperationHash` and `authorizationDigest` view functions.
+Both hashes matched for a packed v0.7 operation; this checks the non-circular
+operation-fields signature before a real claim is attempted. The live claim
+UserOperation itself is still pending.
+
 ## Sources
 
 - [X Layer official RPC configuration](https://web3.okx.com/onchainos/dev-docs/xlayer/developer/setup-rpc/setup-rpc)

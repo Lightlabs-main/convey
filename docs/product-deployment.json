@@ -76,6 +76,11 @@
   ],
   "deployerBalanceAfterWei": "573725693686283",
   "deployerBalanceAfterOkb": "0.000573725693686283",
+  "claimAuthorizationHashCheck": {
+    "status": "matched_live_contract",
+    "operationFieldsHash": "0x64e765d938d491352b1e2fe2ce5c36b96af8eb2f1c882ddd2e17d1f2c1717ec1",
+    "authorizationDigest": "0xa2d7e10df97234bad3685d167893cc8bad525f06f5f73e9aae1b3fc1c178521b"
+  },
   "claimUserOperation": {
     "status": "not_submitted"
   }

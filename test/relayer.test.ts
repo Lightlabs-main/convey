@@ -29,6 +29,13 @@ import {
   okxOwnerKeyHash,
   OKX_ECDSA_VALIDATOR,
 } from "../src/relayer/okx.ts";
+import {
+  claimPaymasterAuthorizationDigest,
+  claimPaymasterOperationFieldsHash,
+  encodeClaimPaymasterAndData,
+  encodeClaimPaymasterData,
+  signClaimPaymasterAuthorization,
+} from "../src/relayer/claim-paymaster.ts";
 import * as browserSdk from "../src/index.ts";
 
 const sender = "0x1111111111111111111111111111111111111111" as Address;
@@ -157,4 +164,36 @@ test("OKX factory init code carries the verified owner validator and factory add
   const code = encodeOkxFactoryInitCode(factoryAddress, [{ keyHash: okxOwnerKeyHash(owner), validator: OKX_ECDSA_VALIDATOR }], 0n);
   assert.equal(code.slice(0, 42).toLowerCase(), factoryAddress.toLowerCase());
   assert.ok(code.length > 42);
+});
+
+test("claim paymaster authorization excludes its self-referential signature", async () => {
+  const sponsor = privateKeyToAccount(`0x${"34".repeat(32)}`);
+  const operation = fromRpcUserOperation({
+    ...expandedOperation,
+    paymasterData: `0x${"00".repeat(141)}`,
+  });
+  const authorization = {
+    entryPoint,
+    paymaster,
+    giftId: 7n,
+    maxCost: 12_000n,
+    paymasterVerificationGasLimit: 100_000n,
+    paymasterPostOpGasLimit: 100_000n,
+    validAfter: 100n,
+    validUntil: 395n,
+    sponsorNonce: 9n,
+  };
+  const digest = claimPaymasterAuthorizationDigest(operation, authorization);
+  const signature = await sponsor.sign({ hash: digest });
+  const encoded = encodeClaimPaymasterData(authorization, signature);
+  assert.equal((encoded.length - 2) / 2, 141);
+  assert.equal(encodeClaimPaymasterAndData(authorization, signature).length, 2 + 193 * 2);
+  assert.equal((await recoverAddress({ hash: digest, signature })).toLowerCase(), sponsor.address.toLowerCase());
+
+  const alternate = { ...operation, paymasterAndData: `0x${"ff".repeat(193)}` as `0x${string}` };
+  assert.equal(claimPaymasterOperationFieldsHash(operation), claimPaymasterOperationFieldsHash(alternate));
+
+  const signed = await signClaimPaymasterAuthorization(operation, authorization, sponsor);
+  assert.equal(signed.digest, digest);
+  assert.equal(signed.signature, signature);
 });
