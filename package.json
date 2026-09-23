@@ -19,7 +19,8 @@
     "bundler:check": "node --env-file=.env script/bundler-check.ts",
     "relayer:check": "node --env-file=.env script/relayer-check.ts",
     "relayer:serve": "node --env-file=.env script/relayer-server.ts",
-    "product:deploy": "node --env-file=.env script/deploy-product.ts"
+    "product:deploy": "node --env-file=.env script/deploy-product.ts",
+    "product:fund": "node --env-file=.env script/fund-product-paymaster.ts"
   },
   "exports": {
     ".": "./src/index.ts",
