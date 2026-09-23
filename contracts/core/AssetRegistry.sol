@@ -114,8 +114,9 @@ contract AssetRegistry {
 
     function transferOwnership(address newOwner) external onlyOwner {
         if (newOwner == address(0)) revert InvalidOwner();
-        emit OwnershipTransferred(owner, newOwner);
+        address previousOwner = owner;
         owner = newOwner;
+        emit OwnershipTransferred(previousOwner, newOwner);
     }
 
     function isGiftable(address token) external view returns (bool) {

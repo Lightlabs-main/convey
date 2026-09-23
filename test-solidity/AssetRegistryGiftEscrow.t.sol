@@ -102,6 +102,8 @@ contract AssetRegistryGiftEscrowTest {
         registry.registerAsset(uncertified);
 
         AssetEntry memory missingUnderlying = _assetEntry(address(OTHER), true, false);
+        missingUnderlying.isWrapped = true;
+        missingUnderlying.underlying = address(0);
         vm.expectRevert(AssetRegistry.InvalidAsset.selector);
         registry.registerAsset(missingUnderlying);
 
