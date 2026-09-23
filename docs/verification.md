@@ -305,6 +305,24 @@ funding. It does not prove that the private claim gateway accepts a product
 UserOperation or that a real token gift has been created and claimed. Those
 are the next live checks.
 
+The three live xStock wrapper entries were then registered and enabled by the
+registry owner. NVDAx and AAPLx point at the verified X Layer Uniswap
+`SwapRouter02` (`0x4f0c28f5926afda16bf2506d5d9e57ea190f9bca`) for cash-out
+routing. TSLAx is certified and giftable but has a zero cash-out route because
+the pinned executable quotes show severe liquidity exhaustion; the receiver
+must be shown a hold-only path until a fresh quote passes policy.
+
+| Asset | Registration transaction | Block | Gas used |
+|---|---|---:|---:|
+| NVDAx | [`0x00b54d5f264d67331b5d0b1a186e6c1af5e65e9fd923d29d51ec5a63df390e42`](https://www.oklink.com/xlayer/tx/0x00b54d5f264d67331b5d0b1a186e6c1af5e65e9fd923d29d51ec5a63df390e42) | 71,428,791 | 197,726 |
+| TSLAx | [`0x57aae224e03f09784af565181d4bde1b4fbd35638b6e6243f3c93a7a976d94dc`](https://www.oklink.com/xlayer/tx/0x57aae224e03f09784af565181d4bde1b4fbd35638b6e6243f3c93a7a976d94dc) | 71,428,792 | 197,498 |
+| AAPLx | [`0xadcf09069dbf7ac5105d91bd4b1ca73e51b44537559d50c2af488ca8ed4ba12c`](https://www.oklink.com/xlayer/tx/0xadcf09069dbf7ac5105d91bd4b1ca73e51b44537559d50c2af488ca8ed4ba12c) | 71,428,795 | 197,714 |
+
+Live registry reads after each receipt confirmed `certified = true`,
+`enabled = true`, the issuer `asset()` underlying, 18 decimals, and the route
+policy above. The registration records are also in
+[`docs/product-deployment.json`](product-deployment.json).
+
 ## Sources
 
 - [X Layer official RPC configuration](https://web3.okx.com/onchainos/dev-docs/xlayer/developer/setup-rpc/setup-rpc)
