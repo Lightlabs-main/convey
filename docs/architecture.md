@@ -1,7 +1,8 @@
 # Ticker architecture
 
-Status: selected architecture; the account-abstraction transaction proof is
-the next gate. No product contracts are implemented.
+Status: selected architecture; OKBund build and read-only NodeFlare runtime
+checks pass. The account-abstraction transaction proof remains the gate. No
+product contracts are implemented.
 
 ## Accounts and claim routing
 

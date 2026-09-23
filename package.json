@@ -9,6 +9,7 @@
     "account:inspect": "node --env-file=.env script/account.ts",
     "operator:addresses": "node --env-file=.env script/operator-addresses.ts",
     "test": "node --test test/*.test.ts",
+    "bundler:check": "node --env-file=.env script/bundler-check.ts",
     "relayer:check": "node --env-file=.env script/relayer-check.ts",
     "relayer:serve": "node --env-file=.env script/relayer-server.ts"
   },

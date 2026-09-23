@@ -30,10 +30,11 @@ fi
 
 bundler_dir="${OKBUND_DIR:-/srv/ticker/okbund}"
 jar_path="${OKBUND_JAR:-${bundler_dir}/aa-starter/target/aa-starter-0.0.1.jar}"
+BUNDLER_BIND_ADDRESS="${BUNDLER_BIND_ADDRESS:-127.0.0.1}"
 if [[ ! -f "${jar_path}" ]]; then
   echo "refusing to start: OKBund jar not found at ${jar_path}" >&2
   exit 1
 fi
 
 cd "${bundler_dir}"
-exec java -jar "${jar_path}"
+exec java -jar "${jar_path}" --server.address="${BUNDLER_BIND_ADDRESS}"

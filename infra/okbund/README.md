@@ -9,7 +9,10 @@ The selected implementation is [OKX OKBund](https://github.com/okx/OKBund),
 pinned to commit `77ac3770ba7dd4be949975b142623540e28f60e4` on the `develop`
 branch. The repository contains the v0.7 EntryPoint simulation path under
 `contracts07`; the v0.7 runtime configuration is selected explicitly below.
-The pinned source was compiled locally with Java 21 and Maven on 2026-09-22.
+The pinned source passed `mvn verify` with Java 21 and Maven on 2026-09-23.
+The upstream checkout contains no test sources, so this confirms compilation
+and packaging rather than behavioral coverage. Java 25 did not compile this
+revision correctly; use Java 21.
 
 OKBund is upstream software, not a Ticker contract. Review the pinned source,
 license, dependency output, and operational logs before exposing it to claims.
@@ -113,8 +116,11 @@ Start it through the checked-in launcher:
 ./infra/okbund/run.sh
 ```
 
-OKBund serves its JSON-RPC endpoint at `/rpc` on port `3000` by default. Put
-that endpoint on a private network or behind private HTTPS. Set Ticker's
+OKBund serves its JSON-RPC endpoint at `/rpc` on port `3000` by default. The
+Ticker launcher binds it to `127.0.0.1` by default. Set
+`BUNDLER_BIND_ADDRESS` to a private interface only when the gateway is on a
+separate host and network rules restrict access. Put that endpoint behind
+private HTTPS before crossing hosts. Set Ticker's
 `BUNDLER_RPC_URL` to that private endpoint, for example
 `http://127.0.0.1:3000/rpc` when the gateway is on the same host. Never expose
 the endpoint directly to browsers or the public internet.
@@ -133,15 +139,21 @@ chat.
 
 ## Ticker-side gate
 
-After the private endpoint is live and the bundler wallet is funded:
+Once the private endpoint is running, check its chain and EntryPoint:
+
+```sh
+pnpm bundler:check
+```
+
+`pnpm bundler:check` verifies chain `196` and the exact v0.7 EntryPoint from a
+live `eth_supportedEntryPoints` response. After the Ticker paymaster and
+escrow are deployed and funded, run the full relay check:
 
 ```sh
 pnpm relayer:check
 ```
 
-This must see chain `196`, the exact v0.7 EntryPoint, and a live OKBund
-`eth_supportedEntryPoints` response. It will still fail until the Ticker
-paymaster and its EntryPoint deposit/stake exist.
+It additionally checks the paymaster's EntryPoint deposit and stake.
 
 The Ticker paymaster, escrow address, and claim selector are deliberately not
 invented here. They are outputs of the post-gate contract deployment and audit
