@@ -7,10 +7,11 @@ import {
     AssetRegistry,
     ValuationSource
 } from "../contracts/core/AssetRegistry.sol";
-import {GiftEscrow} from "../contracts/core/GiftEscrow.sol";
+import {GiftEscrow, IClaimGasPaymaster} from "../contracts/core/GiftEscrow.sol";
 
 interface VmGiftEscrow {
     function expectRevert(bytes4 revertData) external;
+    function deal(address account, uint256 newBalance) external;
     function prank(address sender) external;
     function warp(uint256 timestamp) external;
 }
@@ -54,6 +55,40 @@ contract TestERC20 {
     }
 }
 
+/// @dev Small native-value fixture for the escrow's external reserve boundary.
+/// Claim-paymaster policy and EntryPoint accounting are covered separately.
+contract TestClaimGasPaymaster is IClaimGasPaymaster {
+    address public escrow;
+    mapping(uint256 giftId => uint256 amount) public reserve;
+    mapping(uint256 giftId => bool closed) public closed;
+
+    function setEscrow(address escrow_) external {
+        require(escrow == address(0), "escrow already set");
+        escrow = escrow_;
+    }
+
+    function reserveGift(uint256 giftId, address) external payable override {
+        require(msg.sender == escrow, "caller");
+        require(giftId != 0 && reserve[giftId] == 0 && msg.value != 0, "reserve");
+        reserve[giftId] = msg.value;
+    }
+
+    function consumeClaimAuthorization(uint256 giftId, address) external override {
+        require(msg.sender == escrow, "caller");
+        require(reserve[giftId] != 0 && !closed[giftId], "claim");
+        closed[giftId] = true;
+    }
+
+    function releaseForReclaim(uint256 giftId, address recipient) external override {
+        require(msg.sender == escrow, "caller");
+        uint256 amount = reserve[giftId];
+        require(amount != 0 && !closed[giftId], "release");
+        delete reserve[giftId];
+        (bool sent,) = recipient.call{value: amount}("");
+        require(sent, "refund");
+    }
+}
+
 contract AssetRegistryGiftEscrowTest {
     VmGiftEscrow private constant vm =
         VmGiftEscrow(address(uint160(uint256(keccak256("hevm cheat code")))));
@@ -67,14 +102,18 @@ contract AssetRegistryGiftEscrowTest {
     AssetRegistry private registry;
     GiftEscrow private escrow;
     TestERC20 private asset;
+    TestClaimGasPaymaster private claimPaymaster;
 
     function setUp() public {
         asset = new TestERC20();
         registry = new AssetRegistry(address(this));
-        escrow = new GiftEscrow(registry);
+        claimPaymaster = new TestClaimGasPaymaster();
+        escrow = new GiftEscrow(registry, claimPaymaster);
+        claimPaymaster.setEscrow(address(escrow));
         registry.registerAsset(_assetEntry(address(asset), true, true));
 
         asset.mint(SENDER, 1_000 ether);
+        vm.deal(SENDER, 10 ether);
         vm.prank(SENDER);
         asset.approve(address(escrow), type(uint256).max);
     }
@@ -125,7 +164,7 @@ contract AssetRegistryGiftEscrowTest {
 
     function testConstructorRejectsZeroRegistry() public {
         vm.expectRevert(GiftEscrow.InvalidRegistry.selector);
-        new GiftEscrow(AssetRegistry(address(0)));
+        new GiftEscrow(AssetRegistry(address(0)), claimPaymaster);
     }
 
     function testCreateClaimPaysOnlyTheAccountThatSuppliesTheSecret() public {
@@ -259,7 +298,7 @@ contract AssetRegistryGiftEscrowTest {
     {
         bytes32 codeHash = code.length == 0 ? bytes32(0) : keccak256(code);
         vm.prank(SENDER);
-        giftId = escrow.createGift(
+        giftId = escrow.createGift{value: 1 ether}(
             address(asset), 100 ether, keccak256(secret), codeHash, expiry, bytes32(0)
         );
     }

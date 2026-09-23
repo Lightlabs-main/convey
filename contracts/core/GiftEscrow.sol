@@ -9,6 +9,12 @@ interface IERC20Gift {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
 
+interface IClaimGasPaymaster {
+    function reserveGift(uint256 giftId, address refundRecipient) external payable;
+    function consumeClaimAuthorization(uint256 giftId, address claimer) external;
+    function releaseForReclaim(uint256 giftId, address refundRecipient) external;
+}
+
 /// @notice A single bearer gift backed by a certified registry asset.
 /// @dev The claimer is always msg.sender. There is no arbitrary recipient
 ///      parameter that a relayer or copied link can redirect.
@@ -41,6 +47,8 @@ contract GiftEscrow {
     error InvalidSecret();
     error InvalidCode();
     error InvalidRegistry();
+    error InvalidClaimPaymaster();
+    error InvalidClaimGasReserve();
     error ReentrantCall();
     error TokenTransferFailed();
     error TokenAmountMismatch();
@@ -59,6 +67,7 @@ contract GiftEscrow {
     event GiftReclaimed(uint256 indexed giftId, address indexed sender, uint256 amount);
 
     AssetRegistry public immutable registry;
+    IClaimGasPaymaster public immutable claimPaymaster;
     uint256 public nextGiftId = 1;
     mapping(uint256 giftId => Gift gift) private _gifts;
     uint256 private _lock = 1;
@@ -70,9 +79,11 @@ contract GiftEscrow {
         _lock = 1;
     }
 
-    constructor(AssetRegistry registry_) {
+    constructor(AssetRegistry registry_, IClaimGasPaymaster claimPaymaster_) {
         if (address(registry_) == address(0)) revert InvalidRegistry();
+        if (address(claimPaymaster_) == address(0)) revert InvalidClaimPaymaster();
         registry = registry_;
+        claimPaymaster = claimPaymaster_;
     }
 
     function createGift(
@@ -82,15 +93,18 @@ contract GiftEscrow {
         bytes32 codeHash,
         uint64 expiry,
         bytes32 noteHash
-    ) external nonReentrant returns (uint256 giftId) {
+    ) external payable nonReentrant returns (uint256 giftId) {
         if (!registry.isGiftable(asset)) revert AssetNotGiftable();
         if (amount == 0) revert InvalidAmount();
         if (secretHash == bytes32(0)) revert InvalidSecretHash();
         if (expiry != 0 && expiry <= block.timestamp) revert InvalidExpiry();
+        if (msg.value == 0) revert InvalidClaimGasReserve();
 
         _pullExact(asset, msg.sender, amount);
 
-        giftId = nextGiftId++;
+        giftId = nextGiftId;
+        claimPaymaster.reserveGift{value: msg.value}(giftId, msg.sender);
+        nextGiftId = giftId + 1;
         _gifts[giftId] = Gift({
             sender: msg.sender,
             asset: asset,
@@ -119,6 +133,7 @@ contract GiftEscrow {
 
         gift.state = GiftState.Claimed;
         _pushExact(gift.asset, msg.sender, gift.amount);
+        claimPaymaster.consumeClaimAuthorization(giftId, msg.sender);
         emit GiftClaimed(giftId, msg.sender, gift.amount);
     }
 
@@ -128,6 +143,7 @@ contract GiftEscrow {
 
         gift.state = GiftState.Reclaimed;
         _pushExact(gift.asset, msg.sender, gift.amount);
+        claimPaymaster.releaseForReclaim(giftId, msg.sender);
         emit GiftReclaimed(giftId, msg.sender, gift.amount);
     }
 
@@ -135,6 +151,12 @@ contract GiftEscrow {
         Gift memory gift = _gifts[giftId];
         if (gift.sender == address(0)) revert UnknownGift();
         return gift;
+    }
+
+    function giftState(uint256 giftId) external view returns (GiftState) {
+        Gift memory gift = _gifts[giftId];
+        if (gift.sender == address(0)) revert UnknownGift();
+        return gift.state;
     }
 
     function _openGift(uint256 giftId) private view returns (Gift storage gift) {

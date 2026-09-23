@@ -56,10 +56,11 @@ following before this route is treated as working:
    The bootstrap paymaster uses operator-funded OKB only; it does not charge a
    receiver or gift reserve.
 
-This probe does not prove the later sender-funded claim reserve or its
-pre-charge and `postOp` settlement. Do not begin GiftEscrow or submit real
-claims until the live bootstrap operation succeeds and the separate claim-gas
-design is implemented and verified.
+This probe did not prove the later sender-funded claim reserve or its
+pre-charge and `postOp` settlement. The separate claim-paymaster implementation
+and invariant suite now exist locally and have passed on the supplied VPS; do
+not submit real claims until that paymaster is deployed, funded, privately
+simulated, and exercised end to end on X Layer.
 
 The OKX OnchainOS Agentic Wallet remains a product-level alternative only if
 the receiver identity/account flow is deliberately reconsidered. Its current

@@ -44,10 +44,11 @@ multi-claim drops, and the receiver application remain ahead.
 - **DropEscrow:** pre-funds every slot. A claim releases exactly one share,
   records the account address as used, and rejects a second claim from that
   address. After expiry, the sender can recover only unclaimed shares.
-- **Claim gas reserve/paymaster:** after the account gate passes, define a
-  sender-funded OKB reserve for product claims. The production design must
-  reserve the maximum cost before execution and reconcile actual cost in
-  `postOp`. The bootstrap proof does not establish this accounting. Claim
+- **Claim gas reserve/paymaster:** `ConveyClaimPaymasterV07` now implements the
+  sender-funded OKB reserve for product claims. It reserves the maximum cost
+  before execution, reconciles actual cost in `postOp`, rejects duplicate
+  in-flight claims, and keeps owner withdrawals above all open reserves. It is
+  compiled and unit-tested but not deployed or funded on X Layer. Claim
   execution never swaps a token to OKB.
 
 ## Valuation and cash-out
@@ -59,8 +60,8 @@ The verified TSLA route is too thin at the recorded sizes, so TSLA must be
 hold-only unless a fresh live quote passes policy.
 
 The account path has passed the account-abstraction transaction gate. The
-registry and `GiftEscrow` tests are checked in, but the current workspace does
-not have Foundry installed, so this Solidity milestone still needs a compiler
-run before deployment. The next contract dependency is a separate
-sender-funded claim reserve and paymaster; the bootstrap paymaster cannot be
-reused for claims.
+registry, `GiftEscrow`, and claim-paymaster tests are checked in. The Codespace
+does not have Foundry installed; the supplied Lightsail host compiled and ran
+the suite. The claim paymaster and escrow still need a live deployment,
+funding, private UserOperation simulation, and one real claim before the claim
+path is complete.

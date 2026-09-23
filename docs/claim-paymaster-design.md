@@ -40,18 +40,23 @@ remaining allowance to the sender through the EntryPoint withdrawal path.
 ## UserOperation validation
 
 The paymaster data binds the gift ID, sponsor nonce, validity window, and an
-operator signature. The signature also binds the EntryPoint v0.7 address,
-chain 196, paymaster address, UserOperation hash, and the EntryPoint-provided
-`maxCost`.
+operator signature. The signature binds the EntryPoint v0.7 address, chain
+196, paymaster address, the operation fields that exclude the signature, and
+the EntryPoint-provided `maxCost`. The full ERC-4337 UserOperation hash cannot
+be signed here because it contains the signature being created. The
+operation-fields hash still binds the sender, nonce, init code, claim calldata,
+account gas fields, and fee fields.
 
 Validation checks all of the following before returning:
 
 1. The caller is the canonical X Layer EntryPoint.
-2. The operation's call data is exactly one OKX `executeUserOp` call.
-3. The call has zero value, targets this escrow, and invokes `claim`.
-4. The encoded gift ID has an open reserve with enough remaining allowance.
-5. The sponsor signature and validity window are valid.
-6. The gift has no operation already in flight.
+2. The encoded paymaster address matches this contract, and its gas limits are
+   covered by the sponsor signature.
+3. The operation's call data is exactly one OKX `executeUserOp` call.
+4. The call has zero value, targets this escrow, and invokes `claim`.
+5. The encoded gift ID has an open reserve with enough remaining allowance.
+6. The sponsor signature and validity window are valid.
+7. The gift has no operation already in flight.
 
 Validation marks that gift's reserve in flight and subtracts the full
 `maxCost`. This is the pre-execution charge required by the drain-safety rule;
