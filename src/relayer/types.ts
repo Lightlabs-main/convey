@@ -330,7 +330,7 @@ export function assertRpcUserOperationV07(value: unknown): asserts value is RpcU
 
 export function assertSponsoredUserOperation(value: unknown): asserts value is RpcUserOperationV07 {
   assertRpcUserOperationV07(value);
-  if (!value.paymaster) throw new Error("claim UserOperation must use the Ticker paymaster");
+  if (!value.paymaster) throw new Error("claim UserOperation must use the Convey paymaster");
   if (value.signature === "0x") throw new Error("claim UserOperation must contain a signature");
 }
 

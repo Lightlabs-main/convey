@@ -2,6 +2,8 @@
 .env.*
 !.env.example
 node_modules/
+out/
+cache_forge/
 *.pem
 *.key
 id_*

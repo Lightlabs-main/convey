@@ -3,12 +3,13 @@ import { privateKeyToAccount } from "viem/accounts";
 const slots = [
   "BUNDLER_PRIVATE_KEY",
   "DEPLOYER_PRIVATE_KEY",
-  "PAYMASTER_SIGNER_PRIVATE_KEY",
+  "BOOTSTRAP_PAYMASTER_SIGNER_PRIVATE_KEY",
   "SMART_ACCOUNT_OWNER_PRIVATE_KEY",
 ] as const;
 
 const privateKeyPattern = /^0x[0-9a-fA-F]{64}$/;
 let bundlerConfigured = false;
+const configuredAddresses = new Map<string, string>();
 
 for (const name of slots) {
   const value = process.env[name]?.trim();
@@ -18,6 +19,12 @@ for (const name of slots) {
   }
   if (!privateKeyPattern.test(value)) throw new Error(`${name} must be a 32-byte hex private key`);
   const account = privateKeyToAccount(value as `0x${string}`);
+  const normalizedAddress = account.address.toLowerCase();
+  const existingRole = configuredAddresses.get(normalizedAddress);
+  if (existingRole) {
+    throw new Error(`${name} and ${existingRole} resolve to the same address; configure distinct role keys`);
+  }
+  configuredAddresses.set(normalizedAddress, name);
   console.log(`${name}: ${account.address}`);
   if (name === "BUNDLER_PRIVATE_KEY") bundlerConfigured = true;
 }

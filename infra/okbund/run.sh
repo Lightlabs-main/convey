@@ -28,7 +28,7 @@ if [[ "${BUNDLER_ENV}" != "prod" ]]; then
   exit 1
 fi
 
-bundler_dir="${OKBUND_DIR:-/srv/ticker/okbund}"
+bundler_dir="${OKBUND_DIR:-/srv/convey/okbund}"
 jar_path="${OKBUND_JAR:-${bundler_dir}/aa-starter/target/aa-starter-0.0.1.jar}"
 BUNDLER_BIND_ADDRESS="${BUNDLER_BIND_ADDRESS:-127.0.0.1}"
 if [[ ! -f "${jar_path}" ]]; then

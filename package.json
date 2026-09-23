@@ -1,5 +1,5 @@
 {
-  "name": "ticker",
+  "name": "convey",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,6 +9,13 @@
     "account:inspect": "node --env-file=.env script/account.ts",
     "operator:addresses": "node --env-file=.env script/operator-addresses.ts",
     "test": "node --test test/*.test.ts",
+    "contracts:build": "forge build",
+    "contracts:test": "forge test",
+    "bootstrap:deploy": "node --env-file=.env script/deploy-bootstrap-paymaster.ts",
+    "bootstrap:fund": "node --env-file=.env script/fund-bootstrap-paymaster.ts",
+    "bootstrap:build": "node --env-file=.env script/build-bootstrap-operation.ts",
+    "bootstrap:submit": "node --env-file=.env script/submit-bootstrap-operation.ts",
+    "bootstrap:wait": "node --env-file=.env script/wait-bootstrap-operation.ts",
     "bundler:check": "node --env-file=.env script/bundler-check.ts",
     "relayer:check": "node --env-file=.env script/relayer-check.ts",
     "relayer:serve": "node --env-file=.env script/relayer-server.ts"

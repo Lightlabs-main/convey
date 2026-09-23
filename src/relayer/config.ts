@@ -96,31 +96,31 @@ export function loadSelfHostedRelayerConfig(env: Record<string, string | undefin
     bundlerRpcUrl,
     entryPoint,
     paymaster: addressFromEnv(env, "PAYMASTER_ADDRESS"),
-    claimEscrow: addressFromEnv(env, "TICKER_CLAIM_ESCROW_ADDRESS"),
-    claimFunctionSelector: selectorFromEnv(env, "TICKER_CLAIM_FUNCTION_SELECTOR"),
+    claimEscrow: addressFromEnv(env, "CONVEY_CLAIM_ESCROW_ADDRESS"),
+    claimFunctionSelector: selectorFromEnv(env, "CONVEY_CLAIM_FUNCTION_SELECTOR"),
     minimumPaymasterDepositWei: positiveBigIntFromEnv(env, "PAYMASTER_MIN_DEPOSIT_WEI"),
     minimumPaymasterStakeWei: positiveBigIntFromEnv(env, "PAYMASTER_MIN_STAKE_WEI"),
     requestTimeoutMs: integerFromEnv(env, "RELAYER_RPC_TIMEOUT_MS", 15_000, 500, 120_000),
     maxBodyBytes: integerFromEnv(env, "RELAYER_MAX_BODY_BYTES", 131_072, 16_384, 1_048_576),
     bindAddress: env.RELAYER_SERVER_BIND?.trim() || "127.0.0.1",
     port: integerFromEnv(env, "RELAYER_SERVER_PORT", 8787, 1, 65_535),
-    authToken: env.TICKER_RELAYER_AUTH_TOKEN?.trim() || undefined,
+    authToken: env.CONVEY_RELAYER_AUTH_TOKEN?.trim() || undefined,
   };
 }
 
 export function loadRelayClientConfig(env: Record<string, string | undefined> = process.env): RelayClientConfig {
-  const relayUrl = required(env, "TICKER_RELAYER_URL");
+  const relayUrl = required(env, "CONVEY_RELAYER_URL");
   const entryPoint = addressFromEnv(env, "ENTRYPOINT_ADDRESS");
   if (entryPoint !== XLAYER_ENTRYPOINT_V07) throw new Error(`ENTRYPOINT_ADDRESS must be ERC-4337 v0.7 at ${XLAYER_ENTRYPOINT_V07}`);
   const parsedUrl = new URL(relayUrl);
   if (parsedUrl.protocol !== "https:" && !(parsedUrl.protocol === "http:" && ["localhost", "127.0.0.1", "::1"].includes(parsedUrl.hostname))) {
-    throw new Error("TICKER_RELAYER_URL must use HTTPS; plain HTTP is only allowed on localhost");
+    throw new Error("CONVEY_RELAYER_URL must use HTTPS; plain HTTP is only allowed on localhost");
   }
   return {
     relayUrl: parsedUrl.toString().replace(/\/$/, ""),
     entryPoint,
     chainId: chainIdFromEnv(env),
     requestTimeoutMs: integerFromEnv(env, "RELAYER_RPC_TIMEOUT_MS", 15_000, 500, 120_000),
-    authToken: env.TICKER_RELAYER_AUTH_TOKEN?.trim() || undefined,
+    authToken: env.CONVEY_RELAYER_AUTH_TOKEN?.trim() || undefined,
   };
 }

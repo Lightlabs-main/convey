@@ -1,0 +1,29 @@
+[Unit]
+Description=Convey OKBund ERC-4337 v0.7
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=convey-okbund
+Group=convey-okbund
+WorkingDirectory=/srv/convey/okbund
+EnvironmentFile=/etc/convey/okbund.env
+Environment=BUNDLER_BIND_ADDRESS=127.0.0.1
+Environment="JAVA_TOOL_OPTIONS=-Xms64m -Xmx256m -XX:MaxMetaspaceSize=160m -XX:MaxDirectMemorySize=64m"
+ExecStart=/srv/convey/okbund/convey-run.sh
+Restart=on-failure
+RestartSec=15
+TimeoutStartSec=90
+TimeoutStopSec=30
+LimitNOFILE=65536
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+MemoryHigh=450M
+MemoryMax=650M
+MemorySwapMax=1G
+
+[Install]
+WantedBy=multi-user.target

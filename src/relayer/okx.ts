@@ -2,6 +2,7 @@ import {
   decodeAbiParameters,
   encodeAbiParameters,
   encodeFunctionData,
+  hashMessage,
   keccak256,
   recoverAddress,
 } from "viem";
@@ -235,7 +236,7 @@ export function encodeOkxFactoryInitCode(factory: Address, initialOwners: readon
   return joinInitCode(factory, factoryData);
 }
 
-function ownerMessageHash(userOpHash: Hex, validUntil: bigint, implementation: Address): Hex {
+function ownerMessagePrehash(userOpHash: Hex, validUntil: bigint, implementation: Address): Hex {
   bytes32(userOpHash, "userOpHash");
   assertAddress(implementation, "implementation");
   fixedHex(validUntil, 6, "validUntil");
@@ -246,6 +247,15 @@ function ownerMessageHash(userOpHash: Hex, validUntil: bigint, implementation: A
     [{ type: "bytes32" }, { type: "uint48" }, { type: "address" }],
     [userOpHash, validUntil, implementation],
   )) as Hex;
+}
+
+/** Returns the EIP-191 digest that the OKX owner validator recovers. */
+export function okxOwnerSigningDigest(
+  userOpHash: Hex,
+  validUntil: bigint,
+  implementation: Address,
+): Hex {
+  return hashMessage({ raw: ownerMessagePrehash(userOpHash, validUntil, implementation) }) as Hex;
 }
 
 function claimCall(escrow: Address, claimData: Hex): ClaimCall {
@@ -358,7 +368,7 @@ export async function buildOkxClaimUserOperation(
   };
 
   // Convert through the checked codec so packed fields cannot silently drift
-  // from the JSON-RPC v0.7 representation sent to Ticker's private gateway.
+  // from the JSON-RPC v0.7 representation sent to Convey's private gateway.
   toRpcUserOperation(unsignedOperation);
   const hashCallData = encodeFunctionData({
     abi: ENTRYPOINT_ABI,
@@ -380,9 +390,14 @@ export async function buildOkxClaimUserOperation(
     await ethCall(rpc, options.entryPoint, hashCallData),
   )[0] as Hex;
   const validUntil = options.validUntil ?? 0n;
-  const ownerHash = ownerMessageHash(userOpHash, validUntil, options.implementation);
-  const rawSignature = await options.signer.signMessage({ message: { raw: ownerHash } });
-  const recoveredOwner = await recoverAddress({ hash: ownerHash, signature: rawSignature });
+  const ownerPrehash = ownerMessagePrehash(userOpHash, validUntil, options.implementation);
+  const ownerSigningDigest = okxOwnerSigningDigest(
+    userOpHash,
+    validUntil,
+    options.implementation,
+  );
+  const rawSignature = await options.signer.signMessage({ message: { raw: ownerPrehash } });
+  const recoveredOwner = await recoverAddress({ hash: ownerSigningDigest, signature: rawSignature });
   if (recoveredOwner.toLowerCase() !== options.signer.address.toLowerCase()) {
     throw new Error("owner signer returned a signature for a different address");
   }
@@ -401,7 +416,7 @@ export async function buildOkxClaimUserOperation(
     owner: options.signer.address,
     keyHash,
     validUntil,
-    ownerMessageHash: ownerHash,
+    ownerMessageHash: ownerSigningDigest,
     userOpHash,
     userOperation,
     rpcUserOperation,
