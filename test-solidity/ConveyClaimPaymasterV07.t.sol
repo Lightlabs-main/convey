@@ -121,6 +121,24 @@ contract ConveyClaimPaymasterV07Test {
         require(paymaster.openReserveTotal() == RESERVE, "reserve total changed");
     }
 
+    function testEscrowBindingIsOneTimeAndOwnerOnly() public {
+        ConveyClaimPaymasterV07 unbound = new ConveyClaimPaymasterV07(
+            vm.addr(OWNER_PRIVATE_KEY), signer, address(0), RESERVE, MAX_COST
+        );
+
+        vm.expectRevert(ConveyClaimPaymasterV07.OnlyOwner.selector);
+        vm.prank(REFUND_RECIPIENT);
+        unbound.setEscrow(address(escrow));
+
+        vm.prank(vm.addr(OWNER_PRIVATE_KEY));
+        unbound.setEscrow(address(escrow));
+        require(unbound.escrow() == address(escrow), "escrow was not bound");
+
+        vm.expectRevert(ConveyClaimPaymasterV07.EscrowAlreadySet.selector);
+        vm.prank(vm.addr(OWNER_PRIVATE_KEY));
+        unbound.setEscrow(address(0xDEAD));
+    }
+
     function testValidationPrechargesMaxCostAndBlocksDuplicateGiftAuthorization() public {
         uint256 sponsorNonce = 7;
         PackedUserOperationV07 memory userOp = _operation(1, sponsorNonce);

@@ -99,6 +99,7 @@ contract ConveyClaimPaymasterV07 {
     error InsufficientSurplus();
     error InvalidRefund();
     error ReentrantCall();
+    error EscrowAlreadySet();
 
     event ReserveCreated(uint256 indexed giftId, address indexed refundRecipient, uint256 amount);
     event ClaimAuthorizationReserved(
@@ -114,11 +115,12 @@ contract ConveyClaimPaymasterV07 {
     );
     event RefundDeferred(address indexed recipient, uint256 amount);
     event RefundWithdrawn(address indexed recipient, uint256 amount);
+    event EscrowSet(address indexed escrow);
 
     IEntryPointClaimV07 public immutable entryPoint;
     address public immutable owner;
     address public immutable verifyingSigner;
-    address public immutable escrow;
+    address public escrow;
     uint256 public immutable minimumReserve;
     uint256 public immutable maxClaimCost;
 
@@ -162,7 +164,7 @@ contract ConveyClaimPaymasterV07 {
         if (block.chainid != XLAYER_CHAIN_ID) revert WrongChain();
         if (ENTRY_POINT_V07.code.length == 0) revert InvalidEntryPoint();
         if (owner_ == address(0) || owner_ == verifyingSigner_) revert InvalidOwner();
-        if (verifyingSigner_ == address(0) || escrow_ == address(0)) revert InvalidPolicy();
+        if (verifyingSigner_ == address(0)) revert InvalidPolicy();
         if (minimumReserve_ == 0 || maxClaimCost_ == 0 || minimumReserve_ < maxClaimCost_) {
             revert InvalidPolicy();
         }
@@ -173,6 +175,15 @@ contract ConveyClaimPaymasterV07 {
         escrow = escrow_;
         minimumReserve = minimumReserve_;
         maxClaimCost = maxClaimCost_;
+    }
+
+    /// @notice Binds the escrow once after both contracts have been deployed.
+    /// @dev The owner cannot rotate this address after it is bound.
+    function setEscrow(address escrow_) external onlyOwner {
+        if (escrow != address(0)) revert EscrowAlreadySet();
+        if (escrow_ == address(0)) revert InvalidPolicy();
+        escrow = escrow_;
+        emit EscrowSet(escrow_);
     }
 
     function getReserve(uint256 giftId) external view returns (GiftReserve memory) {
