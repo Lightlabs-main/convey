@@ -1,18 +1,18 @@
-# Ticker self-hosted relay path
+# Convey self-hosted relay path
 
-Ticker does not depend on ZeroDev, Pimlico, Particle, or a subscription relay.
+Convey does not depend on ZeroDev, Pimlico, Particle, or a subscription relay.
 The application owns the claim gateway and the SDK that submits claims through
 it. The gateway forwards only to an operator-controlled ERC-4337 v0.7 bundler
 over `BUNDLER_RPC_URL`.
 
 ## Boundary
 
-The browser/server application imports `TickerRelayerClient` from the browser-safe
+The browser/server application imports `ConveyRelayerClient` from the browser-safe
 SDK entry point. The Node gateway is a separate server-only entry point:
 
 ```ts
-import { TickerRelayerClient } from "ticker/relayer";
-import { createRelayerServer } from "ticker/relayer/server";
+import { ConveyRelayerClient } from "convey/relayer";
+import { createRelayerServer } from "convey/relayer/server";
 ```
 
 The low-level `SelfHostedBundlerClient` is server-only and is not exported from
@@ -22,7 +22,7 @@ private bundler.
 The browser path then:
 
 1. Build and sign a v0.7 UserOperation for the receiver smart account.
-2. Send it to Ticker's `/v1/claims` endpoint over HTTPS.
+2. Send it to Convey's `/v1/claims` endpoint over HTTPS.
 3. Poll `/v1/claims/:userOperationHash` for the bundler receipt.
 
 `src/relayer/okx.ts` contains the account-specific builder. It reads the live
@@ -42,7 +42,7 @@ for `eth_sendRawTransaction` and has no public-bundler fallback.
 ## Claim security
 
 The gateway is claim-only. It accepts a sponsored, signed v0.7 UserOperation,
-requires the configured Ticker paymaster, and requires a single zero-value
+requires the configured Convey paymaster, and requires a single zero-value
 `executeUserOp` call to the configured escrow and claim selector. It never
 stores or logs the request body. Idempotency stores only a short-lived request
 key and UserOperation hash; the claim secret remains inside the signed calldata
@@ -68,24 +68,27 @@ does not expose the claim to a public mempool.
 - the configured paymaster has the required EntryPoint deposit; and
 - the paymaster is staked with the required stake floor.
 
-The check does not claim the paymaster's pre-charge-max and `postOp` refund
-semantics. Those require a deployed Ticker paymaster and a real sponsored
-UserOperation; they remain part of the verification gate.
+The check does not claim the claim paymaster's pre-charge-max and `postOp`
+refund semantics. The bootstrap paymaster and one sponsored UserOperation are
+live, but claim reserve accounting remains separate product work.
 
 ## Running it
 
-Copy the self-hosted relay variables from `.env.example`, deploy or run the
-chosen v0.7 bundler privately, deploy the Ticker paymaster, and fund its
-EntryPoint deposit and stake. Then run:
+For a fresh environment, copy the self-hosted relay variables from
+`.env.example`, deploy or run the chosen v0.7 bundler privately, deploy the
+Convey paymaster, and fund its EntryPoint deposit and stake. Then run:
 
 ```sh
 pnpm relayer:check
 pnpm relayer:serve
 ```
 
-The current workspace intentionally fails the check because no real bundler
-endpoint, paymaster address, or funded paymaster has been supplied. No fake
-endpoint is committed to make the check appear green.
+The current workspace still requires a private `BUNDLER_RPC_URL` at runtime;
+it is intentionally not saved in the local `.env`. The deployed bootstrap
+paymaster has already passed its one-operation gate. Its address is recorded in
+`HANDOFF.md`; the claim relay's `PAYMASTER_ADDRESS` is a separate
+configuration. No fake endpoint is committed to make a health check appear
+green.
 
 ## Operator bundler gate
 
