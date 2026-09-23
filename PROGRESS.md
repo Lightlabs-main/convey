@@ -28,6 +28,7 @@
 - Changed the launcher to bind OKBund to `127.0.0.1` by default; a separate private interface must be selected explicitly.
 - Added `pnpm bundler:check`, a read-only probe for a configured private endpoint's live chain ID and supported EntryPoint. It reports only a redacted endpoint origin and can be run before a paymaster or escrow is configured.
 - Assessed OKX OnchainOS Agentic Wallet as another X Layer gas-sponsored route. Its documented email/social-login and TEE wallet path does not expose the external v0.7 paymaster operation needed for this account flow; evidence is recorded in [`docs/aa-provider-research.md`](docs/aa-provider-research.md).
+- Added server-only Particle project ID and server-key slots to `.env.example` for the bootstrap sponsor acceptance probe; the client key is intentionally not used server-side.
 
 ## Next
 
