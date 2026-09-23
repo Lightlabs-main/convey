@@ -1,8 +1,9 @@
 # Convey architecture
 
 Status: selected architecture; OKBund build and NodeFlare runtime checks pass.
-The account-abstraction transaction proof passed on X Layer mainnet. Product
-contracts are not implemented yet and are the next build stage.
+The account-abstraction transaction proof passed on X Layer mainnet. The
+registry and single-gift escrow are now implemented locally; claim sponsorship,
+multi-claim drops, and the receiver application remain ahead.
 
 ## Accounts and claim routing
 
@@ -58,5 +59,8 @@ The verified TSLA route is too thin at the recorded sizes, so TSLA must be
 hold-only unless a fresh live quote passes policy.
 
 The account path has passed the account-abstraction transaction gate. The
-product contracts remain unimplemented; write their invariants and tests before
-the escrow implementation begins.
+registry and `GiftEscrow` tests are checked in, but the current workspace does
+not have Foundry installed, so this Solidity milestone still needs a compiler
+run before deployment. The next contract dependency is a separate
+sender-funded claim reserve and paymaster; the bootstrap paymaster cannot be
+reused for claims.
