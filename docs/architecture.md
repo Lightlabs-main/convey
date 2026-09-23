@@ -2,8 +2,9 @@
 
 Status: selected architecture; OKBund build and NodeFlare runtime checks pass.
 The account-abstraction transaction proof passed on X Layer mainnet. The
-registry and single-gift escrow are now implemented locally; claim sponsorship,
-multi-claim drops, and the receiver application remain ahead.
+registry, single-gift escrow, and claim paymaster are deployed and funded on
+X Layer; the private claim integration, multi-claim drops, and receiver
+application remain ahead.
 
 ## Accounts and claim routing
 
@@ -48,7 +49,7 @@ multi-claim drops, and the receiver application remain ahead.
   sender-funded OKB reserve for product claims. It reserves the maximum cost
   before execution, reconciles actual cost in `postOp`, rejects duplicate
   in-flight claims, and keeps owner withdrawals above all open reserves. It is
-  compiled and unit-tested but not deployed or funded on X Layer. Claim
+  deployed and staked on X Layer with a funded EntryPoint deposit. Claim
   execution never swaps a token to OKB.
 
 ## Valuation and cash-out
@@ -62,6 +63,5 @@ hold-only unless a fresh live quote passes policy.
 The account path has passed the account-abstraction transaction gate. The
 registry, `GiftEscrow`, and claim-paymaster tests are checked in. The Codespace
 does not have Foundry installed; the supplied Lightsail host compiled and ran
-the suite. The claim paymaster and escrow still need a live deployment,
-funding, private UserOperation simulation, and one real claim before the claim
-path is complete.
+the suite. The deployed claim paymaster and escrow still need a private
+UserOperation simulation and one real claim before the claim path is complete.

@@ -1,0 +1,44 @@
+{
+  "chainId": 196,
+  "observedAt": "2026-09-23",
+  "deployer": "0x5fA8199ad34373A063c96D24a1BF5b4a105D3399",
+  "contracts": {
+    "assetRegistry": {
+      "address": "0x156d160e004B7fb2021CFCA8fC6cF069c3b8b029",
+      "deploymentTransaction": "0x4e4f6741aac80360768bc41b02c932b785436798383a67b70f51cee20cccb4fb",
+      "blockNumber": 71427675,
+      "gasUsed": "1057614",
+      "effectiveGasPriceWei": "20000001"
+    },
+    "claimPaymaster": {
+      "address": "0xe6913061bc2021B0dfdeECB867F7a9F5F77236B6",
+      "deploymentTransaction": "0x48b181e0c76adf143d821e003f6032b38fdd022369d5ca01a755a4e2ff575a77",
+      "blockNumber": 71427678,
+      "gasUsed": "2526691",
+      "effectiveGasPriceWei": "20000001",
+      "minimumReserveWei": "20000000000000",
+      "maxClaimCostWei": "20000000000000",
+      "entryPointDepositWei": "200000000000000",
+      "stakeWei": "1",
+      "unstakeDelaySec": 86400,
+      "escrowBindingTransaction": "0x2d2184575eacb6787e446a5eff915e4ae708289f26ef3dd036fc220cae0e24e3",
+      "escrowBindingBlockNumber": 71427819,
+      "depositTransaction": "0x87d2c599accfa72116cdae203b226f09795778f71ef8d57ba4e43128d9231663",
+      "depositBlockNumber": 71427845,
+      "stakeTransaction": "0x3979673a21872848f9fe570bf7b4a3880f662d61a75d8a978cead8a1a824bd4a",
+      "stakeBlockNumber": 71427847
+    },
+    "giftEscrow": {
+      "address": "0xaa396c814d38cf9e707c6bbc0635f1ee7d584062",
+      "deploymentTransaction": "0x82e383ebff2bd146e07c38efdaafba475c328b00575a046794c56f9b333c24f3",
+      "blockNumber": 71427817,
+      "gasUsed": "1068118",
+      "effectiveGasPriceWei": "20000001"
+    }
+  },
+  "deployerBalanceAfterWei": "573725693686283",
+  "deployerBalanceAfterOkb": "0.000573725693686283",
+  "claimUserOperation": {
+    "status": "not_submitted"
+  }
+}

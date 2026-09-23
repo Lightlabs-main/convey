@@ -1,7 +1,9 @@
 # Product claim paymaster design
 
-Status: design only. The bootstrap paymaster that passed the X Layer account
-gate is not reused for claims. No claim reserve has been funded or deployed.
+Status: deployed and funded on X Layer mainnet. The bootstrap paymaster that
+passed the X Layer account gate is not reused for claims. A live private claim
+has not yet been submitted; the deployment and funding evidence is recorded in
+[`docs/verification.md`](verification.md).
 
 ## Boundary
 
@@ -112,6 +114,6 @@ UserOperation whose target or call envelope is outside this scope.
 - owner withdrawal cannot consume any open gift reserve;
 - EntryPoint deposit and stake remain above the configured operational floor.
 
-No mainnet claim or product escrow deployment is valid until these tests pass,
-the reserve is funded, and one private, gasless claim is recorded with its
-UserOperation and transaction hashes.
+The local tests, deployment, and paymaster funding are complete. Product
+release remains gated on one private, gasless claim recorded with its
+UserOperation and transaction hashes, plus the live reserve settlement checks.

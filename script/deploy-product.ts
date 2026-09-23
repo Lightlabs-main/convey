@@ -76,7 +76,13 @@ if (minimumReserve < maxClaimCost) {
 const existingRegistry = optionalAddress("CONVEY_ASSET_REGISTRY_ADDRESS");
 const existingPaymaster = optionalAddress("CONVEY_CLAIM_PAYMASTER_ADDRESS");
 const existingEscrow = optionalAddress("CONVEY_CLAIM_ESCROW_ADDRESS");
-if (existingRegistry || existingPaymaster || existingEscrow) {
+if ((existingRegistry && !existingPaymaster) || (!existingRegistry && existingPaymaster)) {
+  throw new Error("CONVEY_ASSET_REGISTRY_ADDRESS and CONVEY_CLAIM_PAYMASTER_ADDRESS must be configured together when resuming");
+}
+if (existingEscrow && (!existingRegistry || !existingPaymaster)) {
+  throw new Error("CONVEY_CLAIM_ESCROW_ADDRESS requires the registry and claim paymaster addresses");
+}
+if (existingRegistry && existingPaymaster && existingEscrow) {
   throw new Error("product contract addresses are already configured; refusing duplicate deployment");
 }
 
@@ -89,6 +95,14 @@ const chain = {
 const publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
 const walletClient = createWalletClient({ account: deployer, chain, transport: http(rpcUrl) });
 
+// Some X Layer RPC nodes lag on the account nonce immediately after a receipt.
+// Reserve explicit sequential nonces once so a resumed deployment cannot submit
+// a stale nonce or accidentally create a duplicate contract.
+let nextNonce = await publicClient.getTransactionCount({
+  address: deployer.address,
+  blockTag: "pending",
+});
+
 const [chainId, entryPointCode, registryArtifact, paymasterArtifact, escrowArtifact] = await Promise.all([
   publicClient.getChainId(),
   publicClient.getCode({ address: ENTRY_POINT_V07 }),
@@ -99,80 +113,122 @@ const [chainId, entryPointCode, registryArtifact, paymasterArtifact, escrowArtif
 if (chainId !== CHAIN_ID) throw new Error(`execution RPC returned chain ${chainId}, expected ${CHAIN_ID}`);
 if (!entryPointCode || entryPointCode === "0x") throw new Error("canonical v0.7 EntryPoint has no bytecode");
 
-const registryTx = await walletClient.deployContract({
-  abi: registryArtifact.abi,
-  bytecode: registryArtifact.bytecode.object,
-  args: [deployer.address],
-});
-const registryReceipt = await publicClient.waitForTransactionReceipt({ hash: registryTx });
-if (registryReceipt.status !== "success" || !registryReceipt.contractAddress) {
-  throw new Error(`AssetRegistry deployment failed in transaction ${registryTx}`);
+let registryAddress = existingRegistry;
+let registryTx: Hex | undefined;
+let registryBlockNumber: bigint | undefined;
+if (!registryAddress) {
+  registryTx = await walletClient.deployContract({
+    abi: registryArtifact.abi,
+    bytecode: registryArtifact.bytecode.object,
+    args: [deployer.address],
+    nonce: nextNonce++,
+  });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: registryTx });
+  if (receipt.status !== "success" || !receipt.contractAddress) {
+    throw new Error(`AssetRegistry deployment failed in transaction ${registryTx}`);
+  }
+  registryAddress = receipt.contractAddress;
+  registryBlockNumber = receipt.blockNumber;
+} else if ((await publicClient.getCode({ address: registryAddress })) === "0x") {
+  throw new Error(`configured AssetRegistry address has no bytecode: ${registryAddress}`);
 }
 
-const paymasterTx = await walletClient.deployContract({
+let paymasterAddress = existingPaymaster;
+let paymasterTx: Hex | undefined;
+let paymasterBlockNumber: bigint | undefined;
+if (!paymasterAddress) {
+  paymasterTx = await walletClient.deployContract({
+    abi: paymasterArtifact.abi,
+    bytecode: paymasterArtifact.bytecode.object,
+    args: [deployer.address, claimSigner.address, "0x0000000000000000000000000000000000000000", minimumReserve, maxClaimCost],
+    nonce: nextNonce++,
+  });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: paymasterTx });
+  if (receipt.status !== "success" || !receipt.contractAddress) {
+    throw new Error(`ConveyClaimPaymasterV07 deployment failed in transaction ${paymasterTx}`);
+  }
+  paymasterAddress = receipt.contractAddress;
+  paymasterBlockNumber = receipt.blockNumber;
+} else if ((await publicClient.getCode({ address: paymasterAddress })) === "0x") {
+  throw new Error(`configured claim paymaster address has no bytecode: ${paymasterAddress}`);
+}
+
+let escrowAddress = existingEscrow;
+let escrowTx: Hex | undefined;
+let escrowBlockNumber: bigint | undefined;
+if (!escrowAddress) {
+  escrowTx = await walletClient.deployContract({
+    abi: escrowArtifact.abi,
+    bytecode: escrowArtifact.bytecode.object,
+    args: [registryAddress, paymasterAddress],
+    nonce: nextNonce++,
+  });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: escrowTx });
+  if (receipt.status !== "success" || !receipt.contractAddress) {
+    throw new Error(`GiftEscrow deployment failed in transaction ${escrowTx}`);
+  }
+  escrowAddress = receipt.contractAddress;
+  escrowBlockNumber = receipt.blockNumber;
+} else if ((await publicClient.getCode({ address: escrowAddress })) === "0x") {
+  throw new Error(`configured GiftEscrow address has no bytecode: ${escrowAddress}`);
+}
+
+const setEscrowAbi = [{
+  type: "function",
+  name: "setEscrow",
+  stateMutability: "nonpayable",
+  inputs: [{ name: "escrow", type: "address" }],
+  outputs: [],
+}] as const;
+const currentBoundEscrow = await publicClient.readContract({
+  address: paymasterAddress,
   abi: paymasterArtifact.abi,
-  bytecode: paymasterArtifact.bytecode.object,
-  args: [deployer.address, claimSigner.address, "0x0000000000000000000000000000000000000000", minimumReserve, maxClaimCost],
+  functionName: "escrow",
 });
-const paymasterReceipt = await publicClient.waitForTransactionReceipt({ hash: paymasterTx });
-if (paymasterReceipt.status !== "success" || !paymasterReceipt.contractAddress) {
-  throw new Error(`ConveyClaimPaymasterV07 deployment failed in transaction ${paymasterTx}`);
+let setEscrowTx: Hex | undefined;
+if (currentBoundEscrow === "0x0000000000000000000000000000000000000000") {
+  setEscrowTx = await walletClient.writeContract({
+    address: paymasterAddress,
+    abi: setEscrowAbi,
+    functionName: "setEscrow",
+    args: [escrowAddress],
+    nonce: nextNonce++,
+  });
+  const setEscrowReceipt = await publicClient.waitForTransactionReceipt({ hash: setEscrowTx });
+  if (setEscrowReceipt.status !== "success") throw new Error(`paymaster escrow binding failed in transaction ${setEscrowTx}`);
+} else if (currentBoundEscrow.toLowerCase() !== escrowAddress.toLowerCase()) {
+  throw new Error(`claim paymaster is already bound to ${currentBoundEscrow}`);
 }
-
-const escrowTx = await walletClient.deployContract({
-  abi: escrowArtifact.abi,
-  bytecode: escrowArtifact.bytecode.object,
-  args: [registryReceipt.contractAddress, paymasterReceipt.contractAddress],
-});
-const escrowReceipt = await publicClient.waitForTransactionReceipt({ hash: escrowTx });
-if (escrowReceipt.status !== "success" || !escrowReceipt.contractAddress) {
-  throw new Error(`GiftEscrow deployment failed in transaction ${escrowTx}`);
-}
-
-const setEscrowTx = await walletClient.writeContract({
-  address: paymasterReceipt.contractAddress,
-  abi: [{
-    type: "function",
-    name: "setEscrow",
-    stateMutability: "nonpayable",
-    inputs: [{ name: "escrow", type: "address" }],
-    outputs: [],
-  }] as const,
-  functionName: "setEscrow",
-  args: [escrowReceipt.contractAddress],
-});
-const setEscrowReceipt = await publicClient.waitForTransactionReceipt({ hash: setEscrowTx });
-if (setEscrowReceipt.status !== "success") throw new Error(`paymaster escrow binding failed in transaction ${setEscrowTx}`);
 
 const [registryOwner, paymasterOwner, paymasterSigner, boundEscrow, escrowRegistry, escrowPaymaster] =
   await Promise.all([
     publicClient.readContract({
-      address: registryReceipt.contractAddress,
+      address: registryAddress,
       abi: registryArtifact.abi,
       functionName: "owner",
     }),
     publicClient.readContract({
-      address: paymasterReceipt.contractAddress,
+      address: paymasterAddress,
       abi: paymasterArtifact.abi,
       functionName: "owner",
     }),
     publicClient.readContract({
-      address: paymasterReceipt.contractAddress,
+      address: paymasterAddress,
       abi: paymasterArtifact.abi,
       functionName: "verifyingSigner",
     }),
     publicClient.readContract({
-      address: paymasterReceipt.contractAddress,
+      address: paymasterAddress,
       abi: paymasterArtifact.abi,
       functionName: "escrow",
     }),
     publicClient.readContract({
-      address: escrowReceipt.contractAddress,
+      address: escrowAddress,
       abi: escrowArtifact.abi,
       functionName: "registry",
     }),
     publicClient.readContract({
-      address: escrowReceipt.contractAddress,
+      address: escrowAddress,
       abi: escrowArtifact.abi,
       functionName: "claimPaymaster",
     }),
@@ -180,30 +236,30 @@ const [registryOwner, paymasterOwner, paymasterSigner, boundEscrow, escrowRegist
 if ((registryOwner as string).toLowerCase() !== deployer.address.toLowerCase()) throw new Error("registry owner mismatch");
 if ((paymasterOwner as string).toLowerCase() !== deployer.address.toLowerCase()) throw new Error("paymaster owner mismatch");
 if ((paymasterSigner as string).toLowerCase() !== claimSigner.address.toLowerCase()) throw new Error("paymaster signer mismatch");
-if ((boundEscrow as string).toLowerCase() !== escrowReceipt.contractAddress.toLowerCase()) throw new Error("paymaster escrow mismatch");
-if ((escrowRegistry as string).toLowerCase() !== registryReceipt.contractAddress.toLowerCase()) throw new Error("escrow registry mismatch");
-if ((escrowPaymaster as string).toLowerCase() !== paymasterReceipt.contractAddress.toLowerCase()) throw new Error("escrow paymaster mismatch");
+if ((boundEscrow as string).toLowerCase() !== escrowAddress.toLowerCase()) throw new Error("paymaster escrow mismatch");
+if ((escrowRegistry as string).toLowerCase() !== registryAddress.toLowerCase()) throw new Error("escrow registry mismatch");
+if ((escrowPaymaster as string).toLowerCase() !== paymasterAddress.toLowerCase()) throw new Error("escrow paymaster mismatch");
 
 console.log(JSON.stringify({
   chainId,
   deployer: deployer.address,
   claimPaymasterSigner: claimSigner.address,
   registry: {
-    address: registryReceipt.contractAddress,
+    address: registryAddress,
     transactionHash: registryTx,
-    blockNumber: registryReceipt.blockNumber.toString(),
+    blockNumber: registryBlockNumber?.toString(),
   },
   claimPaymaster: {
-    address: paymasterReceipt.contractAddress,
+    address: paymasterAddress,
     transactionHash: paymasterTx,
-    blockNumber: paymasterReceipt.blockNumber.toString(),
+    blockNumber: paymasterBlockNumber?.toString(),
     escrowBindingTransactionHash: setEscrowTx,
     minimumReserveWei: minimumReserve.toString(),
     maxClaimCostWei: maxClaimCost.toString(),
   },
   escrow: {
-    address: escrowReceipt.contractAddress,
+    address: escrowAddress,
     transactionHash: escrowTx,
-    blockNumber: escrowReceipt.blockNumber.toString(),
+    blockNumber: escrowBlockNumber?.toString(),
   },
 }, null, 2));
