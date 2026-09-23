@@ -358,7 +358,7 @@ export async function buildOkxClaimUserOperation(
   };
 
   // Convert through the checked codec so packed fields cannot silently drift
-  // from the JSON-RPC v0.7 representation sent to Convey's private gateway.
+  // from the JSON-RPC v0.7 representation sent to Ticker's private gateway.
   toRpcUserOperation(unsignedOperation);
   const hashCallData = encodeFunctionData({
     abi: ENTRYPOINT_ABI,

@@ -64,27 +64,27 @@ test("claim validation requires a sponsored, signed operation", () => {
 });
 
 test("private relay URLs fail closed outside HTTPS or localhost", () => {
-  assert.equal(assertPrivateRpcUrl("https://relay.convey.example", "relay").protocol, "https:");
+  assert.equal(assertPrivateRpcUrl("https://relay.ticker.example", "relay").protocol, "https:");
   assert.equal(assertPrivateRpcUrl("http://127.0.0.1:8787", "relay").hostname, "127.0.0.1");
-  assert.throws(() => assertPrivateRpcUrl("http://relay.convey.example", "relay"), /HTTPS/);
+  assert.throws(() => assertPrivateRpcUrl("http://relay.ticker.example", "relay"), /HTTPS/);
 });
 
 test("browser SDK does not export the private bundler client", () => {
   assert.equal("SelfHostedBundlerClient" in browserSdk, false);
-  assert.equal("ConveyRelayerClient" in browserSdk, true);
+  assert.equal("TickerRelayerClient" in browserSdk, true);
 });
 
 test("self-hosted configuration cannot accidentally use the public execution RPC as bundler", () => {
   const env = {
     XLAYER_CHAIN_ID: "196",
     XLAYER_RPC_URL: "https://rpc.xlayer.tech",
-    BUNDLER_RPC_URL: "https://bundler.convey.example/rpc",
+    BUNDLER_RPC_URL: "https://bundler.ticker.example/rpc",
     ENTRYPOINT_ADDRESS: entryPoint,
     PAYMASTER_ADDRESS: paymaster,
     PAYMASTER_MIN_DEPOSIT_WEI: "1",
     PAYMASTER_MIN_STAKE_WEI: "1",
-    CONVEY_CLAIM_ESCROW_ADDRESS: escrow,
-    CONVEY_CLAIM_FUNCTION_SELECTOR: "0x12345678",
+    TICKER_CLAIM_ESCROW_ADDRESS: escrow,
+    TICKER_CLAIM_FUNCTION_SELECTOR: "0x12345678",
   };
   const config = loadSelfHostedRelayerConfig(env);
   assert.equal(config.chainId, 196);

@@ -1,11 +1,11 @@
 {
-  "name": "convey",
+  "name": "ticker",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "verify": "node script/verify.ts",
-    "verify:bundler-rpc": "node script/check-bundler-rpc.ts",
+    "verify:bundler-rpc": "node --env-file-if-exists=.env script/check-bundler-rpc.ts",
     "account:inspect": "node --env-file=.env script/account.ts",
     "operator:addresses": "node --env-file=.env script/operator-addresses.ts",
     "test": "node --test test/*.test.ts",

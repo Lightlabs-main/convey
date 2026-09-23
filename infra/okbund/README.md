@@ -1,6 +1,6 @@
-# Convey operator bundler
+# Ticker operator bundler
 
-Convey uses an operator-controlled ERC-4337 v0.7 bundler. It does not use
+Ticker uses an operator-controlled ERC-4337 v0.7 bundler. It does not use
 ZeroDev, Pimlico, Particle, or a paid hosted relay.
 
 The selected implementation is [OKX OKBund](https://github.com/okx/OKBund),
@@ -9,9 +9,9 @@ branch. The repository contains the v0.7 EntryPoint simulation path under
 `contracts07`; the v0.7 runtime configuration is selected explicitly below.
 The pinned source was compiled locally with Java 21 and Maven on 2026-09-22.
 
-OKBund is upstream software, not a Convey contract. Review the pinned source,
+OKBund is upstream software, not a Ticker contract. Review the pinned source,
 license, dependency output, and operational logs before exposing it to claims.
-The wrapper in this directory is part of Convey's security boundary: upstream
+The wrapper in this directory is part of Ticker's security boundary: upstream
 configuration has a development private-key fallback, so the wrapper refuses to
 start unless the operator supplies a real secret through the environment.
 
@@ -24,12 +24,14 @@ RAM and 100 GB SSD; 16 GB RAM and 500 GB SSD is the safer production shape for
 an archive-style node. Docker 20.10+ and Docker Compose 2.0+ are required by
 the toolkit.
 
-For this OKBund integration, use the toolkit's `op-geth` preset. The current
-one-click script defaults its `RPC_TYPE` variable to `reth`; change that local
-default to `geth` before running it, or use an already generated
-`mainnet-geth` setup. The toolkit's mainnet op-geth config enables the `debug`
-HTTP module and the geth snapshot is supported by the same setup. We still
-accept the node only after `pnpm verify:bundler-rpc` passes against it.
+The selected RPC path is the keyed NodeFlare X Layer endpoint. A private full
+node remains an option if the hosted RPC path is unavailable or its limits stop
+meeting bundler needs. If operating a full node for this OKBund integration,
+use the toolkit's `op-geth` preset. The current one-click script defaults its
+`RPC_TYPE` variable to `reth`; change that local default to `geth` before
+running it, or use an already generated `mainnet-geth` setup. The toolkit's
+mainnet op-geth config enables the `debug` HTTP module and the geth snapshot is
+supported by the same setup.
 
 On the node host, the setup looks like this:
 
@@ -45,39 +47,40 @@ chmod +x one-click-setup.geth.sh
 Choose X Layer `mainnet` and snapshot sync when prompted. The generated node
 normally exposes HTTP RPC on port `8545`; confirm the actual port with
 `make status`. Keep that port behind the host firewall/private network. The
-bundler and Convey gateway should preferably run on the same host and use
+bundler and Ticker gateway should preferably run on the same host and use
 `http://127.0.0.1:8545`, so the debug API is never internet-facing.
 
-## Hard prerequisite: a private tracing RPC
+## Verified prerequisite: a tracing RPC
 
 The public X Layer RPC at `https://rpc.xlayer.tech` reports chain `196`, but it
-rejects `debug_traceCall` and `trace_call` with `-32601 rpc method is not
-whitelisted`. Safe bundling needs `debug_traceCall` with a JavaScript tracer and
-state overrides for ERC-7562 validation. Do not run with safe mode disabled and
-do not send UserOperations through a public execution RPC as a workaround.
+does not expose the tracing methods required by safe bundling. The keyed
+NodeFlare X Layer endpoint passed the `debug_traceCall` JavaScript-tracer and
+state-override checks at chain `196` on 2026-09-23. `trace_call` is not
+available there, but it is not one of the capabilities this OKBund setup
+requires. Do not run with safe mode disabled.
 
-Provide a private X Layer full-node/debug endpoint and verify it before adding a
-bundler key:
+The capability probe loads `.env` when present. It builds the keyed NodeFlare URL
+from `NODEFLARE_API_KEY`; set `BUNDLER_EXECUTION_RPC_URL` to override it. The
+probe writes a redacted result to
+`docs/verification.rpc-capabilities.json`:
 
 ```sh
-BUNDLER_EXECUTION_RPC_URL=https://private-xlayer-rpc.example \
-  pnpm verify:bundler-rpc
+pnpm verify:bundler-rpc
 ```
 
-The command writes the raw probe to
-`docs/verification.rpc-capabilities.json`. The endpoint must be chain `196` and
-both required `debug_traceCall` probes must pass. Keep this endpoint private;
-the browser and the public claim URL must never receive it.
+The endpoint must be chain `196` and both required `debug_traceCall` probes must
+pass. Keep its key and URL private; the browser and public claim URL must never
+receive them.
 
 ## Build the pinned OKBund source
 
-On the operator host, use Java 21 and keep the checkout outside the Convey
+On the operator host, use Java 21 and keep the checkout outside the Ticker
 application deployment if possible:
 
 ```sh
-git clone https://github.com/okx/OKBund.git /srv/convey/okbund
-git -C /srv/convey/okbund checkout 77ac3770ba7dd4be949975b142623540e28f60e4
-cd /srv/convey/okbund
+git clone https://github.com/okx/OKBund.git /srv/ticker/okbund
+git -C /srv/ticker/okbund checkout 77ac3770ba7dd4be949975b142623540e28f60e4
+cd /srv/ticker/okbund
 JAVA_HOME=/path/to/java-21 mvn -s settings.xml clean verify
 ```
 
@@ -99,7 +102,7 @@ SAFE_MODE=true
 ETH_RPC_URL=https://private-xlayer-rpc.example
 ENTRYPOINT=0x0000000071727de22e5e9d8baf0edac6f37da032
 BUNDLER_PRIVATE_KEY=<dedicated-bundler-hot-key>
-OKBUND_DIR=/srv/convey/okbund
+OKBUND_DIR=/srv/ticker/okbund
 ```
 
 Start it through the checked-in launcher:
@@ -109,7 +112,7 @@ Start it through the checked-in launcher:
 ```
 
 OKBund serves its JSON-RPC endpoint at `/rpc` on port `3000` by default. Put
-that endpoint on a private network or behind private HTTPS. Set Convey's
+that endpoint on a private network or behind private HTTPS. Set Ticker's
 `BUNDLER_RPC_URL` to that private endpoint, for example
 `http://127.0.0.1:3000/rpc` when the gateway is on the same host. Never expose
 the endpoint directly to browsers or the public internet.
@@ -126,7 +129,7 @@ gas estimate to choose the amount. Record the funding transaction hash in the
 operator log. Do not fund an address derived from a key pasted into source or
 chat.
 
-## Convey-side gate
+## Ticker-side gate
 
 After the private endpoint is live and the bundler wallet is funded:
 
@@ -135,10 +138,10 @@ pnpm relayer:check
 ```
 
 This must see chain `196`, the exact v0.7 EntryPoint, and a live OKBund
-`eth_supportedEntryPoints` response. It will still fail until the Convey
+`eth_supportedEntryPoints` response. It will still fail until the Ticker
 paymaster and its EntryPoint deposit/stake exist.
 
-The Convey paymaster, escrow address, and claim selector are deliberately not
+The Ticker paymaster, escrow address, and claim selector are deliberately not
 invented here. They are outputs of the post-gate contract deployment and audit
 steps. The paymaster will need a separate signer secret and funded EntryPoint
 deposit/stake; the escrow selector will be generated from the deployed ABI and
@@ -146,15 +149,17 @@ then allowlisted by the private claim gateway.
 
 ## Required operator inputs, in order
 
-1. Private X Layer RPC URL with `debug_traceCall` JavaScript-tracer and state-
-   override support.
+1. Keyed NodeFlare X Layer RPC configuration through `NODEFLARE_API_KEY`, or
+   another `BUNDLER_EXECUTION_RPC_URL` that passes both `debug_traceCall`
+   JavaScript-tracer and state-override probes.
 2. A dedicated `BUNDLER_PRIVATE_KEY`, installed through a secret manager, plus
    OKB funding for its derived bundle-sender address.
 3. After the contract code is written and reviewed: a deployer key and OKB for
    deployment, a separate paymaster signer key, and the paymaster's EntryPoint
    deposit and stake.
-4. A private HTTPS route from the Convey gateway to OKBund and TLS/auth
+4. A private HTTPS route from the Ticker gateway to OKBund and TLS/auth
    configuration for the gateway.
 
-Until item 1 passes, no key or funding is requested. A funded bundler without a
-trace-capable execution RPC would only produce an unsafe validation path.
+The tracing RPC gate now passes. Bundler key funding is still gated on bringing
+up the operator-controlled bundler endpoint and checking its configured
+chain, EntryPoint, paymaster deposit, and stake with `pnpm relayer:check`.

@@ -1,4 +1,5 @@
 import { writeFile } from "node:fs/promises";
+import { redactRpcUrl } from "./rpc-config.ts";
 
 const RPC_URL = process.env.XLAYER_RPC_URL ?? "https://rpc.xlayer.tech";
 const PINNED_BLOCK = process.env.XLAYER_PINNED_BLOCK ?? "0x43f886a";
@@ -172,7 +173,7 @@ async function main() {
       issuerApi: "live, timestamped at observedAt; the API does not expose historical snapshots",
       warning: "Reruns at the same pinned block can produce different input amounts because issuer quotes and multipliers are live",
     },
-    rpcUrl: RPC_URL,
+    rpcUrl: redactRpcUrl(RPC_URL),
     chainId: Number(chainId),
     pinnedBlock: { number: Number(BigInt(block.number)), hex: block.number, hash: block.hash, timestamp: new Date(Number(BigInt(block.timestamp)) * 1000).toISOString(), baseFeeWei: BigInt(block.baseFeePerGas).toString(), gasPriceWei: gasPrice.toString() },
     entryPoints,

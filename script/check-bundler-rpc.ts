@@ -1,10 +1,11 @@
 import { writeFile } from "node:fs/promises";
+import { redactRpcUrl, resolveBundlerExecutionRpcUrl } from "./rpc-config.ts";
 
-const rpcUrl = process.env.BUNDLER_EXECUTION_RPC_URL?.trim() || process.env.XLAYER_RPC_URL?.trim() || "https://rpc.xlayer.tech";
+const rpcUrl = resolveBundlerExecutionRpcUrl();
 const outputPath = process.env.BUNDLER_RPC_CAPABILITIES_OUTPUT ?? "docs/verification.rpc-capabilities.json";
 const entryPoint = "0x0000000071727de22e5e9d8baf0edac6f37da032";
 const zeroAddress = "0x0000000000000000000000000000000000000000";
-const javascriptTracer = "{result: function(){ return {}; }}";
+const javascriptTracer = "{result: function(){ return {}; }, fault: function(){}}";
 
 let id = 0;
 
@@ -21,8 +22,8 @@ async function rpc(method: string, params: unknown[]): Promise<unknown> {
     body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method, params }),
   });
   if (!response.ok) throw new Error(`RPC HTTP ${response.status}`);
-  const body = await response.json() as { error?: unknown; result?: unknown };
-  if (body.error) throw new Error(`${method}: ${JSON.stringify(body.error)}`);
+  const body = await response.json() as { error?: { code?: number }; result?: unknown };
+  if (body.error) throw new Error(`${method}: JSON-RPC error code ${body.error.code ?? "unknown"}`);
   return body.result;
 }
 
@@ -53,7 +54,7 @@ async function main(): Promise<void> {
 
   const result = {
     observedAt: new Date().toISOString(),
-    rpcUrl,
+    rpcUrl: redactRpcUrl(rpcUrl),
     chainId,
     entryPoint,
     requiredForSafeBundling: ["debug_traceCall with a JavaScript tracer", "debug_traceCall state overrides"],

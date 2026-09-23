@@ -106,7 +106,7 @@ function statusFromReceipt(userOperationHash: Hex, receipt: any): ClaimRelayStat
 }
 
 function pathOf(request: IncomingMessage): string {
-  return new URL(request.url ?? "/", "http://convey-relayer").pathname;
+  return new URL(request.url ?? "/", "http://ticker-relayer").pathname;
 }
 
 export function createRelayerServer(config: SelfHostedRelayerConfig): Server {

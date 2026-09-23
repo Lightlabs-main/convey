@@ -33,7 +33,7 @@ export class RelayHttpError extends Error {
   readonly status: number;
 
   constructor(status: number, message: string) {
-    super(`Convey relay HTTP ${status}: ${message}`);
+  super(`Ticker relay HTTP ${status}: ${message}`);
     this.name = "RelayHttpError";
     this.status = status;
   }
@@ -60,7 +60,7 @@ function safeMessage(body: unknown): string {
   return typeof message === "string" && message.length <= 200 ? message : "relay request failed";
 }
 
-export class ConveyRelayerClient {
+export class TickerRelayerClient {
   readonly relayUrl: string;
   readonly entryPoint: Address;
   readonly chainId?: number;
@@ -71,7 +71,7 @@ export class ConveyRelayerClient {
   constructor(options: RelayClientOptions) {
     const relayUrl = assertPrivateRpcUrl(options.relayUrl, "relay URL");
     assertAddress(options.entryPoint, "entryPoint");
-    if (options.chainId !== undefined && options.chainId !== 196) throw new Error("Convey relay client only supports X Layer chain 196");
+    if (options.chainId !== undefined && options.chainId !== 196) throw new Error("Ticker relay client only supports X Layer chain 196");
     this.relayUrl = relayUrl.toString().replace(/\/$/, "");
     this.entryPoint = options.entryPoint.toLowerCase() as Address;
     this.chainId = options.chainId;
@@ -95,7 +95,7 @@ export class ConveyRelayerClient {
   }
 
   /**
-   * Sends only through Convey's private claim gateway. There is intentionally
+   * Sends only through Ticker's private claim gateway. There is intentionally
    * no public-bundler or raw-transaction fallback in this class.
    */
   async submitClaim(
@@ -162,8 +162,8 @@ export class ConveyRelayerClient {
       }
     } catch (error) {
       if (error instanceof RelayHttpError) throw error;
-      if (error instanceof Error && error.name === "AbortError") throw new Error("Convey relay request timed out");
-      throw new Error(`Convey relay transport failed: ${error instanceof Error ? error.message : "unknown network error"}`);
+      if (error instanceof Error && error.name === "AbortError") throw new Error("Ticker relay request timed out");
+      throw new Error(`Ticker relay transport failed: ${error instanceof Error ? error.message : "unknown network error"}`);
     } finally {
       clearTimeout(timeout);
     }

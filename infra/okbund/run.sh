@@ -28,7 +28,7 @@ if [[ "${BUNDLER_ENV}" != "prod" ]]; then
   exit 1
 fi
 
-bundler_dir="${OKBUND_DIR:-/srv/convey/okbund}"
+bundler_dir="${OKBUND_DIR:-/srv/ticker/okbund}"
 jar_path="${OKBUND_JAR:-${bundler_dir}/aa-starter/target/aa-starter-0.0.1.jar}"
 if [[ ! -f "${jar_path}" ]]; then
   echo "refusing to start: OKBund jar not found at ${jar_path}" >&2
