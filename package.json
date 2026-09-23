@@ -18,7 +18,8 @@
     "bootstrap:wait": "node --env-file=.env script/wait-bootstrap-operation.ts",
     "bundler:check": "node --env-file=.env script/bundler-check.ts",
     "relayer:check": "node --env-file=.env script/relayer-check.ts",
-    "relayer:serve": "node --env-file=.env script/relayer-server.ts"
+    "relayer:serve": "node --env-file=.env script/relayer-server.ts",
+    "product:deploy": "node --env-file=.env script/deploy-product.ts"
   },
   "exports": {
     ".": "./src/index.ts",
