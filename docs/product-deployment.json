@@ -82,6 +82,17 @@
     "authorizationDigest": "0xa2d7e10df97234bad3685d167893cc8bad525f06f5f73e9aae1b3fc1c178521b"
   },
   "claimUserOperation": {
-    "status": "not_submitted"
+    "status": "included_success",
+    "giftId": 2,
+    "userOperationHash": "0x1ed2abda8798479bd1dd74c81073007ca791a292b1c727af198da552e3a94403",
+    "transactionHash": "0x05179c720349f882b589562ad56df7c57385094233dabc6559947e5c8ea6945b",
+    "blockNumber": 71489278,
+    "success": true,
+    "actualGasUsed": "389113",
+    "actualGasCostWei": "7821171300000",
+    "asset": "0xa8ddb5cd96b5222afe198316e9a57caa642850d5",
+    "amount": "30965586663211895",
+    "finalState": "Claimed",
+    "receiver": "0x63B2A84d47cb07fb18EE72Ec386893506Fd963db"
   }
 }

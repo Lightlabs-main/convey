@@ -35,7 +35,7 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
 - Coinbase VerifyingPaymaster was reviewed as a v0.7 reference but not selected unchanged: its generic policy does not enforce Convey's exact operation target, its listed deployments are Base deployments, and the Cantina review's exact source revision has not been matched. See [`docs/aa-provider-research.md`](docs/aa-provider-research.md).
 - The operator provisioned distinct `SMART_ACCOUNT_OWNER_PRIVATE_KEY`, `DEPLOYER_PRIVATE_KEY`, and `BOOTSTRAP_PAYMASTER_SIGNER_PRIVATE_KEY` values in the ignored local `.env`. Their public role addresses are distinct; no private values were printed. The receiver account `0x63B2A84d47cb07fb18EE72Ec386893506Fd963db` is now deployed on chain 196 by the sponsored operation. The deployed paymaster is `0x6647cef848fc54b0c821f91a88d83227f65e36b9`; its deployment and sponsorship transactions are recorded in `docs/verification.md`. Sponsor nonce `0`, paymaster verification gas limit `200000`, and max-cost cap `0.01 OKB` are configured. The receiver's EntryPoint nonce is now `1`; the paymaster authorization is consumed. `BUNDLER_PRIVATE_KEY` remains only in the VPS root-owned service environment, and its public wallet retains `0.000781673979083699 OKB`.
 - The ignored local `.env` was found with mode `0666` and changed to owner-only mode `0600` without reading or printing its contents. Keep operator keys in this file or a secret manager, never in chat.
-- Pinned OKBund is installed and running as a persistent loopback-only service on the Lightsail VPS. Its dedicated bundler wallet is funded. The product contracts and registry entries are deployed on X Layer; public addresses, receipts, and policy are in `docs/product-deployment.json`. Gift ID `1` reached on-chain claim inclusion but failed internally and was reclaimed; no Gift ID `2` exists.
+- Pinned OKBund is installed and running as a persistent loopback-only service on the Lightsail VPS. Its dedicated bundler wallet is funded. The product contracts and registry entries are deployed on X Layer; public addresses, receipts, and policy are in `docs/product-deployment.json`. Gift ID `1` reached on-chain claim inclusion but failed internally and was reclaimed. Gift ID `2` was subsequently created and claimed successfully through Convey's private route; the evidence is recorded below.
 
 ### Live sponsored bootstrap evidence
 
@@ -157,10 +157,10 @@ balance read was performed without printing any private key or credential.
 ### Pause checkpoint — resume after operator limit reset
 
 The workspace is intentionally paused until the operator's usage limit resets.
-The latest pushed commit is `51805ca` (`add event-aware claim preflight`), the
-working tree is clean, and the TypeScript suite passes 3/3. The private
-execution RPC accepted the new event tracer and a read-only ERC-20 trace
-captured event data.
+The latest repository commit is `ba61d5d` (`focus README on working claim
+experience`), and the TypeScript suite passes 3/3. On 2026-09-24, the private
+execution RPC accepted the event tracer again and a fresh read-only state
+check confirmed the claim checkpoint below.
 
 On resumption, do not reuse Gift ID `1` or its exposed secret. Gift ID `1` is
 `Reclaimed`, all NVDAx is back with the sender, and all gift reserve buckets
@@ -173,4 +173,45 @@ reserve using the event-aware preflight, and then submit its claim with sponsor
 nonce `1`. Obtain explicit operator authorization immediately before the Gift
 ID `2` creation and claim actions.
 
+The 2026-09-24 continuation checks found the receiver deployed, OKBund active
+on chain 196, `nextGiftId = 2`, Gift ID `1` `Reclaimed`, zero open/in-flight/
+pending reserve totals, and the claim paymaster still staked with
+`198988059949403` wei deposited at EntryPoint. No transaction or UserOperation
+was submitted during these checks. The refreshed tracer report is in
+`docs/verification.rpc-capabilities.json`.
+
 Current git command form: `git --git-dir=convey-repo/.git --work-tree=.`.
+
+### Completed Gift ID 2 claim — 2026-09-24
+
+The operator authorized continuation. Gift ID `2` was created with a fresh
+owner-only secret and the full `0.030965586663211895` NVDAx amount. The exact
+approval transaction was
+`0x1a11677c158c7486bf635d283b3dc917ce0c0bb3ade5baf24dac2ced04366468`
+at block `71480514`; `createGift` was
+`0x67d63026316a0d929edd434436806f6dca4fe8d07aa0c1fd839f330274e01f68`
+at block `71480785`.
+
+The sponsored claim UserOperation
+`0x1ed2abda8798479bd1dd74c81073007ca791a292b1c727af198da552e3a94403`
+was included by transaction
+`0x05179c720349f882b589562ad56df7c57385094233dabc6559947e5c8ea6945b`
+at block `71489278`. Both the transaction and `UserOperationEvent` succeeded.
+Actual UserOperation gas used was `389113`, and actual cost was
+`7821171300000` wei.
+
+Final live state: Gift ID `2` is `Claimed`; the receiver holds exactly
+`0.030965586663211895` NVDAx; escrow and sender NVDAx balances are zero;
+`openReserveTotal`, `inFlightTotal`, and `pendingRefundTotal` are zero; and the
+receiver EntryPoint nonce is `3`. No claim secret or private key is stored in
+the repository.
+
+OKBund remains in safe mode. Its NodeFlare JavaScript tracer was corrected to
+mark out-of-gas only from an actual tracer fault (while retaining the EIP-150
+SSTORE gas-floor check), avoiding a false positive from dynamic CALL cost
+reporting. The pinned upstream revision remains
+`77ac3770ba7dd4be949975b142623540e28f60e4`; the two-file runtime source diff
+passed `mvn verify`. OKBund defaults to manual bundling in this deployment, so
+the accepted operation was included with its supported
+`debug_bundler_sendBundleNow` RPC. The Convey gateway used for this proof was
+ephemeral and localhost-only; no public gateway service has been deployed.

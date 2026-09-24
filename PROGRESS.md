@@ -58,12 +58,33 @@
 - Reclaimed the exposed Gift ID `1` immediately in transaction `0x6add4c95079719111eab9b3ebd9c7b6a6cc91df9b8e58384c4d57f12fc4fff9f` at block `71463978`. The sender recovered all NVDAx, escrow and reserve accounting are zero, and the exposed secret is retired permanently.
 - Disabled OKBund's incompatible node-side fallback estimator while retaining EntryPoint/EVM simulation, and made the gateway normalize OKBund's numeric receipt block number.
 - Added event-aware EntryPoint preflight that traces the exact v0.7 `handleOps` call, requires the matching `UserOperationEvent.success`, and decodes `UserOperationRevertReason`. Its synthetic tests pass, and a live read-only trace captured an ERC-20 event through the configured private execution RPC.
+- On 2026-09-24, resumed with read-only live checks: the deployed receiver and
+  NodeFlare tracing capabilities passed; the supplied VPS OKBund service was
+  active on chain 196; and the product state confirmed Gift ID 1 reclaimed,
+  `nextGiftId = 2`, zero open/in-flight/pending reserves, and the full NVDAx
+  balance returned to the sender. No new transaction or UserOperation was
+  submitted.
+- Created Gift ID `2` with a fresh secret and the recovered
+  `0.030965586663211895` NVDAx. Approval transaction
+  `0x1a11677c158c7486bf635d283b3dc917ce0c0bb3ade5baf24dac2ced04366468`
+  succeeded at block `71480514`; creation transaction
+  `0x67d63026316a0d929edd434436806f6dca4fe8d07aa0c1fd839f330274e01f68`
+  succeeded at block `71480785`.
+- Completed the live sender-funded product claim. UserOperation
+  `0x1ed2abda8798479bd1dd74c81073007ca791a292b1c727af198da552e3a94403`
+  succeeded in transaction
+  `0x05179c720349f882b589562ad56df7c57385094233dabc6559947e5c8ea6945b`
+  at block `71489278`. Gift ID `2` is `Claimed`; the receiver holds the full
+  NVDAx amount, escrow and sender hold zero, all reserve buckets are zero, and
+  the receiver EntryPoint nonce is `3`.
+- Corrected OKBund's safe-mode JavaScript tracer false-positive OOG heuristic,
+  retained actual OOG fault and SSTORE-floor detection, rebuilt with
+  `mvn verify`, and exercised the operation through the localhost Convey
+  gateway plus OKBund's supported manual bundle RPC.
 
 ## Next
 
 - Choose and prove receiver key enrollment, passkey PRF storage, device migration, recovery, and owner revocation for the OKX ECDSA owner path.
-- Run the event-aware claim preflight on a fresh operation and prove a higher account-level call-gas allocation within the reserve before creating Gift ID `2`.
-- Generate a new Gift ID `2` secret only after authorization; never reuse the exposed Gift ID `1` secret.
 - Decide where to run the Convey gateway. The Lightsail check found no gateway there, and its current free memory/swap usage makes co-location a capacity decision before adding the workload.
 - Verify private claim routing, reserve accounting on success and failure, duplicate settlement, EntryPoint deposit/stake behavior, and recurring-gift owner permissions on the deployed integration.
 - Sample gas price over time and record variance.
@@ -75,8 +96,8 @@
 - A later workspace `pnpm bundler:check` through the temporary SSH tunnel passed for chain 196 and EntryPoint v0.7. An earlier generic connection failure is superseded; gateway connectivity remains unconfirmed.
 - The relay SDK and gateway are implemented, but a live endpoint is still required; the SDK does not substitute for a deployed bundler or paymaster.
 - The account-standard decision is settled on the deployed OKX modular ERC-4337 v0.7 account; it is not labeled ERC-7579. The proposed embedded receiver signer and recovery path remain unimplemented and unproven.
-- Product escrow and claim-reserve code are deployed and funded. The private claim route reached on-chain inclusion and its failure/reclaim path was recorded; a successful sender-funded claim and receiver recovery remain open work.
-- The Codespace still does not have `forge`; the new Solidity suite was compiled and run on the supplied Lightsail host. Product constructor and cross-contract readbacks are now recorded; live claim execution remains open.
+- Product escrow and claim-reserve code are deployed and funded. The private claim route now has a successful sender-funded Gift ID `2` claim; receiver key recovery remains open work.
+- The Codespace still does not have `forge`; the Solidity suite was compiled and run on the supplied Lightsail host. Product constructor, cross-contract readbacks, and the successful live Gift ID `2` claim are recorded.
 
 ## Verification results
 
