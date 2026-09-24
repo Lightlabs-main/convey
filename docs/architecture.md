@@ -2,9 +2,10 @@
 
 Status: selected architecture; OKBund build and NodeFlare runtime checks pass.
 The account-abstraction transaction proof and one sender-funded product claim
-passed on X Layer mainnet. The registry, single-gift escrow, and claim
-paymaster are deployed and funded; the durable gateway, receiver application,
-multi-claim drops, and recurring authorization remain ahead.
+passed on X Layer mainnet. The registry, single-gift escrow, claim paymaster,
+and persistent private gateway are deployed; the receiver application,
+browser-facing edge, multi-claim drops, and recurring authorization remain
+ahead.
 
 ## Accounts and claim routing
 
@@ -67,5 +68,5 @@ hold-only unless a fresh live quote passes policy.
 The account path and a real sender-funded claim have passed on mainnet. The
 registry, `GiftEscrow`, and claim-paymaster tests are checked in. The Codespace
 does not have Foundry installed; the supplied Lightsail host compiled and ran
-the suite. The receiver browser flow, durable gateway, cash-out, withdrawal,
-and recovery integration remain product work.
+the suite. The receiver browser flow, authenticated browser edge, cash-out,
+withdrawal, and recovery integration remain product work.

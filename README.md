@@ -49,6 +49,9 @@ As of 2026-09-24:
 - The persistent claim gateway is enabled on that VPS, bound only to
   `127.0.0.1:8800`, authenticated, and forwarding to loopback OKBund. No public
   gateway endpoint is exposed.
+- The connected-wallet sender module now reads the live registry, token balance,
+  allowance, and claim reserve; it creates real hashlocked gifts through the
+  deployed escrow. Browser UI and QR rendering remain separate work.
 - The claim gateway now performs event-aware `debug_traceCall` preflight before
   forwarding a claim. It requires the matching EntryPoint
   `UserOperationEvent.success` to be true and fails closed if tracing is
@@ -172,8 +175,9 @@ The gateway accepts only a signed, sponsored v0.7 operation that:
 There is no raw-transaction route, public-bundler fallback, or secret storage
 in the gateway. Idempotency retains only a short-lived request key and
 UserOperation hash. The live Gift ID `2` proof used a temporary localhost
-gateway over the private OKBund route; a durable gateway deployment is still
-an infrastructure task.
+gateway over the private OKBund route; the persistent private service is now
+deployed on the supplied VPS, while the browser-facing HTTPS edge remains
+separate.
 
 ### Event-aware preflight
 
@@ -399,6 +403,8 @@ browser-facing public service.
 - [`docs/claim-paymaster-design.md`](docs/claim-paymaster-design.md) — reserve,
   validation, and `postOp` accounting.
 - [`docs/relayer.md`](docs/relayer.md) — gateway, SDK, and preflight boundary.
+- [`docs/sender-flow.md`](docs/sender-flow.md) — connected-wallet sender module
+  and live gift-creation boundary.
 - [`docs/aa-gate-design.md`](docs/aa-gate-design.md) — receiver and bootstrap
   sponsorship design.
 - [`docs/verification.md`](docs/verification.md) — live evidence and verification

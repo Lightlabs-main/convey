@@ -26,7 +26,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./relayer": "./src/relayer/index.ts",
-    "./relayer/server": "./src/relayer/server-index.ts"
+    "./relayer/server": "./src/relayer/server-index.ts",
+    "./sender": "./src/sender/index.ts"
   },
   "dependencies": {
     "viem": "^2.56.8"
