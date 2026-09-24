@@ -91,7 +91,7 @@ function parseClaimRequest(value: unknown, expectedEntryPoint: Address, expected
   };
 }
 
-function statusFromReceipt(userOperationHash: Hex, receipt: any): ClaimRelayStatus {
+export function statusFromReceipt(userOperationHash: Hex, receipt: any): ClaimRelayStatus {
   if (!receipt) return { userOperationHash, status: "pending" };
   const rawBlockNumber = receipt.receipt?.blockNumber;
   const blockNumber = typeof rawBlockNumber === "string"

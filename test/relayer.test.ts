@@ -37,12 +37,14 @@ import {
   signClaimPaymasterAuthorization,
 } from "../src/relayer/claim-paymaster.ts";
 import * as browserSdk from "../src/index.ts";
+import { statusFromReceipt } from "../src/relayer/server.ts";
 
 const sender = "0x1111111111111111111111111111111111111111" as Address;
 const factory = "0x2222222222222222222222222222222222222222" as Address;
 const paymaster = "0x3333333333333333333333333333333333333333" as Address;
 const entryPoint = "0x0000000071727de22e5e9d8baf0edac6f37da032" as Address;
 const escrow = "0x4444444444444444444444444444444444444444" as Address;
+const userOperationHash = `0x${"ab".repeat(32)}` as `0x${string}`;
 
 const expandedOperation: RpcUserOperationV07 = {
   sender,
@@ -86,6 +88,26 @@ test("private relay URLs fail closed outside HTTPS or localhost", () => {
 test("browser SDK does not export the private bundler client", () => {
   assert.equal("SelfHostedBundlerClient" in browserSdk, false);
   assert.equal("ConveyRelayerClient" in browserSdk, true);
+});
+
+test("claim receipt parsing preserves inner failure and normalizes numeric blocks", () => {
+  assert.deepEqual(statusFromReceipt(userOperationHash, {
+    success: false,
+    receipt: {
+      transactionHash: `0x${"cd".repeat(32)}`,
+      blockNumber: 71_463_789,
+    },
+  }), {
+    userOperationHash,
+    status: "failed",
+    success: false,
+    transactionHash: `0x${"cd".repeat(32)}`,
+    blockNumber: "0x442736d",
+  });
+  assert.throws(() => statusFromReceipt(userOperationHash, {
+    success: true,
+    receipt: { transactionHash: `0x${"cd".repeat(32)}`, blockNumber: 1.5 },
+  }), /malformed receipt/);
 });
 
 test("self-hosted configuration cannot accidentally use the public execution RPC as bundler", () => {
