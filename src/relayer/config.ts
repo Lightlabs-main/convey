@@ -81,7 +81,8 @@ function chainIdFromEnv(env: Record<string, string | undefined>): number {
 
 export function loadSelfHostedRelayerConfig(env: Record<string, string | undefined> = process.env): SelfHostedRelayerConfig {
   const chainId = chainIdFromEnv(env);
-  const executionRpcUrl = required(env, "XLAYER_RPC_URL");
+  const executionRpcUrl = env.XLAYER_RPC_URL?.trim() || env.ETH_RPC_URL?.trim();
+  if (!executionRpcUrl) throw new Error("XLAYER_RPC_URL or ETH_RPC_URL is required");
   const bundlerRpcUrl = required(env, "BUNDLER_RPC_URL");
   assertPrivateRpcUrl(executionRpcUrl, "XLAYER_RPC_URL");
   assertPrivateRpcUrl(bundlerRpcUrl, "BUNDLER_RPC_URL");

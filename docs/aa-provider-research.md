@@ -1,7 +1,8 @@
 # X Layer account-abstraction provider review
 
-Research date: 2026-09-23. This records provider fit, not a claim that an
-integration has passed live operation.
+Research date: 2026-09-23, with live claim evidence added on 2026-09-24. This
+records provider fit and the evidence boundary; it does not claim production
+readiness for the unfinished browser and gateway operations.
 
 ## Selected route
 
@@ -14,8 +15,9 @@ Keep the bootstrap sponsor separate from the later sender-funded claim-gas
 reserve. The claim route remains behind Convey's gateway and private OKBund.
 
 The signer/account and paymaster invariants are recorded in
-[`aa-gate-design.md`](aa-gate-design.md). They are a proposed design; no
-paymaster contract, sponsor endpoint, or live sponsored operation exists yet.
+[`aa-gate-design.md`](aa-gate-design.md). The paymaster contracts are deployed
+and funded, and the bootstrap plus Gift ID `2` sponsored operations are live
+evidence. The durable application endpoint remains unfinished.
 
 The OKX account is recorded accurately as OKX's custom modular ERC-4337 v0.7
 wallet. The specification explicitly permits using the deployed OKX wallet
@@ -56,11 +58,11 @@ following before this route is treated as working:
    The bootstrap paymaster uses operator-funded OKB only; it does not charge a
    receiver or gift reserve.
 
-This probe did not prove the later sender-funded claim reserve or its
-pre-charge and `postOp` settlement. The separate claim-paymaster implementation
-and invariant suite now exist locally and have passed on the supplied VPS; do
-not submit real claims until that paymaster is deployed, funded, privately
-simulated, and exercised end to end on X Layer.
+The bootstrap probe did not prove the later sender-funded claim reserve. The
+separate claim-paymaster implementation and invariant suite now exist, and
+Gift ID `2` exercised the reserve, private preflight, settlement, and transfer
+path end to end on X Layer. Continue to monitor the operational deposit and
+keep the durable gateway behind private authentication.
 
 The OKX OnchainOS Agentic Wallet remains a product-level alternative only if
 the receiver identity/account flow is deliberately reconsidered. Its current

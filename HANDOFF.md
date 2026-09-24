@@ -162,10 +162,10 @@ experience`), and the TypeScript suite passes 3/3. On 2026-09-24, the private
 execution RPC accepted the event tracer again and a fresh read-only state
 check confirmed the claim checkpoint below.
 
-On resumption, do not reuse Gift ID `1` or its exposed secret. Gift ID `1` is
-`Reclaimed`, all NVDAx is back with the sender, and all gift reserve buckets
-are zero. No Gift ID `2` exists and no additional on-chain action is authorized
-yet.
+At this historical checkpoint, do not reuse Gift ID `1` or its exposed secret.
+Gift ID `1` was `Reclaimed`, all NVDAx was back with the sender, and all gift
+reserve buckets were zero. Gift ID `2` was subsequently created and claimed;
+the completed evidence follows below.
 
 The next authorized decision is to create Gift ID `2` with a completely fresh
 secret, validate a higher account-level `callGasLimit` within the `0.00002 OKB`
@@ -173,11 +173,11 @@ reserve using the event-aware preflight, and then submit its claim with sponsor
 nonce `1`. Obtain explicit operator authorization immediately before the Gift
 ID `2` creation and claim actions.
 
-The 2026-09-24 continuation checks found the receiver deployed, OKBund active
+The pre-claim 2026-09-24 continuation checks found the receiver deployed, OKBund active
 on chain 196, `nextGiftId = 2`, Gift ID `1` `Reclaimed`, zero open/in-flight/
 pending reserve totals, and the claim paymaster still staked with
 `198988059949403` wei deposited at EntryPoint. No transaction or UserOperation
-was submitted during these checks. The refreshed tracer report is in
+was submitted during those read-only checks. The refreshed tracer report is in
 `docs/verification.rpc-capabilities.json`.
 
 Current git command form: `git --git-dir=convey-repo/.git --work-tree=.`.

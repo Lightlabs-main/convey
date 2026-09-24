@@ -1,18 +1,20 @@
 # Convey architecture
 
 Status: selected architecture; OKBund build and NodeFlare runtime checks pass.
-The account-abstraction transaction proof passed on X Layer mainnet. The
-registry, single-gift escrow, and claim paymaster are deployed and funded on
-X Layer; the private claim integration, multi-claim drops, and receiver
-application remain ahead.
+The account-abstraction transaction proof and one sender-funded product claim
+passed on X Layer mainnet. The registry, single-gift escrow, and claim
+paymaster are deployed and funded; the durable gateway, receiver application,
+multi-claim drops, and recurring authorization remain ahead.
 
 ## Accounts and claim routing
 
 - **Sender:** connect an existing wallet with standard wallet-connect. The
   sender signs gift creation and funds the gift and its claim allowance.
-- **Receiver:** use a counterfactual ERC-4337 account. The claim UserOperation
-  deploys it, binds the claim to that account, and reaches the escrow through
-  Convey's private relay and bundler.
+- **Receiver:** arrive with no prior wallet, gas, or account. A device-local
+  credential authorizes the receiver owner key; the claim UserOperation uses
+  the counterfactual ERC-4337 account path when deployment is needed, binds the
+  claim to that account, and reaches the escrow through Convey's private relay
+  and bundler.
 - **Receiver account:** use the deployed OKX Smart Wallet factory and
   implementation with EntryPoint v0.7. Describe it as OKX's custom modular
   ERC-4337 account; do not call it ERC-7579. This is the account choice
@@ -60,8 +62,8 @@ supplies display value. Cash-out quotes come from a live executable route.
 The verified TSLA route is too thin at the recorded sizes, so TSLA must be
 hold-only unless a fresh live quote passes policy.
 
-The account path has passed the account-abstraction transaction gate. The
+The account path and a real sender-funded claim have passed on mainnet. The
 registry, `GiftEscrow`, and claim-paymaster tests are checked in. The Codespace
 does not have Foundry installed; the supplied Lightsail host compiled and ran
-the suite. The deployed claim paymaster and escrow still need a private
-UserOperation simulation and one real claim before the claim path is complete.
+the suite. The receiver browser flow, durable gateway, cash-out, withdrawal,
+and recovery integration remain product work.

@@ -148,7 +148,8 @@ execution, `postOp` accounting, duplicate settlement, concurrent reservations,
 withdrawals, and the private gateway's target and selector checks. A build
 alone is not evidence for these properties. The bootstrap paymaster and tests
 remain unaudited. The successful sponsored operation is recorded separately as
-live mainnet evidence; it does not prove claim reserve accounting or recovery.
+live mainnet evidence; the separate Gift ID `2` evidence proves the claim
+reserve path. It does not prove receiver recovery or on-chain owner rotation.
 
 ## Source review
 

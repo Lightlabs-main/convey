@@ -30,9 +30,10 @@ X Layer chain ID, EntryPoint bytecode, factory-derived counterfactual address,
 deployment state, and EntryPoint nonce. It encodes the factory `createAccount`
 init code and the single `executeUserOp` claim call, then signs the EntryPoint
 hash with the OKX owner envelope. Gas limits, fee caps, and paymaster data are
-required inputs; the SDK never invents them. The builder was used in the live
-private claim attempt; a successful sender-funded claim remains unproven after
-the first operation reported `TokenTransferFailed()` and was reclaimed.
+required inputs; the SDK never invents them. The builder was used in the
+successful live Gift ID `2` claim. An earlier operation reported
+`TokenTransferFailed()` and was reclaimed; that failure is recorded separately
+and its exposed secret is retired.
 
 The gateway uses `SelfHostedBundlerClient` for the private JSON-RPC methods
 `eth_supportedEntryPoints`, `eth_estimateUserOperationGas`,
@@ -82,8 +83,8 @@ does not expose the claim to a public mempool.
 - the paymaster is staked with the required stake floor.
 
 The check does not claim the claim paymaster's pre-charge-max and `postOp`
-refund semantics. The bootstrap paymaster and one sponsored UserOperation are
-live, but claim reserve accounting remains separate product work.
+refund semantics by itself. Those semantics were exercised by the successful
+Gift ID `2` claim and recorded in the verification evidence.
 
 ## Running it
 
@@ -97,11 +98,12 @@ pnpm relayer:serve
 ```
 
 The current workspace still requires a private `BUNDLER_RPC_URL` at runtime;
-it is intentionally not saved in the local `.env`. The deployed bootstrap
-paymaster has already passed its one-operation gate. Its address is recorded in
-`HANDOFF.md`; the claim relay's `PAYMASTER_ADDRESS` is a separate
-configuration. No fake endpoint is committed to make a health check appear
-green.
+it is intentionally not saved in the local `.env`. The deployed bootstrap and
+claim paymasters have passed their recorded live checks, and Gift ID `2` was
+claimed successfully through the private route. The gateway used for that
+proof was temporary and localhost-only; the durable private deployment is the
+next infrastructure task. No fake endpoint is committed to make a health check
+appear green.
 
 ## Operator bundler gate
 

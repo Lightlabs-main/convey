@@ -330,9 +330,8 @@ deposit, `staked = true`, and the configured delay. The deployer balance after
 these writes was `0.000573725693686283 OKB`.
 
 This evidence proves deployment, cross-contract binding, and EntryPoint
-funding. It does not prove that the private claim gateway accepts a product
-UserOperation or that a real token gift has been created and claimed. Those
-are the next live checks.
+funding. The later Gift ID `2` evidence below proves the private claim gateway,
+real token gift, UserOperation, and reserve settlement on mainnet.
 
 The three live xStock wrapper entries were then registered and enabled by the
 registry owner. NVDAx and AAPLx point at the verified X Layer Uniswap
@@ -355,8 +354,8 @@ policy above. The registration records are also in
 The off-chain claim authorization codec was compared with the deployed
 paymaster's `accountOperationHash` and `authorizationDigest` view functions.
 Both hashes matched for a packed v0.7 operation. The first live claim
-UserOperation and its failure/reclaim evidence are recorded below; a successful
-claim remains unproven.
+UserOperation failed and was reclaimed; the later Gift ID `2` operation
+succeeded and its evidence is recorded below.
 
 ### Sender asset acquisition — 2026-09-24
 

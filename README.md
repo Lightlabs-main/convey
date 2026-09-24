@@ -1,22 +1,24 @@
 # Convey
 
 Convey is a private X Layer mainnet application for gifting tokenized
-real-world assets, beginning with xStocks. A sender funds a gift, the receiver
-claims it into an ERC-4337 smart account, and the claim is submitted through a
+real-world assets, beginning with xStocks. A sender funds a gift and sends a
+link; the receiver arrives without a prior wallet, gas, or account and claims
+the asset into an ERC-4337 smart account. The claim is submitted through a
 private Convey gateway and operator-controlled OKBund bundler.
 
 The product is currently in live verification, not production release. The
-account-abstraction bootstrap gate passed on X Layer, the product contracts are
-deployed and funded, and the private walletless claim path is implemented.
+account-abstraction bootstrap gate and one sender-funded product claim passed
+on X Layer; the product contracts are deployed and funded. The durable gateway
+and receiver application are still being completed.
 
 The authoritative continuation record is [`HANDOFF.md`](HANDOFF.md). Detailed
 architecture, deployment, and live evidence are in [`docs/architecture.md`](docs/architecture.md),
 [`docs/product-deployment.json`](docs/product-deployment.json), and
 [`docs/verification.md`](docs/verification.md).
 
-## The punchline: claim a stock gift without a wallet
+## The product: send a stock gift without requiring a wallet
 
-Someone sends you a stock gift. You tap **Claim**. No wallet download, no
+Someone sends you a stock gift link. You tap **Claim**. No wallet download, no
 browser extension, no network switch, no OKB, and no pre-funded account.
 
 Convey creates or uses your receiver smart account, wraps the claim in an
@@ -25,8 +27,10 @@ sender-funded claim reserve pays the gas. Your asset arrives in a smart account
 you control—not in a custodial Convey balance.
 
 “No wallet” means no pre-existing or funded crypto wallet is required. The
-claimer still needs the claim secret/link and a device-local signing credential
-to control the receiver account; Convey never receives that private key.
+receiver still needs the claim link and a device-local credential to authorize
+the account; Convey never receives the private key. The first receiver screen
+must make that distinction clear without asking the receiver to understand
+wallets or gas.
 
 ## Current checkpoint
 
@@ -46,8 +50,9 @@ As of 2026-09-24:
   unavailable.
 - A live sender-funded acquisition and GiftEscrow setup were completed with
   NVDAx, including the exact asset amount and native claim reserve.
-- No Gift ID `2` exists. Creating it and submitting its claim require explicit
-  operator authorization after the usage-limit pause.
+- Gift ID `2` was created and claimed successfully on mainnet. The receiver
+  received the full `0.030965586663211895` NVDAx, while escrow and sender
+  balances returned to zero. The live hashes are in the verification record.
 
 ## Product flow
 
@@ -60,7 +65,7 @@ AssetRegistry ── validates certified/enabled assets
     ▼
 GiftEscrow ── locks ERC-20 asset and hashlocked claim state
     │
-    │  receiver signs a scoped ERC-4337 v0.7 UserOperation
+    │  receiver authorizes locally with a device credential
     ▼
 Convey private gateway
     │  target/selector policy + event-aware EntryPoint preflight
@@ -132,9 +137,12 @@ Private keys belong only in the ignored `.env` or an external secret manager.
 The existing Lightsail SSH key and VPS root environment are also secret
 material. Never print, paste, commit, or add them to documentation.
 
-The proposed WebAuthn PRF storage, device migration, recovery, and owner
-revocation path is not yet implementation-proven. Losing the receiver owner
-key currently means losing control of that account.
+The WebAuthn PRF vault, browser ceremony, encrypted browser persistence, and
+recovery rewrap foundation are implemented and tested. Browser support,
+credential migration in the real receiver UI, and on-chain owner revocation
+are not yet live-proven. Losing the receiver owner key currently means losing
+control of that account unless the separately stored recovery material is
+available.
 
 ## Claim relay
 
@@ -157,7 +165,9 @@ The gateway accepts only a signed, sponsored v0.7 operation that:
 
 There is no raw-transaction route, public-bundler fallback, or secret storage
 in the gateway. Idempotency retains only a short-lived request key and
-UserOperation hash.
+UserOperation hash. The live Gift ID `2` proof used a temporary localhost
+gateway over the private OKBund route; a durable gateway deployment is still
+an infrastructure task.
 
 ### Event-aware preflight
 
@@ -342,8 +352,9 @@ creation receipts are recorded in [`docs/verification.md`](docs/verification.md)
 and [`HANDOFF.md`](HANDOFF.md). Gift creation included the configured native
 claim reserve, and escrow held the exact asset amount under its accounting.
 
-The private relay and event-aware preflight are now in place for the next
-walletless claim continuation.
+The private relay and event-aware preflight are now proven by the successful
+Gift ID `2` claim. The receiver application still needs to connect this path to
+the passkey vault and present the claim experience in a browser.
 
 ## Security and operating rules
 
@@ -366,21 +377,11 @@ walletless claim continuation.
 
 ## Resume point
 
-The project is paused until the operator's usage limit resets. On resumption:
-
-1. Refresh live chain, paymaster, reserve, nonce, and gas-price state.
-2. Generate a completely new Gift ID `2` secret; do not use Gift ID `1` data.
-3. Build an operation with a higher account-level `callGasLimit` while keeping
-   the declared maximum exposure within `0.00002 OKB`.
-4. Run the event-aware private EntryPoint preflight.
-5. Obtain explicit operator authorization immediately before Gift ID `2`
-   creation and claim submission.
-6. Record every live receipt, UserOperation hash, bundle transaction, event
-   result, reserve settlement, and final balance in the handoff and verification
-   documents.
-
-The full checkpoint is in [`HANDOFF.md`](HANDOFF.md); do not infer Gift ID 2
-authorization from this README.
+The next work follows the product order in [`PROGRESS.md`](PROGRESS.md): finish
+the browser receiver enrollment/recovery integration, deploy the durable
+private gateway, then build the sender and receiver applications. The live
+claim proof is complete; do not represent the temporary localhost gateway as a
+public production service.
 
 ## Further documentation
 
