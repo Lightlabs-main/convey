@@ -30,14 +30,27 @@ X Layer chain ID, EntryPoint bytecode, factory-derived counterfactual address,
 deployment state, and EntryPoint nonce. It encodes the factory `createAccount`
 init code and the single `executeUserOp` claim call, then signs the EntryPoint
 hash with the OKX owner envelope. Gas limits, fee caps, and paymaster data are
-required inputs; the SDK never invents them. The builder is ready for the live
-paymaster/bundler gate, but it has not been used to submit a claim because those
-operator resources are not configured yet.
+required inputs; the SDK never invents them. The builder was used in the live
+private claim attempt; a successful sender-funded claim remains unproven after
+the first operation reported `TokenTransferFailed()` and was reclaimed.
 
 The gateway uses `SelfHostedBundlerClient` for the private JSON-RPC methods
 `eth_supportedEntryPoints`, `eth_estimateUserOperationGas`,
 `eth_sendUserOperation`, and `eth_getUserOperationReceipt`. It has no method
 for `eth_sendRawTransaction` and has no public-bundler fallback.
+
+Before a live claim is submitted, the operator can run
+`preflightEntryPointUserOperation` from `src/relayer/preflight.ts` against the
+private execution RPC. It traces the exact v0.7 `handleOps` call and requires
+the matching `UserOperationEvent` to report `success = true`; a successful
+outer `handleOps` call alone is not sufficient. `UserOperationRevertReason` is
+decoded when present. The trace is read-only, but it must use a fresh open gift,
+reserve, sponsor authorization, and operation nonce because those values are
+checked during simulation.
+
+The gateway runs this same preflight on `/v1/claims` immediately before
+`eth_sendUserOperation`. A failed simulation is rejected and is never placed in
+the private bundler; an unavailable tracing RPC also fails closed.
 
 ## Claim security
 

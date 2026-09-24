@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { encodeAbiParameters, hashMessage, keccak256, recoverAddress } from "viem";
+import { encodeAbiParameters, hashMessage, keccak256, recoverAddress, stringToBytes } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   assertPrivateRpcUrl,
@@ -38,6 +38,13 @@ import {
 } from "../src/relayer/claim-paymaster.ts";
 import * as browserSdk from "../src/index.ts";
 import { statusFromReceipt } from "../src/relayer/server.ts";
+import {
+  assertSuccessfulEntryPointSimulation,
+  preflightEntryPointUserOperation,
+  parseEntryPointSimulationTrace,
+  USER_OPERATION_EVENT_TOPIC,
+  USER_OPERATION_REVERT_REASON_TOPIC,
+} from "../src/relayer/preflight.ts";
 
 const sender = "0x1111111111111111111111111111111111111111" as Address;
 const factory = "0x2222222222222222222222222222222222222222" as Address;
@@ -108,6 +115,74 @@ test("claim receipt parsing preserves inner failure and normalizes numeric block
     success: true,
     receipt: { transactionHash: `0x${"cd".repeat(32)}`, blockNumber: 1.5 },
   }), /malformed receipt/);
+});
+
+test("EntryPoint preflight requires the inner UserOperationEvent result", () => {
+  const operationHash = `0x${"ef".repeat(32)}` as `0x${string}`;
+  assert.equal(
+    USER_OPERATION_EVENT_TOPIC,
+    keccak256(stringToBytes("UserOperationEvent(bytes32,address,address,uint256,bool,uint256,uint256)")),
+  );
+  const failed = parseEntryPointSimulationTrace({ logs: [
+    {
+      topics: [USER_OPERATION_EVENT_TOPIC, operationHash, sender, paymaster],
+      data: encodeAbiParameters(
+        [{ type: "uint256" }, { type: "bool" }, { type: "uint256" }, { type: "uint256" }],
+        [2n, false, 7n, 8n],
+      ),
+    },
+    {
+      topics: [USER_OPERATION_REVERT_REASON_TOPIC, operationHash, sender],
+      data: encodeAbiParameters([{ type: "bytes" }], ["0x045c4b02"]),
+    },
+  ] }, operationHash);
+  assert.equal(failed.success, false);
+  assert.equal(failed.revertReason, "0x045c4b02");
+  assert.throws(() => assertSuccessfulEntryPointSimulation(failed), /failure \(0x045c4b02\)/);
+
+  const succeeded = parseEntryPointSimulationTrace({ logs: [{
+    topics: [USER_OPERATION_EVENT_TOPIC, operationHash, sender, paymaster],
+    data: encodeAbiParameters(
+      [{ type: "uint256" }, { type: "bool" }, { type: "uint256" }, { type: "uint256" }],
+      [2n, true, 7n, 8n],
+    ),
+  }] }, operationHash);
+  assert.equal(assertSuccessfulEntryPointSimulation(succeeded).actualGasUsed, 8n);
+  assert.throws(() => parseEntryPointSimulationTrace({ logs: [] }, operationHash), /did not emit/);
+});
+
+test("EntryPoint preflight computes the hash and traces before submission", async () => {
+  const operation = fromRpcUserOperation(expandedOperation);
+  const operationHash = `0x${"12".repeat(32)}` as `0x${string}`;
+  const requests: string[] = [];
+  const fetchImpl = async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const body = JSON.parse(String(init?.body)) as { method: string };
+    requests.push(body.method);
+    const result = body.method === "eth_call"
+      ? operationHash
+      : {
+          logs: [{
+            topics: [USER_OPERATION_EVENT_TOPIC, operationHash, sender, paymaster],
+            data: encodeAbiParameters(
+              [{ type: "uint256" }, { type: "bool" }, { type: "uint256" }, { type: "uint256" }],
+              [0n, true, 10n, 11n],
+            ),
+          }],
+        };
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id: requests.length, result }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+  const result = await preflightEntryPointUserOperation({
+    executionRpcUrl: "http://127.0.0.1:8545",
+    entryPoint,
+    beneficiary: sender,
+    userOperation: operation,
+    fetchImpl,
+  });
+  assert.equal(result.userOperationHash, operationHash);
+  assert.deepEqual(requests, ["eth_call", "debug_traceCall"]);
 });
 
 test("self-hosted configuration cannot accidentally use the public execution RPC as bundler", () => {

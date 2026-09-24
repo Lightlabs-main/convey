@@ -4,6 +4,7 @@ import { assertAddress } from "./types.ts";
 
 export const XLAYER_CHAIN_ID = 196;
 export const XLAYER_ENTRYPOINT_V07 = "0x0000000071727de22e5e9d8baf0edac6f37da032" as Address;
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
 
 export interface SelfHostedRelayerConfig {
   chainId: number;
@@ -13,6 +14,7 @@ export interface SelfHostedRelayerConfig {
   paymaster: Address;
   claimEscrow: Address;
   claimFunctionSelector: `0x${string}`;
+  preflightBeneficiary: Address;
   minimumPaymasterDepositWei: bigint;
   minimumPaymasterStakeWei: bigint;
   requestTimeoutMs: number;
@@ -98,6 +100,9 @@ export function loadSelfHostedRelayerConfig(env: Record<string, string | undefin
     paymaster: addressFromEnv(env, "PAYMASTER_ADDRESS"),
     claimEscrow: addressFromEnv(env, "CONVEY_CLAIM_ESCROW_ADDRESS"),
     claimFunctionSelector: selectorFromEnv(env, "CONVEY_CLAIM_FUNCTION_SELECTOR"),
+    preflightBeneficiary: env.RELAYER_PREFLIGHT_BENEFICIARY
+      ? addressFromEnv(env, "RELAYER_PREFLIGHT_BENEFICIARY")
+      : ZERO_ADDRESS,
     minimumPaymasterDepositWei: positiveBigIntFromEnv(env, "PAYMASTER_MIN_DEPOSIT_WEI"),
     minimumPaymasterStakeWei: positiveBigIntFromEnv(env, "PAYMASTER_MIN_STAKE_WEI"),
     requestTimeoutMs: integerFromEnv(env, "RELAYER_RPC_TIMEOUT_MS", 15_000, 500, 120_000),

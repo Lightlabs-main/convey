@@ -57,11 +57,12 @@
 - Submitted the first product claim through the private gateway and OKBund. UserOperation `0xd3efe7e60f40e556d6f4fea79335723f0f5aab8924c0b015393a2451534346b1` was included in transaction `0xc4610b7cc244c7ec728c486d90493e94bfa976de9fcf4cfa46e04f744c1a05f6` at block `71463789`, but `UserOperationEvent.success` was false with `TokenTransferFailed()`. The likely cause is an insufficient account-level `callGasLimit`; a direct token-transfer call at the same historical state fit within that limit, but the complete account-to-escrow-to-token path did not.
 - Reclaimed the exposed Gift ID `1` immediately in transaction `0x6add4c95079719111eab9b3ebd9c7b6a6cc91df9b8e58384c4d57f12fc4fff9f` at block `71463978`. The sender recovered all NVDAx, escrow and reserve accounting are zero, and the exposed secret is retired permanently.
 - Disabled OKBund's incompatible node-side fallback estimator while retaining EntryPoint/EVM simulation, and made the gateway normalize OKBund's numeric receipt block number.
+- Added event-aware EntryPoint preflight that traces the exact v0.7 `handleOps` call, requires the matching `UserOperationEvent.success`, and decodes `UserOperationRevertReason`. Its synthetic tests pass, and a live read-only trace captured an ERC-20 event through the configured private execution RPC.
 
 ## Next
 
 - Choose and prove receiver key enrollment, passkey PRF storage, device migration, recovery, and owner revocation for the OKX ECDSA owner path.
-- Make claim preflight inspect `UserOperationEvent.success` and decode the revert event, then prove a higher account-level call-gas allocation within the reserve before creating Gift ID `2`.
+- Run the event-aware claim preflight on a fresh operation and prove a higher account-level call-gas allocation within the reserve before creating Gift ID `2`.
 - Generate a new Gift ID `2` secret only after authorization; never reuse the exposed Gift ID `1` secret.
 - Decide where to run the Convey gateway. The Lightsail check found no gateway there, and its current free memory/swap usage makes co-location a capacity decision before adding the workload.
 - Verify private claim routing, reserve accounting on success and failure, duplicate settlement, EntryPoint deposit/stake behavior, and recurring-gift owner permissions on the deployed integration.

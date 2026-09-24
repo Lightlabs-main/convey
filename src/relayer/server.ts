@@ -4,12 +4,13 @@ import { checkRelayerHealth } from "./health.ts";
 import { assertClaimExecutionCalldata } from "./claim-policy.ts";
 import { JsonRpcRequestError, JsonRpcTransportError } from "./rpc.ts";
 import { SelfHostedBundlerClient } from "./bundler.ts";
-import type { Address, ClaimRelayStatus, Hex, RpcUserOperationV07 } from "./types.ts";
+import { fromRpcUserOperation, type Address, type ClaimRelayStatus, type Hex, type RpcUserOperationV07 } from "./types.ts";
 import {
   assertSponsoredUserOperation,
   assertUserOperationHash,
 } from "./types.ts";
 import type { SelfHostedRelayerConfig } from "./config.ts";
+import { preflightEntryPointUserOperation } from "./preflight.ts";
 
 class HttpProblem extends Error {
   readonly status: number;
@@ -167,6 +168,20 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
         json(response, 202, { userOperationHash: existing.userOperationHash, status: "submitted" });
         return;
       }
+    }
+    try {
+      await preflightEntryPointUserOperation({
+        executionRpcUrl: config.executionRpcUrl,
+        entryPoint: claim.entryPoint,
+        beneficiary: config.preflightBeneficiary,
+        userOperation: fromRpcUserOperation(claim.userOperation),
+        timeoutMs: config.requestTimeoutMs,
+      });
+    } catch (error) {
+      if (error instanceof JsonRpcRequestError || error instanceof JsonRpcTransportError) {
+        throw new HttpProblem(502, "claim_simulation_unavailable");
+      }
+      throw new HttpProblem(409, "claim_simulation_failed");
     }
     const userOperationHash = await bundler.sendUserOperation(claim.userOperation, claim.entryPoint);
     if (claim.idempotencyKey) submissions.set(claim.idempotencyKey, { userOperationHash, expiresAt: Date.now() + 15 * 60_000 });

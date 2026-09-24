@@ -16,9 +16,13 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
 
 ## Workspace state after the latest continuation
 
-- `AGENTS.md` and this handoff are new, untracked files.
+- `AGENTS.md` and this handoff are committed project memory files; the latest
+  pushed commits are `4f82635` and `b9c947f`.
 - A bulk product rename from the retired name to Convey has been applied across package metadata, SDK identifiers, environment variable names, tests, docs, and the OKBund runbook. The package name is `convey`; the client class is `ConveyRelayerClient`; operator variables use the `CONVEY_` prefix. The local ignored `.env` variable names were migrated without displaying secret values.
-- The rename and documentation corrections remain **uncommitted**. `pnpm test` now passes; no fresh live `pnpm verify` was run during this continuation. Stale Particle bootstrap instructions were removed and its unused example credential slots were deleted.
+- The rename and documentation corrections are committed. `pnpm test` passes;
+  no fresh live `pnpm verify` was run during this continuation. Stale Particle
+  bootstrap instructions were removed and its unused example credential slots
+  were deleted.
 - [`contracts/bootstrap/ConveyBootstrapPaymasterV07.sol`](contracts/bootstrap/ConveyBootstrapPaymasterV07.sol) implements the one-operation, chain-196 v0.7 policy. Twelve Foundry tests pass. The expiry case uses a local EntryPoint stub; this is not a mainnet simulation or independent audit.
 - Added Foundry build config and `pnpm bootstrap:deploy`, `pnpm bootstrap:fund`, `pnpm bootstrap:build`, and `pnpm bootstrap:submit`. The bootstrap paymaster was deployed, funded/staked, and exercised through the sponsored operation recorded below.
 - Reviewed the bootstrap scripts and added fail-fast checks that keep the receiver owner, paymaster owner, and sponsor signer on distinct addresses. `pnpm operator:addresses` also rejects reused addresses among configured operator keys. These are implementation guards, not an independent security audit.
@@ -31,7 +35,7 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
 - Coinbase VerifyingPaymaster was reviewed as a v0.7 reference but not selected unchanged: its generic policy does not enforce Convey's exact operation target, its listed deployments are Base deployments, and the Cantina review's exact source revision has not been matched. See [`docs/aa-provider-research.md`](docs/aa-provider-research.md).
 - The operator provisioned distinct `SMART_ACCOUNT_OWNER_PRIVATE_KEY`, `DEPLOYER_PRIVATE_KEY`, and `BOOTSTRAP_PAYMASTER_SIGNER_PRIVATE_KEY` values in the ignored local `.env`. Their public role addresses are distinct; no private values were printed. The receiver account `0x63B2A84d47cb07fb18EE72Ec386893506Fd963db` is now deployed on chain 196 by the sponsored operation. The deployed paymaster is `0x6647cef848fc54b0c821f91a88d83227f65e36b9`; its deployment and sponsorship transactions are recorded in `docs/verification.md`. Sponsor nonce `0`, paymaster verification gas limit `200000`, and max-cost cap `0.01 OKB` are configured. The receiver's EntryPoint nonce is now `1`; the paymaster authorization is consumed. `BUNDLER_PRIVATE_KEY` remains only in the VPS root-owned service environment, and its public wallet retains `0.000781673979083699 OKB`.
 - The ignored local `.env` was found with mode `0666` and changed to owner-only mode `0600` without reading or printing its contents. Keep operator keys in this file or a secret manager, never in chat.
-- Pinned OKBund is installed and running as a persistent loopback-only service on the Lightsail VPS. Its dedicated bundler wallet is funded. The bootstrap paymaster has a remaining EntryPoint deposit of `193006039650302` wei and a `1` wei stake after the successful sponsored operation. The product contracts and registry entries are deployed on X Layer; public addresses, receipts, and policy are in `docs/product-deployment.json`. No product UserOperation has been submitted yet.
+- Pinned OKBund is installed and running as a persistent loopback-only service on the Lightsail VPS. Its dedicated bundler wallet is funded. The product contracts and registry entries are deployed on X Layer; public addresses, receipts, and policy are in `docs/product-deployment.json`. Gift ID `1` reached on-chain claim inclusion but failed internally and was reclaimed; no Gift ID `2` exists.
 
 ### Live sponsored bootstrap evidence
 
@@ -59,7 +63,10 @@ were excluded from this evidence. No private key or credential was printed.
 ## Resume in this order
 
 1. The project builder's in-house source review is complete for the one-operation bootstrap path; no third-party audit is claimed. The successful live evidence is recorded above and in `docs/verification.md`. The current TypeScript suite and script syntax checks pass; Foundry is unavailable in the current workspace, with the earlier handoff recording 12 passing Foundry tests.
-2. Run a private bundler simulation and one sender-funded product gift/claim. Keep the claim paymaster and sender-funded reserve separate from the one-use bootstrap paymaster.
+2. Use the event-aware private EntryPoint preflight, validate a higher
+   account-level call-gas allocation within the per-gift reserve, and obtain
+   authorization before creating/claiming Gift ID `2`. Keep the claim paymaster
+   and sender-funded reserve separate from the one-use bootstrap paymaster.
 3. Specify and implement receiver key enrollment, passkey PRF storage, device migration, recovery, and owner revocation for the OKX ECDSA owner path.
 4. Deploy the Convey gateway only after a fresh VPS capacity check; the supplied host currently has no gateway service and is loopback-only for OKBund.
 5. Verify private claim routing, reserve accounting on success and failure, duplicate settlement, and recurring-gift owner permissions on the deployed integration.
@@ -142,14 +149,17 @@ balance read was performed without printing any private key or credential.
   mode `0600`; no secret value is stored in the repository.
 - OKBund now disables its incompatible node-side fallback estimator while
   retaining EntryPoint/EVM simulation. The gateway also accepts OKBund's
-  numeric receipt `blockNumber` and normalizes it to RPC hex.
+  numeric receipt `blockNumber` and normalizes it to RPC hex. The durable
+  relayer now includes an event-aware `debug_traceCall` preflight; a live
+  read-only trace confirmed the private RPC accepts the tracer and captures
+  event data.
 
 ### Next continuation step
 
-Before creating Gift ID `2`, change the preflight to inspect
-`UserOperationEvent.success` and its revert event, then validate a higher
-account-level `callGasLimit` while keeping total prefund within the
-`0.00002 OKB` reserve. Generate an entirely new secret and use sponsor nonce
-`1`. Gift creation and claim submission require fresh operator authorization.
+Before creating Gift ID `2`, run the new preflight against a fresh operation,
+then validate a higher account-level `callGasLimit` while keeping total
+prefund within the `0.00002 OKB` reserve. Generate an entirely new secret and
+use sponsor nonce `1`. Gift creation and claim submission require fresh
+operator authorization.
 
 Current git command form: `git --git-dir=convey-repo/.git --work-tree=.`.
