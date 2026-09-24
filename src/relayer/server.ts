@@ -289,7 +289,13 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
     } catch {
       throw new HttpProblem(400, "invalid_claim_target");
     }
-    const reserve = await readReserve(execution, config.paymaster, giftId);
+    let reserve: { remaining: bigint; state: number };
+    try {
+      reserve = await readReserve(execution, config.paymaster, giftId);
+    } catch (error) {
+      if (error instanceof JsonRpcRequestError) throw new HttpProblem(409, "gift_claim_reserve_unavailable");
+      throw error;
+    }
     const maxCost = await readPaymasterValue(execution, config.paymaster, "maxClaimCost");
     if (typeof maxCost !== "bigint" || maxCost <= 0n) throw new HttpProblem(503, "claim_paymaster_policy_unavailable");
     if (reserve.state !== 0 || reserve.remaining < maxCost) throw new HttpProblem(409, "gift_claim_reserve_unavailable");
