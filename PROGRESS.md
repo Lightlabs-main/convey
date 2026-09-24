@@ -81,28 +81,38 @@
   retained actual OOG fault and SSTORE-floor detection, rebuilt with
   `mvn verify`, and exercised the operation through the localhost Convey
   gateway plus OKBund's supported manual bundle RPC.
+- Added the persistent private gateway service definition. It is scoped to
+  loopback port `8800`, authenticates requests, uses the existing NodeFlare and
+  OKBund path, and keeps the public HTTPS edge separate from the browser work.
 
 ## Next
 
-- Complete receiver key enrollment and recovery. The browser-safe vault core now
-  generates a dedicated OKX ECDSA owner key, encrypts it under WebAuthn PRF
-  material, creates a separate one-time recovery envelope, and rewraps the same
-  owner during migration. Local tests cover unlock, wrong PRF, recovery,
-  migration, and tampering. The actual browser WebAuthn ceremony, persistent
-  client storage, and inspected on-chain OKX owner revocation remain open; see
-  `docs/receiver-key-management.md`.
-- Decide where to run the Convey gateway. The Lightsail check found no gateway there, and its current free memory/swap usage makes co-location a capacity decision before adding the workload.
-- Verify private claim routing, reserve accounting on success and failure, duplicate settlement, EntryPoint deposit/stake behavior, and recurring-gift owner permissions on the deployed integration.
-- Sample gas price over time and record variance.
+- Finish receiver key enrollment and recovery integration: exercise the real
+  browser WebAuthn PRF ceremony and persistent storage, then prove the inspected
+  OKX owner revocation path. The encrypted vault core and local tests are in
+  place; see `docs/receiver-key-management.md`.
+- Build the connected-wallet sender flow around the deployed registry and
+  `GiftEscrow`: OKX Wallet first, live asset reads, exact approval, gift
+  creation, and link/QR output. No sender-side mock balances or quotes.
+- Build the receiver claim screen against the private gateway, then implement
+  live-quoted gasless cash-out and gasless withdrawal.
+- Execute one complete browser-to-browser mainnet flow through the persistent
+  private gateway and record every receipt.
+- Add gateway/paymaster monitoring and a documented top-up operation before
+  starting Drop.
+- Then build Drop, prove an OKX-specific recurring authorization design, and
+  finish the SDK, CI, README, and production review.
 
 ## Blocked
 
 - No transaction-gate blocker remains. The sponsored v0.7 UserOperation succeeded through the private OKBund endpoint; the builder's in-house source review is documented and is not represented as a third-party audit.
-- OKBund is running on the supplied 1 GB Lightsail host and advertises the right chain/EntryPoint. No Convey gateway was identified, and the host's memory/swap usage still requires a capacity check before co-location.
-- A later workspace `pnpm bundler:check` through the temporary SSH tunnel passed for chain 196 and EntryPoint v0.7. An earlier generic connection failure is superseded; gateway connectivity remains unconfirmed.
-- The relay SDK and gateway are implemented, but a live endpoint is still required; the SDK does not substitute for a deployed bundler or paymaster.
-- The account-standard decision is settled on the deployed OKX modular ERC-4337 v0.7 account; it is not labeled ERC-7579. The proposed embedded receiver signer and recovery path remain unimplemented and unproven.
-- Product escrow and claim-reserve code are deployed and funded. The private claim route now has a successful sender-funded Gift ID `2` claim; receiver key recovery remains open work.
+- OKBund and the Convey gateway are running on the supplied 1 GB Lightsail
+  host. The gateway is loopback-only and authenticated; monitor host memory and
+  the paymaster deposit before browser traffic is enabled.
+- A later workspace `pnpm bundler:check` through the temporary SSH tunnel passed for chain 196 and EntryPoint v0.7. An earlier generic connection failure is superseded; the persistent gateway health check is now recorded in `docs/verification.md`.
+- The relay SDK and gateway are implemented. The persistent gateway health check passed against live X Layer/OKBund, but an authenticated HTTPS edge for the browser is still required; the SDK does not substitute for that edge.
+- The account-standard decision is settled on the deployed OKX modular ERC-4337 v0.7 account; it is not labeled ERC-7579. The encrypted receiver signer vault is implemented and locally tested; the browser ceremony and on-chain owner revocation proof remain open.
+- Product escrow and claim-reserve code are deployed and funded. The private claim route now has a successful sender-funded Gift ID `2` claim; browser receiver integration remains open.
 - The Codespace still does not have `forge`; the Solidity suite was compiled and run on the supplied Lightsail host. Product constructor, cross-contract readbacks, and the successful live Gift ID `2` claim are recorded.
 
 ## Verification results

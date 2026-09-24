@@ -1,0 +1,29 @@
+[Unit]
+Description=Convey private claim gateway
+After=network-online.target convey-okbund.service
+Wants=network-online.target
+Requires=convey-okbund.service
+
+[Service]
+Type=simple
+User=convey-relayer
+Group=convey-relayer
+WorkingDirectory=/srv/convey/relayer
+EnvironmentFile=/etc/convey/relayer.env
+Environment=BUNDLER_RPC_URL=http://127.0.0.1:3000/rpc
+Environment=RELAYER_SERVER_BIND=127.0.0.1
+Environment=RELAYER_SERVER_PORT=8800
+ExecStart=/usr/bin/node /srv/convey/relayer/script/relayer-server.ts
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+MemoryHigh=160M
+MemoryMax=256M
+LimitNOFILE=16384
+
+[Install]
+WantedBy=multi-user.target

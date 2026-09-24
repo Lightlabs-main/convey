@@ -8,8 +8,9 @@ private Convey gateway and operator-controlled OKBund bundler.
 
 The product is currently in live verification, not production release. The
 account-abstraction bootstrap gate and one sender-funded product claim passed
-on X Layer; the product contracts are deployed and funded. The durable gateway
-and receiver application are still being completed.
+on X Layer; the product contracts are deployed and funded. The persistent
+private gateway is deployed on the supplied VPS. The receiver application and
+browser-facing authenticated edge are still being completed.
 
 The authoritative continuation record is [`HANDOFF.md`](HANDOFF.md). Detailed
 architecture, deployment, and live evidence are in [`docs/architecture.md`](docs/architecture.md),
@@ -45,6 +46,9 @@ As of 2026-09-24:
   funded.
 - OKBund is pinned, running on the supplied Lightsail VPS, and uses NodeFlare
   as its private X Layer execution RPC.
+- The persistent claim gateway is enabled on that VPS, bound only to
+  `127.0.0.1:8800`, authenticated, and forwarding to loopback OKBund. No public
+  gateway endpoint is exposed.
 - The claim gateway now performs event-aware `debug_traceCall` preflight before
   forwarding a claim. It requires the matching EntryPoint
   `UserOperationEvent.success` to be true and fails closed if tracing is
@@ -223,6 +227,7 @@ contracts/
   paymaster/       sender-funded ConveyClaimPaymasterV07
 docs/              architecture, design, deployment, and verification evidence
 infra/okbund/      pinned OKBund launcher and operator runbook
+infra/relayer/     persistent private gateway service and runbook
 script/            verification, deployment, funding, and operator commands
 src/relayer/       UserOperation codec, OKX builder, gateway, client, preflight
 test/              Node test suite for codecs, policy, and relay behavior
@@ -325,10 +330,10 @@ only after reviewing the live configuration and intended transaction scope.
 pnpm relayer:serve
 ```
 
-The default bind address is loopback. Production deployment requires a private
-HTTPS route, authentication policy, capacity review, and a private OKBund
-endpoint. The current workspace contains the gateway implementation but does
-not claim that a public production gateway is deployed.
+The default bind address is loopback. The persistent private service is deployed
+on the supplied VPS with authentication, a capacity check, and the private
+OKBund endpoint. Browser integration still requires a separate authenticated
+HTTPS route; no public production gateway endpoint is claimed.
 
 ## Live verification record
 
@@ -380,10 +385,10 @@ the passkey vault and present the claim experience in a browser.
 ## Resume point
 
 The next work follows the product order in [`PROGRESS.md`](PROGRESS.md): finish
-the browser receiver enrollment/recovery integration, deploy the durable
-private gateway, then build the sender and receiver applications. The live
-claim proof is complete; do not represent the temporary localhost gateway as a
-public production service.
+the browser receiver enrollment/recovery proof, build the connected-wallet
+sender flow, then the receiver claim screen and gasless exit paths. The live
+claim proof is complete; the persistent gateway is private and not yet a
+browser-facing public service.
 
 ## Further documentation
 

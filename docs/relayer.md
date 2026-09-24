@@ -113,3 +113,15 @@ fail-closed launcher, and the required RPC/key/funding order are in
 [infra/okbund/README.md](../infra/okbund/README.md). The public X Layer RPC does
 not expose the tracing methods required for safe bundling, so a private tracing
 RPC is required before a bundler key is funded.
+
+## Persistent private deployment
+
+The supplied Lightsail host is also the intended private gateway host. The
+checked-in service unit in
+[`infra/relayer/convey-relayer.service`](../infra/relayer/convey-relayer.service)
+runs the gateway on loopback port `8800`, forwards to loopback OKBund, and
+loads its NodeFlare URL and bearer token from root-controlled service
+configuration. Existing unrelated VPS services occupy ports `8787`, `8797`,
+and `8798`, so Convey uses `8800`. The gateway has no public listener; an
+authenticated HTTPS edge remains a separate deployment step before browser
+integration.

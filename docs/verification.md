@@ -1,6 +1,6 @@
 # X Layer mainnet verification
 
-Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. Receiver enrollment and recovery remain separate product work.
+Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core and persistent private gateway are now implemented; browser ceremony/recovery proof and the authenticated browser edge remain open.
 
 ## Live continuation checks — 2026-09-24
 
@@ -14,7 +14,8 @@ The workspace resumed with read-only checks before any new gift or claim action:
   required by the selected OKBund safe-mode path.
 - The supplied Lightsail host reported `convey-okbund.service` active and its
   loopback RPC returned chain `196`. The host had about `350 MiB` available RAM
-  and `1.384 GiB` free swap at the check; no gateway was installed or restarted.
+  and `1.384 GiB` free swap at the check; the persistent gateway was installed
+  only after this read-only capacity check.
 - A live product-state read reported `nextGiftId = 2`, Gift ID `1` as
   `Reclaimed`, `openReserveTotal = 0`, `inFlightTotal = 0`, and
   `pendingRefundTotal = 0`. The claim paymaster remained staked with an
@@ -110,8 +111,26 @@ it is a point-in-time reading, not an approved funding amount.
 A later workspace `pnpm bundler:check` through a temporary SSH local port
 forward passed: the tunneled endpoint reported chain `196` and advertised the
 canonical v0.7 EntryPoint. This supersedes the earlier generic tunnel failure.
-Gateway connectivity from a deployed Convey process remains unconfirmed. The
-VPS endpoint is loopback-only and is not exposed publicly.
+Gateway connectivity from the deployed Convey process is recorded in the
+persistent deployment section below. The VPS endpoint is loopback-only and is
+not exposed publicly.
+
+### Persistent Convey gateway deployment — 2026-09-24
+
+The checked-in `convey-relayer.service` was installed and enabled on the
+supplied Lightsail VPS after the capacity check above. It runs as the dedicated
+`convey-relayer` user, reads its root-controlled environment file, forwards to
+OKBund at `127.0.0.1:3000/rpc`, and binds only to `127.0.0.1:8800`. Existing
+services occupying ports `8787`, `8797`, and `8798` were left untouched.
+
+At `2026-09-24T15:07:13Z`, the service was active and enabled. An unauthenticated
+`/healthz` request returned HTTP `401`. The authenticated health check returned
+`healthy = true`, chain `196`, OKBund support for the canonical v0.7 EntryPoint
+`0x0000000071727de22e5e9d8baf0edac6f37da032`, EntryPoint code size `16035`
+bytes, and a staked claim paymaster with deposit `197696031949403` wei against
+the configured minimum `20000000000000` wei. No secret token or RPC credential
+was printed or committed. This is a private loopback deployment; an
+authenticated HTTPS edge for browser access is not installed.
 
 On 2026-09-24, the new Convey EntryPoint event tracer was accepted by the
 configured private execution RPC. A read-only ERC-20 transfer trace captured a
@@ -125,7 +144,7 @@ claim preflight.
 - Gas-price variance needs repeated observations over time; one block only confirms the floor at that instant.
 - The issuer API and RPC evidence must be refreshed at deploy time because wrapper certification, trading halts, multipliers, and liquidity can change.
 
-### Lightsail health check — 2026-09-23
+### Historical pre-gateway Lightsail health check — 2026-09-23
 
 At `2026-09-23T16:16:45Z`, a read-only check through the supplied SSH key found
 `convey-okbund.service` active. Calls to `127.0.0.1:3000/rpc` returned chain
@@ -133,12 +152,12 @@ At `2026-09-23T16:16:45Z`, a read-only check through the supplied SSH key found
 used, 260 MiB available, 458 MiB of 2.0 GiB swap used, and 22 GiB of disk
 available (44% used). This is a point-in-time resource reading.
 
-The only running Convey-named systemd service was OKBund. The VPS scan did not
-identify a Convey gateway service or container; the existing `page47-web` and
-`xcover` site services remained active. No services were changed or restarted.
-The check submitted no transaction or UserOperation, so it produced no
-transaction hash. Co-locating a gateway needs a fresh capacity assessment
-before installation.
+The only running Convey-named systemd service was then OKBund. The VPS scan did
+not identify a Convey gateway service or container at that time; the existing
+`page47-web` and `xcover` site services remained active. No services were
+changed or restarted. The check submitted no transaction or UserOperation, so
+it produced no transaction hash. The later gateway installation followed a
+fresh capacity check and left those existing services untouched.
 
 ### Operator funding and bootstrap paymaster deployment — 2026-09-23
 
@@ -466,8 +485,10 @@ false positive: dynamic CALL cost reporting triggered the upstream
 safe-mode source now marks OOG from an actual tracer fault and retains the
 SSTORE gas-floor rule. The two-file change passed the pinned OKBund Maven
 reactor build. This is an operational compatibility patch, not an upstream or
-third-party audit. The gateway used for this proof was temporary and
-localhost-only; no durable public gateway deployment is claimed.
+third-party audit. The claim proof used a temporary localhost gateway before
+the persistent service was installed. The persistent private gateway is now
+deployed on the supplied VPS, but no public gateway or browser-facing HTTPS
+edge is claimed.
 
 ## Sources
 
