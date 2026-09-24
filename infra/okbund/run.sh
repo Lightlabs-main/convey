@@ -37,4 +37,10 @@ if [[ ! -f "${jar_path}" ]]; then
 fi
 
 cd "${bundler_dir}"
-exec java -jar "${jar_path}" --server.address="${BUNDLER_BIND_ADDRESS}"
+# The node-side fallback calls account calldata in isolation and is invalid for
+# Convey claims whose escrow call intentionally depends on paymaster validation
+# having marked the gift reserve InFlight. Keep OKBund's EntryPoint/EVM
+# simulation enabled and disable only that incompatible fallback estimator.
+exec java -jar "${jar_path}" \
+  --server.address="${BUNDLER_BIND_ADDRESS}" \
+  --rest.estimate.open-estimate-gas-from-node=false

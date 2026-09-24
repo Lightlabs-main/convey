@@ -329,6 +329,80 @@ Both hashes matched for a packed v0.7 operation; this checks the non-circular
 operation-fields signature before a real claim is attempted. The live claim
 UserOperation itself is still pending.
 
+### Sender asset acquisition — 2026-09-24
+
+The first sender-funded asset acquisition was completed on X Layer mainnet.
+At block `71458391`, the sender wallet held exactly `7` USDT0. The exact-token
+approval to the verified SwapRouter02 succeeded in transaction
+`0xade67ce967bf701f92b7574b55c7840939f4f0647c83a281770308ce57330130` at block
+`71459201`, using `53365` gas.
+
+A fresh live quote selected the direct USDT0→NVDAx pool at the 0.3% fee tier:
+`7` USDT0 quoted to `0.030965586663211895` NVDAx. The single-hop
+`exactInputSingle` swap succeeded in transaction
+`0xbd4f39e17fb02851abe6affb4b4a6e57a5adcf0105cb9dfdcae89be39a7cadae` at block
+`71459663`, using `175721` gas. Receipt logs show `7` USDT0 transferred from
+the sender to the pool and `0.030965586663211895` NVDAx transferred from the
+pool to the sender.
+
+A final private-RPC read at block `71459762` reported `0` USDT0,
+`0.030965586663211895` NVDAx, `0.000557285212864259` OKB, and zero remaining
+USDT0 allowance to the router. This proves the live asset acquisition, not a
+gift creation, private claim, reclaim, or product UserOperation.
+
+### Live NVDAx gift creation — 2026-09-24
+
+The sender then approved exactly `0.030965586663211895` NVDAx to the deployed
+`GiftEscrow` in transaction
+[`0xcc4b7c963e4ec26f36cb508e402a8bc7412a15811ad8e061fb6cc021e7dcf1ac`](https://www.oklink.com/xlayer/tx/0xcc4b7c963e4ec26f36cb508e402a8bc7412a15811ad8e061fb6cc021e7dcf1ac)
+at block `71460696`, using `53693` gas. The approval was confirmed on the
+private execution RPC before the gift call.
+
+`GiftEscrow.createGift` then succeeded in transaction
+[`0x58921e5bc238bf36534ff6c8fd828dd1af17808e54aa3900cad5c6f9e609bf9e`](https://www.oklink.com/xlayer/tx/0x58921e5bc238bf36534ff6c8fd828dd1af17808e54aa3900cad5c6f9e609bf9e)
+at block `71460786`, using `338499` gas. The live record is:
+
+- Gift ID: `1`; state: `Open`; `nextGiftId`: `2`
+- Asset: NVDAx `0xa8ddb5cd96b5222afe198316e9a57caa642850d5`
+- Amount: `0.030965586663211895` NVDAx
+- Reserve: `0.00002 OKB`; paymaster reserve remaining: `0.00002 OKB`
+- Expiry: Unix `1790834618` (`2026-10-01T06:03:38Z`); no code hash
+- Sender NVDAx balance: `0`; escrow NVDAx balance:
+  `0.030965586663211895`
+- Paymaster `openReserveTotal`: `0.00002 OKB`; EntryPoint deposit:
+  `0.00022 OKB`
+
+This was the verified state immediately after creation. The first accepted
+operation expired before inclusion and was removed from OKBund's transient
+mempool; it made no chain-state change. A fresh operation was then submitted
+through Convey's private gateway and OKBund:
+
+- UserOperation: `0xd3efe7e60f40e556d6f4fea79335723f0f5aab8924c0b015393a2451534346b1`
+- Bundle transaction: [`0xc4610b7cc244c7ec728c486d90493e94bfa976de9fcf4cfa46e04f744c1a05f6`](https://www.oklink.com/xlayer/tx/0xc4610b7cc244c7ec728c486d90493e94bfa976de9fcf4cfa46e04f744c1a05f6)
+- Block: `71463789`; bundle gas used: `311956`
+- `UserOperationEvent.success`: `false`; actual gas used: `365198`; actual
+  cost: `7303960365198` wei
+- Revert selector: `0x045c4b02`, decoded as `TokenTransferFailed()`
+
+The transaction exposed the claim secret but transferred no NVDAx. A direct
+historical token-transfer call to the receiver succeeded within `120000` gas,
+so recipient restrictions were ruled out. The evidence instead points to the
+full account-to-escrow-to-token execution exhausting the account-level call
+gas. A top-level `handleOps` simulation is insufficient because EntryPoint can
+complete while emitting a failed `UserOperationEvent`; preflight must inspect
+that event explicitly.
+
+The sender immediately removed the exposed claim surface by reclaiming Gift ID
+`1` in transaction
+[`0x6add4c95079719111eab9b3ebd9c7b6a6cc91df9b8e58384c4d57f12fc4fff9f`](https://www.oklink.com/xlayer/tx/0x6add4c95079719111eab9b3ebd9c7b6a6cc91df9b8e58384c4d57f12fc4fff9f)
+at block `71463978`, using `153703` gas. At final verification block
+`71464037`, Gift ID `1` was `Reclaimed`, the sender held all
+`0.030965586663211895` NVDAx, escrow held zero, and `openReserveTotal`,
+`inFlightTotal`, and `pendingRefundTotal` were zero. The receiver EntryPoint
+nonce was `2`; sponsor nonce `0` was consumed; the paymaster deposit was
+`0.000198988059949403 OKB`. The exposed secret is permanently retired and its
+value remains omitted from the repository.
+
 ## Sources
 
 - [X Layer official RPC configuration](https://web3.okx.com/onchainos/dev-docs/xlayer/developer/setup-rpc/setup-rpc)

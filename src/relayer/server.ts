@@ -93,7 +93,13 @@ function parseClaimRequest(value: unknown, expectedEntryPoint: Address, expected
 
 function statusFromReceipt(userOperationHash: Hex, receipt: any): ClaimRelayStatus {
   if (!receipt) return { userOperationHash, status: "pending" };
-  if (!receipt.receipt || typeof receipt.receipt.transactionHash !== "string" || typeof receipt.receipt.blockNumber !== "string") {
+  const rawBlockNumber = receipt.receipt?.blockNumber;
+  const blockNumber = typeof rawBlockNumber === "string"
+    ? rawBlockNumber
+    : Number.isSafeInteger(rawBlockNumber) && rawBlockNumber >= 0
+      ? `0x${rawBlockNumber.toString(16)}`
+      : undefined;
+  if (!receipt.receipt || typeof receipt.receipt.transactionHash !== "string" || blockNumber === undefined) {
     throw new Error("private bundler returned a malformed receipt");
   }
   return {
@@ -101,7 +107,7 @@ function statusFromReceipt(userOperationHash: Hex, receipt: any): ClaimRelayStat
     status: receipt.success === true ? "confirmed" : "failed",
     success: receipt.success === true,
     transactionHash: receipt.receipt.transactionHash,
-    blockNumber: receipt.receipt.blockNumber,
+    blockNumber: blockNumber as Hex,
   };
 }
 
