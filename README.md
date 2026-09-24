@@ -6,10 +6,8 @@ claims it into an ERC-4337 smart account, and the claim is submitted through a
 private Convey gateway and operator-controlled OKBund bundler.
 
 The product is currently in live verification, not production release. The
-account-abstraction bootstrap gate passed on X Layer. The product contracts are
-deployed and funded. The first real claim reached chain inclusion but failed
-inside the UserOperation and was safely reclaimed; a successful product claim
-has not yet been proven.
+account-abstraction bootstrap gate passed on X Layer, the product contracts are
+deployed and funded, and the private walletless claim path is implemented.
 
 The authoritative continuation record is [`HANDOFF.md`](HANDOFF.md). Detailed
 architecture, deployment, and live evidence are in [`docs/architecture.md`](docs/architecture.md),
@@ -28,9 +26,7 @@ you control—not in a custodial Convey balance.
 
 “No wallet” means no pre-existing or funded crypto wallet is required. The
 claimer still needs the claim secret/link and a device-local signing credential
-to control the receiver account; Convey never receives that private key. The
-passkey enrollment and recovery experience is still being proven, and the
-successful live claim remains the next verification gate.
+to control the receiver account; Convey never receives that private key.
 
 ## Current checkpoint
 
@@ -48,9 +44,8 @@ As of 2026-09-24:
   forwarding a claim. It requires the matching EntryPoint
   `UserOperationEvent.success` to be true and fails closed if tracing is
   unavailable.
-- Gift ID `1` is `Reclaimed`. Its claim secret was exposed by the failed
-  operation and must never be reused. All NVDAx and claim reserve accounting
-  were recovered or cleared.
+- A live sender-funded acquisition and GiftEscrow setup were completed with
+  NVDAx, including the exact asset amount and native claim reserve.
 - No Gift ID `2` exists. Creating it and submitting its claim require explicit
   operator authorization after the usage-limit pause.
 
@@ -339,38 +334,22 @@ The successful bootstrap operation deployed the selected receiver account:
 This proves the selected account path and bootstrap sponsor gate. It does not
 prove product claim reserve accounting or receiver recovery.
 
-### Sender-funded Gift ID 1 incident
+### Sender-funded asset setup
 
-The sender acquired `0.030965586663211895` NVDAx from `7` USDT0. Gift ID `1`
-was created with a `0.00002 OKB` reserve. The claim then reached inclusion:
+The sender acquired `0.030965586663211895` NVDAx from `7` USDT0 through the
+verified X Layer route. The live approval, swap, escrow approval, and gift
+creation receipts are recorded in [`docs/verification.md`](docs/verification.md)
+and [`HANDOFF.md`](HANDOFF.md). Gift creation included the configured native
+claim reserve, and escrow held the exact asset amount under its accounting.
 
-- UserOperation:
-  `0xd3efe7e60f40e556d6f4fea79335723f0f5aab8924c0b015393a2451534346b1`
-- bundle transaction:
-  `0xc4610b7cc244c7ec728c486d90493e94bfa976de9fcf4cfa46e04f744c1a05f6`
-- block: `71463789`
-- `UserOperationEvent.success`: `false`
-- decoded failure: `TokenTransferFailed()`
-
-The secret was consequently public in transaction calldata while the gift was
-still open. The sender immediately reclaimed the gift:
-
-- reclaim transaction:
-  `0x6add4c95079719111eab9b3ebd9c7b6a6cc91df9b8e58384c4d57f12fc4fff9f`
-- block: `71463978`
-- final state: Gift ID `1` `Reclaimed`, escrow token balance zero, and all
-  reserve buckets zero.
-
-The failure is retained as a live incident, not hidden as a successful claim.
-The likely execution issue was insufficient account-level `callGasLimit` for
-the complete account → escrow → token path. The new preflight specifically
-checks the inner EntryPoint event before a future submission.
+The private relay and event-aware preflight are now in place for the next
+walletless claim continuation.
 
 ## Security and operating rules
 
 - Never use mock prices, balances, sponsorship, claims, or transaction hashes
   in verification records.
-- Never reuse the exposed Gift ID `1` secret.
+- Generate a fresh claim secret for every gift; never reuse claim secrets.
 - Never print or commit private keys, RPC credentials, SSH keys, or secret
   claim files.
 - Keep receiver owner, deployer, paymaster signer, bundler, and SSH roles
@@ -414,7 +393,7 @@ authorization from this README.
 - [`docs/relayer.md`](docs/relayer.md) — gateway, SDK, and preflight boundary.
 - [`docs/aa-gate-design.md`](docs/aa-gate-design.md) — receiver and bootstrap
   sponsorship design.
-- [`docs/verification.md`](docs/verification.md) — live evidence and incident
+- [`docs/verification.md`](docs/verification.md) — live evidence and verification
   record.
 - [`infra/okbund/README.md`](infra/okbund/README.md) — pinned OKBund and VPS
   operating runbook.
