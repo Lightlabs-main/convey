@@ -1,5 +1,5 @@
 import { assertPrivateRpcUrl } from "./rpc.ts";
-import type { Address } from "./types.ts";
+import type { Address, Hex } from "./types.ts";
 import { assertAddress } from "./types.ts";
 
 export const XLAYER_CHAIN_ID = 196;
@@ -22,6 +22,7 @@ export interface SelfHostedRelayerConfig {
   bindAddress: string;
   port: number;
   authToken?: string;
+  claimPaymasterSignerPrivateKey?: Hex;
 }
 
 export interface RelayClientConfig {
@@ -48,6 +49,13 @@ function selectorFromEnv(env: Record<string, string | undefined>, name: string):
   const value = required(env, name);
   if (!/^0x[0-9a-fA-F]{8}$/.test(value)) throw new Error(`${name} must be a bytes4 selector`);
   return value.toLowerCase() as `0x${string}`;
+}
+
+function privateKeyFromEnv(env: Record<string, string | undefined>, name: string): Hex | undefined {
+  const value = env[name]?.trim();
+  if (!value) return undefined;
+  if (!/^0x[0-9a-fA-F]{64}$/.test(value)) throw new Error(`${name} must be a 32-byte private key`);
+  return value.toLowerCase() as Hex;
 }
 
 function positiveBigIntFromEnv(env: Record<string, string | undefined>, name: string): bigint {
@@ -111,6 +119,7 @@ export function loadSelfHostedRelayerConfig(env: Record<string, string | undefin
     bindAddress: env.RELAYER_SERVER_BIND?.trim() || "127.0.0.1",
     port: integerFromEnv(env, "RELAYER_SERVER_PORT", 8787, 1, 65_535),
     authToken: env.CONVEY_RELAYER_AUTH_TOKEN?.trim() || undefined,
+    claimPaymasterSignerPrivateKey: privateKeyFromEnv(env, "CONVEY_CLAIM_PAYMASTER_SIGNER_PRIVATE_KEY"),
   };
 }
 

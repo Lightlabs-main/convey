@@ -23,6 +23,12 @@ export interface ClaimCall {
   data: Hex;
 }
 
+export interface DecodedClaimCall {
+  giftId: bigint;
+  secret: Hex;
+  code: Hex;
+}
+
 export function encodeOkxClaimExecution(calls: readonly ClaimCall[]): Hex {
   return `${OKX_EXECUTE_USER_OP_SELECTOR}${encodeAbiParameters(CALLS_ABI, [calls]).slice(2)}` as Hex;
 }
@@ -52,3 +58,29 @@ export function assertClaimExecutionCalldata(
   }
 }
 
+/**
+ * Decodes the already policy-checked escrow call without retaining the
+ * bearer secret. Callers should use the returned giftId for authorization and
+ * discard the secret/code fields immediately.
+ */
+export function decodeClaimExecutionCalldata(
+  callData: Hex,
+  claimEscrow: Address,
+  claimFunctionSelector: Hex,
+): DecodedClaimCall {
+  assertClaimExecutionCalldata(callData, claimEscrow, claimFunctionSelector);
+  let calls: readonly ClaimCall[];
+  try {
+    [calls] = decodeAbiParameters(CALLS_ABI, `0x${callData.slice(10)}` as Hex) as unknown as [readonly ClaimCall[]];
+    const [giftId, secret, code] = decodeAbiParameters(
+      [{ type: "uint256" }, { type: "bytes" }, { type: "bytes" }],
+      `0x${calls[0].data.slice(10)}` as Hex,
+    );
+    if (typeof giftId !== "bigint" || typeof secret !== "string" || typeof code !== "string") {
+      throw new Error("claim arguments have the wrong types");
+    }
+    return { giftId, secret: secret as Hex, code: code as Hex };
+  } catch {
+    throw new Error("claim target call arguments are not valid");
+  }
+}

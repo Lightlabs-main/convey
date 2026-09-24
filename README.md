@@ -161,6 +161,7 @@ The browser-safe SDK is `ConveyRelayerClient`. The server-side gateway uses
 | Route | Behavior |
 |---|---|
 | `GET /healthz` | Checks execution RPC, chain, EntryPoint, bundler capability, and paymaster funding |
+| `POST /v1/claims/authorize` | Signs one claim-scoped paymaster authorization for an unsigned operation; never returns the sponsor key |
 | `POST /v1/claims/estimate` | Forwards a scoped gas-estimation request to the private bundler |
 | `POST /v1/claims` | Preflights and then submits one signed sponsored UserOperation |
 | `GET /v1/claims/:userOperationHash` | Returns pending, confirmed, or failed receipt status |

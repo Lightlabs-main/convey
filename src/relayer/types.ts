@@ -69,6 +69,17 @@ export interface ClaimRelayAccepted {
   status: "submitted";
 }
 
+export interface ClaimPaymasterAuthorizationResponse {
+  paymaster: Address;
+  paymasterVerificationGasLimit: Hex;
+  paymasterPostOpGasLimit: Hex;
+  paymasterData: Hex;
+  maxCost: Hex;
+  validAfter: Hex;
+  validUntil: Hex;
+  sponsorNonce: Hex;
+}
+
 export interface ClaimRelayStatus {
   userOperationHash: Hex;
   status: "pending" | "confirmed" | "failed";

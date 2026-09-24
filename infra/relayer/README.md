@@ -12,7 +12,8 @@ public. A separate authenticated HTTPS edge is required before a browser can
 reach the gateway.
 
 The service environment contains the live NodeFlare RPC URL, deployed claim
-addresses, the claim selector, and a gateway bearer token. Keep
+addresses, the claim selector, the server-only claim-paymaster signing key,
+and a gateway bearer token. Keep
 `/etc/convey/relayer.env` root-owned or readable only by the gateway service
 account. Do not put the token or RPC URL in browser variables.
 
@@ -32,4 +33,6 @@ NodeFlare X Layer RPC (credentialed, server-side)
 The gateway's health endpoint is authenticated and checks chain 196, EntryPoint
 bytecode, OKBund EntryPoint support, and claim-paymaster deposit/stake floors.
 The service was verified active on 2026-09-24; no public listener is part of
-this deployment.
+this deployment. `/v1/claims/authorize` additionally requires the live
+verifying-signer address to match the server-only signing key before it signs
+an authorization.

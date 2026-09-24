@@ -1,6 +1,7 @@
 import { assertPrivateRpcUrl } from "./rpc.ts";
 import type {
   Address,
+  ClaimPaymasterAuthorizationResponse,
   ClaimRelayAccepted,
   ClaimRelayStatus,
   Hex,
@@ -11,6 +12,8 @@ import type {
 import {
   assertSponsoredUserOperation,
   assertAddress,
+  assertHex,
+  assertQuantity,
   assertUserOperationHash,
   assertRpcUserOperationV07,
   toRpcUserOperation,
@@ -92,6 +95,48 @@ export class ConveyRelayerClient {
       userOperation: rpcUserOperation,
     });
     return body as UserOperationGasEstimate;
+  }
+
+  /**
+   * Requests a short-lived paymaster authorization for an unsigned claim
+   * operation. The sponsor key remains in Convey's private gateway; the
+   * returned paymaster data is safe to place into the locally signed operation.
+   */
+  async authorizeClaim(userOperation: PackedUserOperation | RpcUserOperationV07): Promise<ClaimPaymasterAuthorizationResponse> {
+    const rpcUserOperation = asRpcUserOperation(userOperation);
+    assertRpcUserOperationV07(rpcUserOperation);
+    if (!rpcUserOperation.paymaster) throw new Error("claim authorization requires the Convey paymaster");
+    if (rpcUserOperation.signature !== "0x") throw new Error("claim authorization requires an unsigned operation");
+    const body = await this.request("POST", "/v1/claims/authorize", {
+      entryPoint: this.entryPoint,
+      userOperation: rpcUserOperation,
+    });
+    if (!body || typeof body !== "object") throw new Error("relay returned an invalid claim authorization");
+    const response = body as Record<string, unknown>;
+    for (const field of [
+      "paymaster",
+      "paymasterVerificationGasLimit",
+      "paymasterPostOpGasLimit",
+      "paymasterData",
+      "maxCost",
+      "validAfter",
+      "validUntil",
+      "sponsorNonce",
+    ]) {
+      if (typeof response[field] !== "string") throw new Error(`relay authorization is missing ${field}`);
+    }
+    assertAddress(response.paymaster, "relay authorization paymaster");
+    assertQuantity(response.paymasterVerificationGasLimit, "relay authorization verification gas limit");
+    assertQuantity(response.paymasterPostOpGasLimit, "relay authorization post-op gas limit");
+    assertQuantity(response.maxCost, "relay authorization max cost");
+    assertQuantity(response.validAfter, "relay authorization valid after");
+    assertQuantity(response.validUntil, "relay authorization valid until");
+    assertQuantity(response.sponsorNonce, "relay authorization sponsor nonce");
+    assertHex(response.paymasterData, "relay authorization paymaster data");
+    if (response.paymaster.toLowerCase() !== rpcUserOperation.paymaster.toLowerCase()) {
+      throw new Error("relay authorization returned a different paymaster");
+    }
+    return response as unknown as ClaimPaymasterAuthorizationResponse;
   }
 
   /**

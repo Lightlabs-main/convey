@@ -22,9 +22,14 @@ private bundler.
 
 The browser path then:
 
-1. Build and sign a v0.7 UserOperation for the receiver smart account.
-2. Send it to Convey's `/v1/claims` endpoint over HTTPS.
-3. Poll `/v1/claims/:userOperationHash` for the bundler receipt.
+1. Build an unsigned v0.7 UserOperation for the receiver smart account.
+2. Ask `/v1/claims/authorize` for a claim-scoped paymaster authorization. The
+   gateway signs it with the configured claim-paymaster signer only after
+   checking the live open reserve and exact escrow/claim target.
+3. Put the returned paymaster data into the operation and sign the final
+   operation locally with the receiver owner key.
+4. Send it to Convey's `/v1/claims` endpoint over HTTPS.
+5. Poll `/v1/claims/:userOperationHash` for the bundler receipt.
 
 `src/relayer/okx.ts` contains the account-specific builder. It reads the live
 X Layer chain ID, EntryPoint bytecode, factory-derived counterfactual address,

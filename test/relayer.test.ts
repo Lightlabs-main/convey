@@ -19,6 +19,7 @@ import {
 import { loadSelfHostedRelayerConfig } from "../src/relayer/config.ts";
 import {
   assertClaimExecutionCalldata,
+  decodeClaimExecutionCalldata,
   encodeOkxClaimExecution,
   OKX_EXECUTE_USER_OP_SELECTOR,
 } from "../src/relayer/claim-policy.ts";
@@ -202,6 +203,12 @@ test("self-hosted configuration cannot accidentally use the public execution RPC
   assert.equal(config.entryPoint, entryPoint);
   assert.equal(config.paymaster, paymaster);
   assert.equal(config.claimEscrow, escrow);
+  assert.equal(config.claimPaymasterSignerPrivateKey, undefined);
+  assert.equal(
+    loadSelfHostedRelayerConfig({ ...env, CONVEY_CLAIM_PAYMASTER_SIGNER_PRIVATE_KEY: `0x${"12".repeat(32)}` }).claimPaymasterSignerPrivateKey,
+    `0x${"12".repeat(32)}`,
+  );
+  assert.throws(() => loadSelfHostedRelayerConfig({ ...env, CONVEY_CLAIM_PAYMASTER_SIGNER_PRIVATE_KEY: "0x1234" }), /32-byte private key/);
   assert.throws(() => loadSelfHostedRelayerConfig({ ...env, BUNDLER_RPC_URL: env.XLAYER_RPC_URL }), /separate private bundler/);
   assert.throws(() => loadSelfHostedRelayerConfig({ ...env, ENTRYPOINT_ADDRESS: "0x5ff137d4b0fdcd49dca30c7cf57e578a026d2789" }), /ERC-4337 v0.7/);
 });
@@ -218,6 +225,20 @@ test("claim policy accepts only one zero-value call to the configured escrow", (
   assert.throws(() => assertClaimExecutionCalldata(callData, paymaster, selector), /configured escrow/);
   assert.throws(() => assertClaimExecutionCalldata(encodeOkxClaimExecution([{ target: escrow, value: 1n, data: `${selector}deadbeef` as `0x${string}` }]), escrow, selector), /native currency/);
   assert.throws(() => assertClaimExecutionCalldata(encodeOkxClaimExecution([{ target: escrow, value: 0n, data: "0xdeadbeef" }]), escrow, selector), /configured claim function/);
+});
+
+test("claim policy extracts only the gift identifier for sponsor authorization", () => {
+  const selector = "0x12345678" as `0x${string}`;
+  const claimData = `${selector}${encodeAbiParameters(
+    [{ type: "uint256" }, { type: "bytes" }, { type: "bytes" }],
+    [7n, "0x1122", "0x3344"],
+  ).slice(2)}` as `0x${string}`;
+  const execution = encodeOkxClaimExecution([{ target: escrow, value: 0n, data: claimData }]);
+  assert.deepEqual(decodeClaimExecutionCalldata(execution, escrow, selector), {
+    giftId: 7n,
+    secret: "0x1122",
+    code: "0x3344",
+  });
 });
 
 test("OKX bootstrap no-op calldata matches the paymaster's fixed selector and hash", () => {
