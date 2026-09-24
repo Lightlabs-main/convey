@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 const CLAIM_HASH = /^0x[0-9a-fA-F]{64}$/u;
+const EXIT_HASH = /^0x[0-9a-fA-F]{64}$/u;
 
 function allowedPath(path: string): boolean {
   return path === "healthz"
@@ -8,7 +9,12 @@ function allowedPath(path: string): boolean {
     || path === "v1/claims/authorize"
     || path === "v1/claims/estimate"
     || path === "v1/claims/gas-seed"
-    || (path.startsWith("v1/claims/") && CLAIM_HASH.test(path.slice("v1/claims/".length)));
+    || (path.startsWith("v1/claims/") && CLAIM_HASH.test(path.slice("v1/claims/".length)))
+    || path === "v1/exits"
+    || path === "v1/exits/quote"
+    || path === "v1/exits/authorize"
+    || path === "v1/exits/estimate"
+    || (path.startsWith("v1/exits/") && EXIT_HASH.test(path.slice("v1/exits/".length)));
 }
 
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }): Promise<Response> {

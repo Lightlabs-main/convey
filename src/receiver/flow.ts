@@ -8,10 +8,12 @@ import {
   type Address,
   type Hex,
 } from "viem";
-import { buildOkxClaimUserOperation, type BuiltOkxClaimUserOperation, type OkxClaimGas, type OkxEcdsaMessageSigner } from "../relayer/okx.ts";
+import { buildOkxClaimUserOperation, buildOkxExitUserOperation, type BuiltOkxClaimUserOperation, type BuiltOkxExitUserOperation, type OkxClaimGas, type OkxEcdsaMessageSigner } from "../relayer/okx.ts";
+import { buildCashOutCalls, buildWithdrawalCall, type ExitCall } from "../relayer/exit-policy.ts";
+import { exitPaymasterActionHash } from "../relayer/exit-paymaster.ts";
 import { ConveyRelayerClient } from "../relayer/client.ts";
 import { XLAYER_CHAIN_ID, XLAYER_ENTRYPOINT_V07 } from "../relayer/config.ts";
-import type { ClaimGasSeed, ClaimPaymasterAuthorizationResponse, UserOperationGasEstimate } from "../relayer/types.ts";
+import type { ClaimGasSeed, ClaimPaymasterAuthorizationResponse, ExitPaymasterAuthorizationResponse, ExitQuote, UserOperationGasEstimate } from "../relayer/types.ts";
 import { enrollReceiverPasskey, unlockReceiverPasskey } from "./passkey.ts";
 import { receiverSignerFromPrivateKey } from "./signer.ts";
 import { storedReceiverVault, type ReceiverVaultStorage } from "./storage.ts";
@@ -93,6 +95,7 @@ const REGISTRY_ABI = [{
 const ERC20_METADATA_ABI = [
   { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
   { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+  { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
 ] as const;
 
 const WRAPPER_ABI = [{
@@ -210,6 +213,41 @@ export interface PreparedReceiverClaim extends BuiltReceiverClaim {
 export interface ReceiverClaimPreparationOptions extends Omit<ReceiverClaimBuildOptions, "gas" | "paymasterVerificationGasLimit" | "paymasterPostOpGasLimit"> {
   gasSeed: ReceiverClaimGasSeed;
   maxPasses?: number;
+}
+
+export interface ReceiverExitBuildOptions {
+  calls: readonly ExitCall[];
+  executionRpcUrl: string;
+  entryPoint?: Address;
+  factory: Address;
+  implementation: Address;
+  paymaster: Address;
+  signer: OkxEcdsaMessageSigner;
+  salt: bigint;
+  gas: OkxClaimGas;
+  paymasterVerificationGasLimit: bigint;
+  paymasterPostOpGasLimit: bigint;
+  relay: ConveyRelayerClient;
+  timeoutMs?: number;
+  fetchImpl?: typeof fetch;
+}
+
+export interface BuiltReceiverExit {
+  account: Address;
+  deployed: boolean;
+  calls: readonly ExitCall[];
+  authorization: ExitPaymasterAuthorizationResponse;
+  userOperation: BuiltOkxExitUserOperation;
+}
+
+export interface ReceiverExitPreparationOptions extends Omit<ReceiverExitBuildOptions, "gas" | "paymasterVerificationGasLimit" | "paymasterPostOpGasLimit"> {
+  gasSeed: ReceiverClaimGasSeed;
+  maxPasses?: number;
+}
+
+export interface PreparedReceiverExit extends BuiltReceiverExit {
+  estimate: UserOperationGasEstimate;
+  gas: ReceiverClaimGasSeed;
 }
 
 export interface ReceiverGiftValuation {
@@ -405,6 +443,25 @@ export async function readLiveGiftValuation(
     observedAt: new Date().toISOString(),
     source: "issuer-api",
   };
+}
+
+export async function readReceiverTokenBalance(
+  executionRpcUrl: string,
+  token: Address,
+  account: Address,
+): Promise<bigint> {
+  if (!isAddress(token) || !isAddress(account)) throw new Error("token and account must be EVM addresses");
+  const client = createPublicClient({
+    chain: defineChain({
+      id: XLAYER_CHAIN_ID,
+      name: "X Layer",
+      nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
+      rpcUrls: { default: { http: [executionRpcUrl] } },
+    }),
+    transport: http(executionRpcUrl),
+  });
+  const balance = await client.readContract({ address: token, abi: ERC20_METADATA_ABI, functionName: "balanceOf", args: [account] });
+  return bigintValue(balance, "token balance");
 }
 
 export async function enrollReceiverAccount(options: ReceiverEnrollmentOptions): Promise<EnrolledReceiverAccount> {
@@ -618,4 +675,100 @@ export async function prepareReceiverClaim(options: ReceiverClaimPreparationOpti
     paymasterPostOpGasLimit = nextPaymasterPostOpGasLimit;
   }
   throw new Error("live claim estimate did not converge");
+}
+
+export function buildReceiverCashOutCalls(options: {
+  inputToken: Address;
+  router: Address;
+  quote: ExitQuote;
+  recipient: Address;
+  amountIn: bigint;
+}): ExitCall[] {
+  if (options.quote.asset.toLowerCase() !== options.inputToken.toLowerCase()) throw new Error("cash-out quote asset does not match the gift asset");
+  if (BigInt(options.quote.amountIn) !== options.amountIn) throw new Error("cash-out quote amount does not match the live balance");
+  return buildCashOutCalls({
+    inputToken: options.inputToken,
+    router: options.router,
+    path: options.quote.path,
+    recipient: options.recipient,
+    amountIn: options.amountIn,
+    amountOutMinimum: BigInt(options.quote.amountOutMinimum),
+    deadline: BigInt(options.quote.deadline),
+  });
+}
+
+export function buildReceiverWithdrawalCall(token: Address, recipient: Address, amount: bigint): ExitCall[] {
+  return [buildWithdrawalCall(token, recipient, amount)];
+}
+
+export async function buildReceiverExit(options: ReceiverExitBuildOptions): Promise<BuiltReceiverExit> {
+  const entryPoint = options.entryPoint ?? XLAYER_ENTRYPOINT_V07;
+  const placeholder = `0x${"00".repeat(141)}` as Hex;
+  const provisional = await buildOkxExitUserOperation({
+    executionRpcUrl: options.executionRpcUrl,
+    entryPoint,
+    factory: options.factory,
+    implementation: options.implementation,
+    signer: options.signer,
+    salt: options.salt,
+    calls: options.calls,
+    gas: options.gas,
+    paymaster: {
+      address: options.paymaster,
+      verificationGasLimit: options.paymasterVerificationGasLimit,
+      postOpGasLimit: options.paymasterPostOpGasLimit,
+      data: placeholder,
+    },
+    validUntil: 0n,
+    timeoutMs: options.timeoutMs,
+    fetchImpl: options.fetchImpl,
+  });
+  const authorization = await options.relay.authorizeExit({ ...provisional.rpcUserOperation, signature: "0x" });
+  const signed = await buildOkxExitUserOperation({
+    executionRpcUrl: options.executionRpcUrl,
+    entryPoint,
+    factory: options.factory,
+    implementation: options.implementation,
+    signer: options.signer,
+    salt: options.salt,
+    calls: options.calls,
+    gas: options.gas,
+    paymaster: {
+      address: authorization.paymaster,
+      verificationGasLimit: requireEstimateValue(authorization.paymasterVerificationGasLimit, "paymasterVerificationGasLimit"),
+      postOpGasLimit: requireEstimateValue(authorization.paymasterPostOpGasLimit, "paymasterPostOpGasLimit"),
+      data: authorization.paymasterData,
+    },
+    validUntil: requireEstimateValue(authorization.validUntil, "validUntil"),
+    timeoutMs: options.timeoutMs,
+    fetchImpl: options.fetchImpl,
+  });
+  return { account: signed.account, deployed: signed.deployed, calls: options.calls, authorization, userOperation: signed };
+}
+
+export async function prepareReceiverExit(options: ReceiverExitPreparationOptions): Promise<PreparedReceiverExit> {
+  const maxPasses = options.maxPasses ?? 3;
+  if (!Number.isInteger(maxPasses) || maxPasses < 1 || maxPasses > 5) throw new Error("maxPasses must be between 1 and 5");
+  let gas = options.gasSeed.gas;
+  let paymasterVerificationGasLimit = options.gasSeed.paymasterVerificationGasLimit;
+  let paymasterPostOpGasLimit = options.gasSeed.paymasterPostOpGasLimit;
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    const built = await buildReceiverExit({ ...options, gas, paymasterVerificationGasLimit, paymasterPostOpGasLimit });
+    const estimate = await options.relay.estimateExit(built.userOperation.userOperation);
+    const nextGas: OkxClaimGas = {
+      callGasLimit: maxBigint(gas.callGasLimit, positiveEstimateValue(estimate.callGasLimit, "callGasLimit")),
+      verificationGasLimit: maxBigint(gas.verificationGasLimit, positiveEstimateValue(estimate.verificationGasLimit, "verificationGasLimit")),
+      preVerificationGas: maxBigint(gas.preVerificationGas, positiveEstimateValue(estimate.preVerificationGas, "preVerificationGas")),
+      maxFeePerGas: gas.maxFeePerGas,
+      maxPriorityFeePerGas: gas.maxPriorityFeePerGas,
+    };
+    const nextVerification = estimate.paymasterVerificationGasLimit === undefined ? paymasterVerificationGasLimit : maxBigint(paymasterVerificationGasLimit, positiveEstimateValue(estimate.paymasterVerificationGasLimit, "paymasterVerificationGasLimit"));
+    const nextPostOp = estimate.paymasterPostOpGasLimit === undefined ? paymasterPostOpGasLimit : maxBigint(paymasterPostOpGasLimit, positiveEstimateValue(estimate.paymasterPostOpGasLimit, "paymasterPostOpGasLimit"));
+    const converged = nextGas.callGasLimit === gas.callGasLimit && nextGas.verificationGasLimit === gas.verificationGasLimit && nextGas.preVerificationGas === gas.preVerificationGas && nextVerification === paymasterVerificationGasLimit && nextPostOp === paymasterPostOpGasLimit;
+    if (converged) return { ...built, estimate, gas: { gas, paymasterVerificationGasLimit, paymasterPostOpGasLimit } };
+    gas = nextGas;
+    paymasterVerificationGasLimit = nextVerification;
+    paymasterPostOpGasLimit = nextPostOp;
+  }
+  throw new Error("live exit estimate did not converge");
 }

@@ -7,6 +7,10 @@ import {
   recoverReceiverAccount,
   parseClaimLink,
   prepareReceiverClaim,
+  prepareReceiverExit,
+  buildReceiverCashOutCalls,
+  buildReceiverWithdrawalCall,
+  readReceiverTokenBalance,
   receiverClaimGasSeedFromLive,
   readGiftPreview,
   readLiveGiftValuation,
@@ -14,6 +18,7 @@ import {
   type EnrolledReceiverAccount,
   type ReceiverGiftPreview,
   type ReceiverGiftValuation,
+  type PreparedReceiverExit,
 } from "@/src/receiver/flow";
 import { ConveyRelayerClient } from "@/src/relayer/client";
 import { createBrowserReceiverVaultStorage } from "@/src/receiver/storage";
@@ -40,6 +45,13 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
   const [recoveryBundleInput, setRecoveryBundleInput] = useState("");
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
+  const [smartAccount, setSmartAccount] = useState<Address>();
+  const [exitQuote, setExitQuote] = useState<{ amountIn: bigint; amountOut: bigint; amountOutMinimum: bigint; observedAt: string }>();
+  const [exitBusy, setExitBusy] = useState(false);
+  const [exitStatus, setExitStatus] = useState("");
+  const [moveMode, setMoveMode] = useState(false);
+  const [moveToken, setMoveToken] = useState<"asset" | "usdt0">("asset");
+  const [moveRecipient, setMoveRecipient] = useState("");
   const [status, setStatus] = useState("Reading the live gift record…");
   const [error, setError] = useState("");
   const claim = useMemo(() => {
@@ -206,6 +218,7 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
       const result = await relay.waitForClaim(accepted.userOperationHash);
       if (result.status !== "confirmed" || result.success !== true) throw new Error("the sponsored claim was included but did not succeed");
       setClaimed(true);
+      setSmartAccount(prepared.account);
       const refreshed = await readGiftPreview(executionRpcUrl, requiredAddress("NEXT_PUBLIC_CONVEY_CLAIM_ESCROW_ADDRESS"), claim);
       setPreview(refreshed);
       setStatus(`Claim confirmed in X Layer block ${result.blockNumber ?? ""}. Your asset is in ${prepared.account}.`);
@@ -214,6 +227,86 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
       setStatus("Your gift has not moved.");
     } finally {
       setClaiming(false);
+    }
+  }
+
+  function exitAddress(name: "NEXT_PUBLIC_CONVEY_EXIT_PAYMASTER_ADDRESS" | "NEXT_PUBLIC_CONVEY_EXIT_ROUTER_ADDRESS" | "NEXT_PUBLIC_CONVEY_EXIT_USDT0_ADDRESS"): Address {
+    const value = process.env[name];
+    if (!value || !isAddress(value)) throw new Error(`${name} is not configured with a live address`);
+    return value as Address;
+  }
+
+  async function prepareExit(action: "cashout" | "withdraw", calls: ReturnType<typeof buildReceiverWithdrawalCall> | ReturnType<typeof buildReceiverCashOutCalls>): Promise<PreparedReceiverExit> {
+    if (!account?.session || !smartAccount) throw new Error("claim the gift before using an exit action");
+    const executionRpcUrl = process.env.NEXT_PUBLIC_XLAYER_RPC_URL;
+    if (!executionRpcUrl) throw new Error("The receiver screen is missing its live X Layer RPC");
+    const relay = new ConveyRelayerClient({ relayUrl: new URL("/api/relay", window.location.origin).toString().replace(/\/$/u, ""), entryPoint: requiredAddress("NEXT_PUBLIC_CONVEY_ENTRYPOINT_ADDRESS"), chainId: 196 });
+    const seed = receiverClaimGasSeedFromLive(await relay.claimGasSeed());
+    setExitStatus(action === "cashout" ? "Authorizing and estimating the live cash-out…" : "Authorizing and estimating the live withdrawal…");
+    return prepareReceiverExit({
+      calls,
+      executionRpcUrl,
+      entryPoint: requiredAddress("NEXT_PUBLIC_CONVEY_ENTRYPOINT_ADDRESS"),
+      factory: requiredAddress("NEXT_PUBLIC_CONVEY_SMART_WALLET_FACTORY"),
+      implementation: requiredAddress("NEXT_PUBLIC_CONVEY_SMART_WALLET_IMPLEMENTATION"),
+      paymaster: exitAddress("NEXT_PUBLIC_CONVEY_EXIT_PAYMASTER_ADDRESS"),
+      signer: account.session.signer,
+      salt: requiredSalt(),
+      gasSeed: seed,
+      relay,
+    });
+  }
+
+  async function cashOutGift() {
+    if (!preview || !smartAccount || !account?.session) return;
+    setError("");
+    setExitBusy(true);
+    try {
+      const executionRpcUrl = process.env.NEXT_PUBLIC_XLAYER_RPC_URL;
+      if (!executionRpcUrl) throw new Error("The receiver screen is missing its live X Layer RPC");
+      const balance = await readReceiverTokenBalance(executionRpcUrl, preview.asset, smartAccount);
+      if (balance <= 0n) throw new Error("the receiver smart account has no live asset balance to cash out");
+      const relay = new ConveyRelayerClient({ relayUrl: new URL("/api/relay", window.location.origin).toString().replace(/\/$/u, ""), entryPoint: requiredAddress("NEXT_PUBLIC_CONVEY_ENTRYPOINT_ADDRESS"), chainId: 196 });
+      setExitStatus("Reading an executable Uniswap V3 quote…");
+      const quote = await relay.quoteExit(preview.asset, balance);
+      setExitQuote({ amountIn: BigInt(quote.amountIn), amountOut: BigInt(quote.amountOut), amountOutMinimum: BigInt(quote.amountOutMinimum), observedAt: quote.observedAt });
+      const prepared = await prepareExit("cashout", buildReceiverCashOutCalls({ inputToken: preview.asset, router: exitAddress("NEXT_PUBLIC_CONVEY_EXIT_ROUTER_ADDRESS"), quote, recipient: smartAccount, amountIn: balance }));
+      const accepted = await relay.submitExit(prepared.userOperation.userOperation, { idempotencyKey: `cashout-${smartAccount.toLowerCase()}-${quote.observedAt}` });
+      const result = await relay.waitForExit(accepted.userOperationHash);
+      if (result.status !== "confirmed" || result.success !== true) throw new Error("the sponsored cash-out was included but did not succeed");
+      setExitStatus(`Cash-out confirmed in X Layer block ${result.blockNumber ?? ""}. USDT0 is now in your smart account.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The live gasless cash-out could not be completed.");
+      setExitStatus("Your asset has not moved.");
+    } finally {
+      setExitBusy(false);
+    }
+  }
+
+  async function withdrawGift(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!preview || !smartAccount || !account?.session) return;
+    setError("");
+    setExitBusy(true);
+    try {
+      if (!isAddress(moveRecipient)) throw new Error("enter a valid destination address");
+      const executionRpcUrl = process.env.NEXT_PUBLIC_XLAYER_RPC_URL;
+      if (!executionRpcUrl) throw new Error("The receiver screen is missing its live X Layer RPC");
+      const token = moveToken === "asset" ? preview.asset : exitAddress("NEXT_PUBLIC_CONVEY_EXIT_USDT0_ADDRESS");
+      const balance = await readReceiverTokenBalance(executionRpcUrl, token, smartAccount);
+      if (balance <= 0n) throw new Error("the receiver smart account has no live balance for this withdrawal");
+      const relay = new ConveyRelayerClient({ relayUrl: new URL("/api/relay", window.location.origin).toString().replace(/\/$/u, ""), entryPoint: requiredAddress("NEXT_PUBLIC_CONVEY_ENTRYPOINT_ADDRESS"), chainId: 196 });
+      const prepared = await prepareExit("withdraw", buildReceiverWithdrawalCall(token, moveRecipient as Address, balance));
+      const accepted = await relay.submitExit(prepared.userOperation.userOperation, { idempotencyKey: `withdraw-${smartAccount.toLowerCase()}-${token.toLowerCase()}-${moveRecipient.toLowerCase()}` });
+      const result = await relay.waitForExit(accepted.userOperationHash);
+      if (result.status !== "confirmed" || result.success !== true) throw new Error("the sponsored withdrawal was included but did not succeed");
+      setExitStatus(`Withdrawal confirmed in X Layer block ${result.blockNumber ?? ""}.`);
+      setMoveMode(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The gasless withdrawal could not be completed.");
+      setExitStatus("Your asset has not moved.");
+    } finally {
+      setExitBusy(false);
     }
   }
 
@@ -241,11 +334,14 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
             {preview?.state === "open" && !preview.expired && !account && recoveryMode ? <form className="recovery recovery-form" onSubmit={recoverAccount}><div className="recovery-label">Recover an existing account</div><p>Enter the recovery key you saved separately. Paste the encrypted bundle too when using a replacement device; on this device it may already be stored locally.</p><label>Recovery key<input value={recoveryKeyInput} onChange={(event) => setRecoveryKeyInput(event.target.value)} autoComplete="off" required /></label><label>Encrypted recovery bundle<textarea value={recoveryBundleInput} onChange={(event) => setRecoveryBundleInput(event.target.value)} placeholder="Paste the downloaded JSON bundle on a new device" rows={4} /></label><div><button className="button" type="submit">Recover account</button><button className="text-button" type="button" onClick={() => setRecoveryMode(false)}>Cancel</button></div></form> : null}
             {preview?.state === "open" && !preview.expired && account && recoverySaved && !claimed ? <button className="button" type="button" onClick={claimGift} disabled={claiming}>{claiming ? "Claiming securely…" : "Claim this gift"}</button> : null}
             <p className="status" aria-live="polite">{status}</p>
+            {exitStatus ? <p className="status" aria-live="polite">{exitStatus}</p> : null}
+            {exitQuote ? <div className="risk">Live quote: {formatUnits(exitQuote.amountOut, 6)} USDT0 minimum after slippage · observed {new Date(exitQuote.observedAt).toLocaleTimeString()}</div> : null}
             <div className="actions">
               <button className="action" type="button" disabled={!claimed} onClick={() => setStatus("Your tokenized exposure is held in your smart account.")}><span><strong>Keep it</strong><br />Hold your tokenized exposure</span><span>{claimed ? "ready" : "after claim"}</span></button>
-              {preview?.cashOutRoute !== "0x0000000000000000000000000000000000000000" ? <button className="action" type="button" disabled><span><strong>Cash out</strong><br />Live quote to USDT0</span><span>soon</span></button> : null}
-              <button className="action" type="button" disabled><span><strong>Move it</strong><br />Send to any address</span><span>soon</span></button>
+              {preview?.cashOutRoute !== "0x0000000000000000000000000000000000000000" ? <button className="action" type="button" disabled={!claimed || exitBusy} onClick={cashOutGift}><span><strong>Cash out</strong><br />Live quote to USDT0</span><span>{exitBusy ? "working…" : "gasless"}</span></button> : null}
+              <button className="action" type="button" disabled={!claimed || exitBusy} onClick={() => setMoveMode((value) => !value)}><span><strong>Move it</strong><br />Send to any address</span><span>{moveMode ? "close" : "gasless"}</span></button>
             </div>
+            {moveMode ? <form className="recovery recovery-form" onSubmit={withdrawGift}><div className="recovery-label">Move a live balance</div><label>Asset<select value={moveToken} onChange={(event) => setMoveToken(event.target.value as "asset" | "usdt0")}><option value="asset">{preview?.symbol ?? "Gift asset"}</option><option value="usdt0">USDT0</option></select></label><label>Destination address<input value={moveRecipient} onChange={(event) => setMoveRecipient(event.target.value)} placeholder="0x…" autoComplete="off" required /></label><button className="button" type="submit" disabled={exitBusy}>{exitBusy ? "Sending gaslessly…" : "Move full live balance"}</button><p className="risk">Convey never receives the destination key. The smart account signs the transfer locally and the private gateway only routes the sponsored UserOperation.</p></form> : null}
           </section>
           <aside className="side-card">
             <h2 className="side-title">What happens next</h2>

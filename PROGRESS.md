@@ -1,4 +1,10 @@
- # Progress
+# Progress
+
+## Current checkpoint — 2026-09-24
+
+- Implemented the scoped gasless exit path: live Uniswap V3 quote plumbing, withdrawal/cash-out policy, separate v0.7 exit paymaster contract, relay endpoints, receiver actions, and tests. The existing claim paymaster remains claim-only.
+- A mainnet exit-paymaster address was returned as `0xaace45b99bfe9e3f380a221d4b6ea4e273447df0`, and live bytecode plus `verifyingSigner()` were read successfully. The deploy script's post-deploy readback hit a transient empty RPC response, so the deployment transaction hash is not recorded; the paymaster is not funded or wired into the VPS/web deployment yet.
+- Browser WebAuthn PRF proof, browser-to-browser mainnet proof, and a real gasless exit remain open. The latest exit frontend code is committed locally but has not been redeployed to the public site.
 
 ## Done
 

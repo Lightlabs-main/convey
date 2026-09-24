@@ -24,6 +24,15 @@ export interface SelfHostedRelayerConfig {
   authToken?: string;
   claimPaymasterSignerPrivateKey?: Hex;
   claimGasSeedUserOperationHash?: Hex;
+  exitPaymaster?: Address;
+  exitPaymasterSignerPrivateKey?: Hex;
+  exitAssetRegistry?: Address;
+  exitRouter?: Address;
+  exitQuoter?: Address;
+  exitUsdt0?: Address;
+  exitRoutePaths?: readonly { asset: Address; path: Hex }[];
+  exitDefaultSlippageBps?: number;
+  exitDeadlineSeconds?: number;
 }
 
 export interface RelayClientConfig {
@@ -64,6 +73,22 @@ function userOperationHashFromEnv(env: Record<string, string | undefined>, name:
   if (!value) return undefined;
   assertUserOperationHash(value, name);
   return value.toLowerCase() as Hex;
+}
+
+function optionalPathRoutesFromEnv(env: Record<string, string | undefined>, name: string): readonly { asset: Address; path: Hex }[] | undefined {
+  const raw = env[name]?.trim();
+  if (!raw) return undefined;
+  const routes = raw.split(",").map((item) => {
+    const separator = item.indexOf(":");
+    if (separator <= 0) throw new Error(`${name} entries must be asset:path`);
+    const asset = item.slice(0, separator).trim();
+    const path = item.slice(separator + 1).trim();
+    assertAddress(asset, `${name} asset`);
+    if (!/^0x(?:[0-9a-fA-F]{2})+$/.test(path)) throw new Error(`${name} route path must be an even-length hex byte string`);
+    return { asset: asset.toLowerCase() as Address, path: path.toLowerCase() as Hex };
+  });
+  if (routes.length === 0) throw new Error(`${name} must contain at least one route`);
+  return routes;
 }
 
 function positiveBigIntFromEnv(env: Record<string, string | undefined>, name: string): bigint {
@@ -109,6 +134,19 @@ export function loadSelfHostedRelayerConfig(env: Record<string, string | undefin
   const entryPoint = addressFromEnv(env, "ENTRYPOINT_ADDRESS");
   if (entryPoint !== XLAYER_ENTRYPOINT_V07) throw new Error(`ENTRYPOINT_ADDRESS must be ERC-4337 v0.7 at ${XLAYER_ENTRYPOINT_V07}`);
 
+  const exitPaymasterRaw = env.CONVEY_EXIT_PAYMASTER_ADDRESS?.trim();
+  const exitConfigured = !!exitPaymasterRaw;
+  const exitPaymaster = exitConfigured ? addressFromEnv(env, "CONVEY_EXIT_PAYMASTER_ADDRESS") : undefined;
+  const exitAssetRegistry = exitConfigured ? addressFromEnv(env, "CONVEY_ASSET_REGISTRY_ADDRESS") : undefined;
+  const exitRouter = exitConfigured ? addressFromEnv(env, "CONVEY_EXIT_ROUTER_ADDRESS") : undefined;
+  const exitQuoter = exitConfigured ? addressFromEnv(env, "CONVEY_EXIT_QUOTER_ADDRESS") : undefined;
+  const exitUsdt0 = exitConfigured ? addressFromEnv(env, "CONVEY_EXIT_USDT0_ADDRESS") : undefined;
+  const exitRoutePaths = exitConfigured ? optionalPathRoutesFromEnv(env, "CONVEY_EXIT_ROUTE_PATHS") : undefined;
+  const exitSigner = exitConfigured ? privateKeyFromEnv(env, "CONVEY_EXIT_PAYMASTER_SIGNER_PRIVATE_KEY") : undefined;
+  if (exitConfigured && (!exitSigner || !exitQuoter || !exitRoutePaths)) throw new Error("exit paymaster requires its signer key, QuoterV2, and at least one live route path");
+  const exitDefaultSlippageBps = exitConfigured ? integerFromEnv(env, "CONVEY_EXIT_DEFAULT_SLIPPAGE_BPS", 100, 0, 1_000) : undefined;
+  const exitDeadlineSeconds = exitConfigured ? integerFromEnv(env, "CONVEY_EXIT_DEADLINE_SECONDS", 120, 30, 300) : undefined;
+
   return {
     chainId,
     executionRpcUrl,
@@ -129,6 +167,15 @@ export function loadSelfHostedRelayerConfig(env: Record<string, string | undefin
     authToken: env.CONVEY_RELAYER_AUTH_TOKEN?.trim() || undefined,
     claimPaymasterSignerPrivateKey: privateKeyFromEnv(env, "CONVEY_CLAIM_PAYMASTER_SIGNER_PRIVATE_KEY"),
     claimGasSeedUserOperationHash: userOperationHashFromEnv(env, "CONVEY_CLAIM_GAS_SEED_USER_OPERATION_HASH"),
+    exitPaymaster,
+    exitPaymasterSignerPrivateKey: exitSigner,
+    exitAssetRegistry,
+    exitRouter,
+    exitQuoter,
+    exitUsdt0,
+    exitRoutePaths,
+    exitDefaultSlippageBps,
+    exitDeadlineSeconds,
   };
 }
 

@@ -8,11 +8,17 @@ import {
 } from "viem";
 import { XLAYER_CHAIN_ID, XLAYER_ENTRYPOINT_V07 } from "./config.ts";
 import { assertClaimExecutionCalldata, encodeOkxClaimExecution, type ClaimCall } from "./claim-policy.ts";
+import { encodeOkxExitExecution, type ExitCall } from "./exit-policy.ts";
 import {
   signClaimPaymasterAuthorization,
   type ClaimPaymasterAuthorization,
   type ClaimPaymasterSponsorSigner,
 } from "./claim-paymaster.ts";
+import {
+  signExitPaymasterAuthorization,
+  type ExitPaymasterAuthorization,
+  type ExitPaymasterSponsorSigner,
+} from "./exit-paymaster.ts";
 import { JsonRpcClient } from "./rpc.ts";
 import type { Address, Hex, PackedUserOperation, RpcUserOperationV07 } from "./types.ts";
 import {
@@ -174,6 +180,52 @@ export interface BuiltOkxClaimUserOperation {
   rpcUserOperation: RpcUserOperationV07;
   claimPaymasterDigest?: Hex;
   claimPaymasterSignature?: Hex;
+}
+
+export interface OkxExitPaymaster {
+  address: Address;
+  verificationGasLimit: bigint;
+  postOpGasLimit: bigint;
+  data?: Hex;
+  authorization?: {
+    actionHash: Hex;
+    maxCost: bigint;
+    validAfter: bigint;
+    validUntil: bigint;
+    sponsorNonce: bigint;
+    signer: ExitPaymasterSponsorSigner;
+  };
+}
+
+export interface BuildOkxExitUserOperationOptions {
+  executionRpcUrl: string;
+  entryPoint: Address;
+  factory: Address;
+  implementation: Address;
+  signer: OkxEcdsaMessageSigner;
+  salt: bigint;
+  calls: readonly ExitCall[];
+  gas: OkxClaimGas;
+  paymaster: OkxExitPaymaster;
+  nonce?: bigint;
+  nonceKey?: bigint;
+  validUntil?: bigint;
+  timeoutMs?: number;
+  fetchImpl?: typeof fetch;
+}
+
+export interface BuiltOkxExitUserOperation {
+  account: Address;
+  deployed: boolean;
+  owner: Address;
+  keyHash: Hex;
+  validUntil: bigint;
+  ownerMessageHash: Hex;
+  userOpHash: Hex;
+  userOperation: PackedUserOperation;
+  rpcUserOperation: RpcUserOperationV07;
+  exitPaymasterDigest?: Hex;
+  exitPaymasterSignature?: Hex;
 }
 
 function byteLength(value: Hex): number {
@@ -470,5 +522,127 @@ export async function buildOkxClaimUserOperation(
     rpcUserOperation,
     claimPaymasterDigest,
     claimPaymasterSignature,
+  };
+}
+
+/** Builds the same live OKX v0.7 account operation shape for an exit action. */
+export async function buildOkxExitUserOperation(
+  options: BuildOkxExitUserOperationOptions,
+): Promise<BuiltOkxExitUserOperation> {
+  if (options.entryPoint.toLowerCase() !== XLAYER_ENTRYPOINT_V07) throw new Error(`entryPoint must be the verified X Layer v0.7 EntryPoint ${XLAYER_ENTRYPOINT_V07}`);
+  assertAddress(options.entryPoint, "entryPoint");
+  assertAddress(options.factory, "factory");
+  assertAddress(options.implementation, "implementation");
+  assertAddress(options.signer.address, "signer.address");
+  assertAddress(options.paymaster.address, "paymaster.address");
+  assertNonNegative(options.salt, "salt");
+  if (options.nonce !== undefined) assertNonNegative(options.nonce, "nonce");
+  const nonceKey = options.nonceKey ?? 0n;
+  if (options.nonce === undefined && (nonceKey < 0n || nonceKey >= (1n << 192n))) throw new Error("nonceKey does not fit uint192");
+  if (options.calls.length === 0) throw new Error("exit requires at least one account call");
+  for (const [name, value] of Object.entries(options.gas)) assertPositive(value, `gas.${name}`);
+  assertPositive(options.paymaster.verificationGasLimit, "paymaster.verificationGasLimit");
+  assertPositive(options.paymaster.postOpGasLimit, "paymaster.postOpGasLimit");
+  if (options.paymaster.data !== undefined) assertHex(options.paymaster.data, "paymaster.data");
+  if (!options.paymaster.data && !options.paymaster.authorization) throw new Error("paymaster.data or paymaster.authorization is required");
+  if (options.validUntil !== undefined) fixedHex(options.validUntil, 6, "validUntil");
+
+  const rpc = new JsonRpcClient(options.executionRpcUrl, { timeoutMs: options.timeoutMs, fetchImpl: options.fetchImpl });
+  const chainIdHex = await rpc.request<unknown>("eth_chainId");
+  if (!isHex(chainIdHex) || Number(BigInt(chainIdHex)) !== XLAYER_CHAIN_ID) throw new Error(`execution RPC must be X Layer chain ${XLAYER_CHAIN_ID}`);
+  const entryPointCode = await rpc.request<unknown>("eth_getCode", [options.entryPoint, "latest"]);
+  if (!isHex(entryPointCode) || entryPointCode === "0x") throw new Error("configured EntryPoint has no deployed bytecode");
+  const [factoryCode, implementationCode] = await Promise.all([
+    rpc.request<unknown>("eth_getCode", [options.factory, "latest"]),
+    rpc.request<unknown>("eth_getCode", [options.implementation, "latest"]),
+  ]);
+  if (!isHex(factoryCode) || factoryCode === "0x") throw new Error("configured OKX factory has no deployed bytecode");
+  if (!isHex(implementationCode) || implementationCode === "0x") throw new Error("configured OKX implementation has no deployed bytecode");
+
+  const keyHash = okxOwnerKeyHash(options.signer.address);
+  const initialOwners: InitialOwner[] = [{ keyHash, validator: OKX_ECDSA_VALIDATOR }];
+  const getAddressData = encodeFunctionData({ abi: FACTORY_ABI, functionName: "getAddress", args: [initialOwners, options.salt] });
+  const account = decodeAddress(await ethCall(rpc, options.factory, getAddressData), "counterfactual account");
+  const accountCode = await rpc.request<unknown>("eth_getCode", [account, "latest"]);
+  if (!isHex(accountCode)) throw new Error("execution RPC returned invalid account bytecode");
+  const deployed = accountCode !== "0x";
+  const initCode = deployed ? "0x" as Hex : encodeOkxFactoryInitCode(options.factory, initialOwners, options.salt);
+  const nonce = options.nonce ?? decodeUint256(await ethCall(rpc, options.entryPoint, encodeFunctionData({
+    abi: ENTRYPOINT_ABI,
+    functionName: "getNonce",
+    args: [account, nonceKey],
+  })), "EntryPoint nonce");
+  const callData = encodeOkxExitExecution(options.calls);
+  const placeholderPaymasterData = options.paymaster.authorization ? `0x${"00".repeat(141)}` as Hex : options.paymaster.data!;
+  let paymasterAndData = packPaymasterAndData(options.paymaster.address, options.paymaster.verificationGasLimit, options.paymaster.postOpGasLimit, placeholderPaymasterData);
+  let unsignedOperation: PackedUserOperation = {
+    sender: account,
+    nonce,
+    initCode,
+    callData,
+    accountGasLimits: packAccountGasLimits(options.gas.verificationGasLimit, options.gas.callGasLimit),
+    preVerificationGas: options.gas.preVerificationGas,
+    gasFees: packGasFees(options.gas.maxPriorityFeePerGas, options.gas.maxFeePerGas),
+    paymasterAndData,
+    signature: "0x",
+  };
+  let exitPaymasterDigest: Hex | undefined;
+  let exitPaymasterSignature: Hex | undefined;
+  if (options.paymaster.authorization) {
+    const authorization: ExitPaymasterAuthorization = {
+      entryPoint: options.entryPoint,
+      paymaster: options.paymaster.address,
+      actionHash: options.paymaster.authorization.actionHash,
+      maxCost: options.paymaster.authorization.maxCost,
+      paymasterVerificationGasLimit: options.paymaster.verificationGasLimit,
+      paymasterPostOpGasLimit: options.paymaster.postOpGasLimit,
+      validAfter: options.paymaster.authorization.validAfter,
+      validUntil: options.paymaster.authorization.validUntil,
+      sponsorNonce: options.paymaster.authorization.sponsorNonce,
+    };
+    const sponsorship = await signExitPaymasterAuthorization(unsignedOperation, authorization, options.paymaster.authorization.signer);
+    exitPaymasterDigest = sponsorship.digest;
+    exitPaymasterSignature = sponsorship.signature;
+    paymasterAndData = sponsorship.paymasterAndData;
+    unsignedOperation = { ...unsignedOperation, paymasterAndData };
+  }
+  toRpcUserOperation(unsignedOperation);
+  const hashCallData = encodeFunctionData({
+    abi: ENTRYPOINT_ABI,
+    functionName: "getUserOpHash",
+    args: [{
+      sender: unsignedOperation.sender,
+      nonce: unsignedOperation.nonce,
+      initCode: unsignedOperation.initCode,
+      callData: unsignedOperation.callData,
+      accountGasLimits: unsignedOperation.accountGasLimits,
+      preVerificationGas: unsignedOperation.preVerificationGas,
+      gasFees: unsignedOperation.gasFees,
+      paymasterAndData: unsignedOperation.paymasterAndData,
+      signature: unsignedOperation.signature,
+    }],
+  });
+  const userOpHash = decodeAbiParameters([{ type: "bytes32" }], await ethCall(rpc, options.entryPoint, hashCallData))[0] as Hex;
+  const validUntil = options.validUntil ?? 0n;
+  const ownerSigningDigest = okxOwnerSigningDigest(userOpHash, validUntil, options.implementation);
+  const rawSignature = await options.signer.signMessage({ message: { raw: ownerMessagePrehash(userOpHash, validUntil, options.implementation) } });
+  const recoveredOwner = await recoverAddress({ hash: ownerSigningDigest, signature: rawSignature });
+  if (recoveredOwner.toLowerCase() !== options.signer.address.toLowerCase()) throw new Error("owner signer returned a signature for a different address");
+  const signature = encodeOkxOwnerSignature(keyHash, validUntil, rawSignature);
+  const userOperation: PackedUserOperation = { ...unsignedOperation, signature };
+  const rpcUserOperation = toRpcUserOperation(userOperation);
+  if (fromRpcUserOperation(rpcUserOperation).signature !== signature) throw new Error("signed UserOperation failed v0.7 codec round-trip");
+  return {
+    account,
+    deployed,
+    owner: options.signer.address,
+    keyHash,
+    validUntil,
+    ownerMessageHash: ownerSigningDigest,
+    userOpHash,
+    userOperation,
+    rpcUserOperation,
+    exitPaymasterDigest,
+    exitPaymasterSignature,
   };
 }

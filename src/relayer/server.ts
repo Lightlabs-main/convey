@@ -1,14 +1,16 @@
 import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { decodeAbiParameters, decodeFunctionData, encodeFunctionData } from "viem";
+import { decodeAbiParameters, decodeFunctionData, encodeFunctionData, keccak256 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { checkRelayerHealth } from "./health.ts";
 import { assertClaimExecutionCalldata, decodeClaimExecutionCalldata } from "./claim-policy.ts";
 import { encodeClaimPaymasterData, signClaimPaymasterAuthorization } from "./claim-paymaster.ts";
+import { assertExitExecutionCalldata } from "./exit-policy.ts";
+import { encodeExitPaymasterData, exitPaymasterActionHash, signExitPaymasterAuthorization } from "./exit-paymaster.ts";
 import { JsonRpcRequestError, JsonRpcTransportError } from "./rpc.ts";
 import { JsonRpcClient } from "./rpc.ts";
 import { SelfHostedBundlerClient } from "./bundler.ts";
-import { fromRpcUserOperation, isAddress, isHex, isQuantity, toQuantity, toRpcUserOperation, type Address, type ClaimGasSeed, type ClaimPaymasterAuthorizationResponse, type ClaimRelayStatus, type Hex, type PackedUserOperation, type RpcUserOperationV07 } from "./types.ts";
+import { fromRpcUserOperation, isAddress, isHex, isQuantity, toQuantity, toRpcUserOperation, type Address, type ClaimGasSeed, type ClaimPaymasterAuthorizationResponse, type ClaimRelayStatus, type ExitPaymasterAuthorizationResponse, type ExitQuote, type Hex, type PackedUserOperation, type RpcUserOperationV07 } from "./types.ts";
 import {
   assertSponsoredUserOperation,
   assertRpcUserOperationV07,
@@ -39,7 +41,31 @@ interface ClaimAuthorizationRequest {
   userOperation: RpcUserOperationV07;
 }
 
+interface ExitRequest {
+  entryPoint: Address;
+  userOperation: RpcUserOperationV07;
+  idempotencyKey?: string;
+}
+
+interface ExitAuthorizationRequest {
+  entryPoint: Address;
+  userOperation: RpcUserOperationV07;
+}
+
+interface ExitQuoteRequest {
+  asset: Address;
+  amountIn: bigint;
+  slippageBps?: number;
+}
+
 const CLAIM_PAYMASTER_READ_ABI = [
+  {
+    type: "function",
+    name: "maxExitCost",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "value", type: "uint256" }],
+  },
   {
     type: "function",
     name: "maxClaimCost",
@@ -80,6 +106,27 @@ const CLAIM_PAYMASTER_READ_ABI = [
     outputs: [{ name: "used", type: "bool" }],
   },
 ] as const;
+
+const EXIT_REGISTRY_ABI = [{
+  type: "function",
+  name: "isGiftable",
+  stateMutability: "view",
+  inputs: [{ name: "token", type: "address" }],
+  outputs: [{ name: "result", type: "bool" }],
+}] as const;
+
+const EXIT_QUOTER_ABI = [{
+  type: "function",
+  name: "quoteExactInput",
+  stateMutability: "nonpayable",
+  inputs: [{ name: "path", type: "bytes" }, { name: "amountIn", type: "uint256" }],
+  outputs: [
+    { name: "amountOut", type: "uint256" },
+    { name: "sqrtPriceX96AfterList", type: "uint160[]" },
+    { name: "initializedTicksCrossedList", type: "uint32[]" },
+    { name: "gasEstimate", type: "uint256" },
+  ],
+}] as const;
 
 const ENTRYPOINT_HANDLE_OPS_ABI = [{
   type: "function",
@@ -159,7 +206,7 @@ function decodeReserve(data: Hex): { remaining: bigint; state: number } {
   return { remaining, state: Number(state) };
 }
 
-async function readPaymasterValue(rpc: JsonRpcClient, paymaster: Address, functionName: "maxClaimCost" | "verifyingSigner"): Promise<bigint | Address> {
+async function readPaymasterValue(rpc: JsonRpcClient, paymaster: Address, functionName: "maxClaimCost" | "maxExitCost" | "verifyingSigner"): Promise<bigint | Address> {
   const data = encodeFunctionData({ abi: CLAIM_PAYMASTER_READ_ABI, functionName, args: [] });
   const result = await rpc.request<Hex>("eth_call", [{ to: paymaster, data }, "latest"]);
   return functionName === "maxClaimCost" ? decodeUint256(result, functionName) : decodeAddress(result, functionName);
@@ -181,7 +228,7 @@ async function readBlockTimestamp(rpc: JsonRpcClient): Promise<bigint> {
   return BigInt(block.timestamp);
 }
 
-export function claimMaxCostFromUserOperation(userOperation: RpcUserOperationV07): bigint {
+export function maxCostFromUserOperation(userOperation: RpcUserOperationV07): bigint {
   assertRpcUserOperationV07(userOperation);
   if (!userOperation.paymasterVerificationGasLimit || !userOperation.paymasterPostOpGasLimit) {
     throw new Error("claim operation is missing paymaster gas limits");
@@ -198,6 +245,8 @@ export function claimMaxCostFromUserOperation(userOperation: RpcUserOperationV07
   // validatePaymasterUserOp and must be the value covered by the signature.
   return requiredGas * maxFeePerGas;
 }
+
+export const claimMaxCostFromUserOperation = maxCostFromUserOperation;
 
 function seedOperation(value: unknown): RpcUserOperationV07 {
   const record = isObject(value) && isObject(value.userOperation) ? value.userOperation : value;
@@ -288,6 +337,47 @@ function parseClaimRequest(value: unknown, expectedEntryPoint: Address, expected
   };
 }
 
+function parseExitAuthorizationRequest(value: unknown, expectedEntryPoint: Address, expectedPaymaster: Address): ExitAuthorizationRequest {
+  if (!isObject(value) || !isObject(value.userOperation) || typeof value.entryPoint !== "string") throw new HttpProblem(400, "invalid_exit_authorization_request");
+  if (value.entryPoint.toLowerCase() !== expectedEntryPoint.toLowerCase()) throw new HttpProblem(400, "wrong_entry_point");
+  try {
+    assertRpcUserOperationV07(value.userOperation);
+  } catch {
+    throw new HttpProblem(400, "invalid_unsigned_user_operation");
+  }
+  const userOperation = value.userOperation;
+  if (userOperation.signature !== "0x") throw new HttpProblem(400, "authorization_requires_unsigned_operation");
+  if (userOperation.paymaster?.toLowerCase() !== expectedPaymaster.toLowerCase()) throw new HttpProblem(400, "wrong_paymaster");
+  if (!zeroPaymasterData(userOperation.paymasterData)) throw new HttpProblem(400, "authorization_requires_empty_paymaster_data");
+  return { entryPoint: expectedEntryPoint, userOperation };
+}
+
+function parseExitRequest(value: unknown, expectedEntryPoint: Address, expectedPaymaster: Address): ExitRequest {
+  if (!isObject(value) || !isObject(value.userOperation) || typeof value.entryPoint !== "string") throw new HttpProblem(400, "invalid_exit_request");
+  if (value.entryPoint.toLowerCase() !== expectedEntryPoint.toLowerCase()) throw new HttpProblem(400, "wrong_entry_point");
+  try {
+    assertSponsoredUserOperation(value.userOperation);
+  } catch {
+    throw new HttpProblem(400, "invalid_sponsored_user_operation");
+  }
+  if (value.userOperation.paymaster!.toLowerCase() !== expectedPaymaster.toLowerCase()) throw new HttpProblem(400, "wrong_paymaster");
+  if (value.idempotencyKey !== undefined && (typeof value.idempotencyKey !== "string" || !/^[\x21-\x7e]{8,128}$/.test(value.idempotencyKey))) throw new HttpProblem(400, "invalid_idempotency_key");
+  return { entryPoint: expectedEntryPoint, userOperation: value.userOperation, idempotencyKey: value.idempotencyKey as string | undefined };
+}
+
+function parseExitQuoteRequest(value: unknown): ExitQuoteRequest {
+  if (!isObject(value) || typeof value.asset !== "string" || typeof value.amountIn !== "string") throw new HttpProblem(400, "invalid_exit_quote_request");
+  if (!isAddress(value.asset) || !isQuantity(value.amountIn)) throw new HttpProblem(400, "invalid_exit_quote_fields");
+  const amountIn = BigInt(value.amountIn);
+  if (amountIn <= 0n) throw new HttpProblem(400, "exit_quote_amount_must_be_positive");
+  let slippageBps: number | undefined;
+  if (value.slippageBps !== undefined) {
+    if (typeof value.slippageBps !== "number" || !Number.isInteger(value.slippageBps) || value.slippageBps < 0 || value.slippageBps > 1_000) throw new HttpProblem(400, "invalid_exit_slippage");
+    slippageBps = value.slippageBps;
+  }
+  return { asset: value.asset.toLowerCase() as Address, amountIn, slippageBps };
+}
+
 export function statusFromReceipt(userOperationHash: Hex, receipt: any): ClaimRelayStatus {
   if (!receipt) return { userOperationHash, status: "pending" };
   const rawBlockNumber = receipt.receipt?.blockNumber;
@@ -317,7 +407,36 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
   const execution = new JsonRpcClient(config.executionRpcUrl, { timeoutMs: config.requestTimeoutMs });
   const submissions = new Map<string, { userOperationHash: Hex; expiresAt: number }>();
   const reservedSponsorNonces = new Set<string>();
+  const reservedExitSponsorNonces = new Set<string>();
   let sponsorNonceCursor = 0n;
+  let exitSponsorNonceCursor = 0n;
+
+  function requireExitConfig(): {
+    paymaster: Address;
+    signerKey: Hex;
+    registry: Address;
+    router: Address;
+    quoter: Address;
+    usdt0: Address;
+    routes: readonly { asset: Address; path: Hex }[];
+    slippageBps: number;
+    deadlineSeconds: number;
+  } {
+    if (!config.exitPaymaster || !config.exitPaymasterSignerPrivateKey || !config.exitAssetRegistry || !config.exitRouter || !config.exitQuoter || !config.exitUsdt0 || !config.exitRoutePaths || config.exitDefaultSlippageBps === undefined || config.exitDeadlineSeconds === undefined) {
+      throw new HttpProblem(503, "exit_sponsor_unavailable");
+    }
+    return {
+      paymaster: config.exitPaymaster,
+      signerKey: config.exitPaymasterSignerPrivateKey,
+      registry: config.exitAssetRegistry,
+      router: config.exitRouter,
+      quoter: config.exitQuoter,
+      usdt0: config.exitUsdt0,
+      routes: config.exitRoutePaths,
+      slippageBps: config.exitDefaultSlippageBps,
+      deadlineSeconds: config.exitDeadlineSeconds,
+    };
+  }
 
   function pruneSubmissions(): void {
     const now = Date.now();
@@ -334,6 +453,59 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
       reservedSponsorNonces.add(key);
       return candidate;
     }
+  }
+
+  async function nextExitSponsorNonce(paymaster: Address): Promise<bigint> {
+    for (;;) {
+      const candidate = exitSponsorNonceCursor;
+      exitSponsorNonceCursor += 1n;
+      const key = candidate.toString();
+      if (reservedExitSponsorNonces.has(key)) continue;
+      if (await readSponsorNonce(execution, paymaster, candidate)) continue;
+      reservedExitSponsorNonces.add(key);
+      return candidate;
+    }
+  }
+
+  function exitRoute(routes: readonly { asset: Address; path: Hex }[], asset: Address): Hex {
+    const route = routes.find((candidate) => candidate.asset.toLowerCase() === asset.toLowerCase());
+    if (!route) throw new HttpProblem(409, "asset_has_no_verified_cash_out_route");
+    return route.path;
+  }
+
+  async function assertLiveGiftable(registry: Address, asset: Address): Promise<void> {
+    const data = encodeFunctionData({ abi: EXIT_REGISTRY_ABI, functionName: "isGiftable", args: [asset] });
+    const result = await execution.request<Hex>("eth_call", [{ to: registry, data }, "latest"]);
+    if (!decodeBool(result, "registry isGiftable")) throw new HttpProblem(409, "asset_is_not_enabled");
+  }
+
+  async function quoteExit(request: ExitQuoteRequest): Promise<ExitQuote> {
+    const exit = requireExitConfig();
+    await assertLiveGiftable(exit.registry, request.asset);
+    const path = exitRoute(exit.routes, request.asset);
+    const data = encodeFunctionData({ abi: EXIT_QUOTER_ABI, functionName: "quoteExactInput", args: [path, request.amountIn] });
+    const result = await execution.request<Hex>("eth_call", [{ to: exit.quoter, data }, "latest"]);
+    const [amountOut] = decodeAbiParameters([
+      { type: "uint256" },
+      { type: "uint160[]" },
+      { type: "uint32[]" },
+      { type: "uint256" },
+    ], result);
+    if (typeof amountOut !== "bigint" || amountOut <= 0n) throw new HttpProblem(409, "exit_route_returned_no_quote");
+    const slippageBps = request.slippageBps ?? exit.slippageBps;
+    const amountOutMinimum = amountOut * BigInt(10_000 - slippageBps) / 10_000n;
+    if (amountOutMinimum <= 0n) throw new HttpProblem(409, "exit_quote_below_minimum");
+    const deadline = (await readBlockTimestamp(execution)) + BigInt(exit.deadlineSeconds);
+    return {
+      asset: request.asset,
+      amountIn: toQuantity(request.amountIn, "amountIn"),
+      amountOut: toQuantity(amountOut, "amountOut"),
+      amountOutMinimum: toQuantity(amountOutMinimum, "amountOutMinimum"),
+      path,
+      deadline: toQuantity(deadline, "deadline"),
+      observedAt: new Date().toISOString(),
+      source: "uniswap-v3-quoter-v2",
+    };
   }
 
   async function claimGasSeed(): Promise<ClaimGasSeed> {
@@ -473,6 +645,64 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
     }
   }
 
+  async function authorizeExit(request: ExitAuthorizationRequest): Promise<ExitPaymasterAuthorizationResponse> {
+    const exit = requireExitConfig();
+    const sponsor = privateKeyToAccount(exit.signerKey);
+    const liveSigner = await readPaymasterValue(execution, exit.paymaster, "verifyingSigner");
+    if (typeof liveSigner !== "string" || liveSigner.toLowerCase() !== sponsor.address.toLowerCase()) throw new HttpProblem(503, "exit_sponsor_misconfigured");
+    try {
+      assertExitExecutionCalldata(request.userOperation.callData, request.userOperation.sender, exit.routes.map((route) => route.asset), exit.router, exit.usdt0);
+    } catch {
+      throw new HttpProblem(400, "invalid_exit_target");
+    }
+    const maxExitCost = await readPaymasterValue(execution, exit.paymaster, "maxExitCost");
+    if (typeof maxExitCost !== "bigint" || maxExitCost <= 0n) throw new HttpProblem(503, "exit_paymaster_policy_unavailable");
+    const paymasterVerificationGasLimit = BigInt(request.userOperation.paymasterVerificationGasLimit!);
+    const paymasterPostOpGasLimit = BigInt(request.userOperation.paymasterPostOpGasLimit!);
+    if (paymasterVerificationGasLimit <= 0n || paymasterPostOpGasLimit <= 0n) throw new HttpProblem(400, "exit_paymaster_gas_limits_required");
+    let maxCost: bigint;
+    try {
+      maxCost = maxCostFromUserOperation(request.userOperation);
+    } catch {
+      throw new HttpProblem(400, "exit_gas_fields_invalid");
+    }
+    if (maxCost > maxExitCost) throw new HttpProblem(409, "exit_cost_exceeds_policy");
+    const sponsorNonce = await nextExitSponsorNonce(exit.paymaster);
+    try {
+      const validAfter = await readBlockTimestamp(execution);
+      const validUntil = validAfter + 300n;
+      const operation = fromRpcUserOperation(request.userOperation);
+      const authorization = {
+        entryPoint: request.entryPoint,
+        paymaster: exit.paymaster,
+        actionHash: exitPaymasterActionHash(request.userOperation.callData),
+        maxCost,
+        paymasterVerificationGasLimit,
+        paymasterPostOpGasLimit,
+        validAfter,
+        validUntil,
+        sponsorNonce,
+      };
+      const signed = await signExitPaymasterAuthorization(operation, authorization, {
+        address: sponsor.address,
+        sign: ({ hash }) => sponsor.sign({ hash }),
+      });
+      return {
+        paymaster: exit.paymaster,
+        paymasterVerificationGasLimit: toQuantity(paymasterVerificationGasLimit, "paymasterVerificationGasLimit"),
+        paymasterPostOpGasLimit: toQuantity(paymasterPostOpGasLimit, "paymasterPostOpGasLimit"),
+        paymasterData: encodeExitPaymasterData(authorization, signed.signature),
+        maxCost: toQuantity(maxCost, "maxCost"),
+        validAfter: toQuantity(validAfter, "validAfter"),
+        validUntil: toQuantity(validUntil, "validUntil"),
+        sponsorNonce: toQuantity(sponsorNonce, "sponsorNonce"),
+      };
+    } catch (error) {
+      reservedExitSponsorNonces.delete(sponsorNonce.toString());
+      throw error;
+    }
+  }
+
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     if (!authorized(request, config.authToken)) {
       json(response, 401, { error: "unauthorized" });
@@ -488,6 +718,25 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
       json(response, 200, await claimGasSeed());
       return;
     }
+    if (request.method === "POST" && path === "/v1/exits/quote") {
+      const body = await readJson(request, config.maxBodyBytes);
+      json(response, 200, await quoteExit(parseExitQuoteRequest(body)));
+      return;
+    }
+    if (request.method === "POST" && path === "/v1/exits/authorize") {
+      const body = await readJson(request, config.maxBodyBytes);
+      const exit = requireExitConfig();
+      const parsed = parseExitAuthorizationRequest(body, config.entryPoint, exit.paymaster);
+      json(response, 200, await authorizeExit(parsed));
+      return;
+    }
+    if (request.method === "GET" && /^\/v1\/exits\/0x[0-9a-fA-F]{64}$/.test(path)) {
+      const userOperationHash = path.slice("/v1/exits/".length) as Hex;
+      assertUserOperationHash(userOperationHash);
+      const receipt = await bundler.getUserOperationReceipt(userOperationHash);
+      json(response, 200, statusFromReceipt(userOperationHash, receipt));
+      return;
+    }
     if (request.method === "POST" && path === "/v1/claims/authorize") {
       const body = await readJson(request, config.maxBodyBytes);
       const claim = parseClaimAuthorizationRequest(body, config.entryPoint, config.paymaster);
@@ -499,6 +748,44 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
       assertUserOperationHash(userOperationHash);
       const receipt = await bundler.getUserOperationReceipt(userOperationHash);
       json(response, 200, statusFromReceipt(userOperationHash, receipt));
+      return;
+    }
+    if (request.method === "POST" && (path === "/v1/exits" || path === "/v1/exits/estimate")) {
+      const exit = requireExitConfig();
+      const body = await readJson(request, config.maxBodyBytes);
+      const parsed = parseExitRequest(body, config.entryPoint, exit.paymaster);
+      try {
+        assertExitExecutionCalldata(parsed.userOperation.callData, parsed.userOperation.sender, exit.routes.map((route) => route.asset), exit.router, exit.usdt0);
+      } catch {
+        throw new HttpProblem(400, "invalid_exit_target");
+      }
+      if (path === "/v1/exits/estimate") {
+        json(response, 200, await bundler.estimateUserOperationGas(parsed.userOperation, parsed.entryPoint));
+        return;
+      }
+      pruneSubmissions();
+      if (parsed.idempotencyKey) {
+        const existing = submissions.get(`exit:${parsed.idempotencyKey}`);
+        if (existing) {
+          json(response, 202, { userOperationHash: existing.userOperationHash, status: "submitted" });
+          return;
+        }
+      }
+      try {
+        await preflightEntryPointUserOperation({
+          executionRpcUrl: config.executionRpcUrl,
+          entryPoint: parsed.entryPoint,
+          beneficiary: config.preflightBeneficiary,
+          userOperation: fromRpcUserOperation(parsed.userOperation),
+          timeoutMs: config.requestTimeoutMs,
+        });
+      } catch (error) {
+        if (error instanceof JsonRpcRequestError || error instanceof JsonRpcTransportError) throw new HttpProblem(502, "exit_simulation_unavailable");
+        throw new HttpProblem(409, "exit_simulation_failed");
+      }
+      const userOperationHash = await bundler.sendUserOperation(parsed.userOperation, parsed.entryPoint);
+      if (parsed.idempotencyKey) submissions.set(`exit:${parsed.idempotencyKey}`, { userOperationHash, expiresAt: Date.now() + 15 * 60_000 });
+      json(response, 202, { userOperationHash, status: "submitted" });
       return;
     }
     if (request.method !== "POST" || (path !== "/v1/claims" && path !== "/v1/claims/estimate")) {

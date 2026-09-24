@@ -24,7 +24,9 @@
     "relayer:serve": "node --env-file=.env script/relayer-server.ts",
     "product:deploy": "node --env-file=.env script/deploy-product.ts",
     "product:fund": "node --env-file=.env script/fund-product-paymaster.ts",
-    "product:register-assets": "node --env-file=.env script/register-launch-assets.ts"
+    "product:register-assets": "node --env-file=.env script/register-launch-assets.ts",
+    "exit:deploy": "node --env-file=.env script/deploy-exit-paymaster.ts",
+    "exit:fund": "node --env-file=.env script/fund-exit-paymaster.ts"
   },
   "exports": {
     ".": "./src/index.ts",

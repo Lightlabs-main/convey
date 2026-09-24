@@ -96,6 +96,28 @@ export interface ClaimPaymasterAuthorizationResponse {
   sponsorNonce: Hex;
 }
 
+export interface ExitPaymasterAuthorizationResponse {
+  paymaster: Address;
+  paymasterVerificationGasLimit: Hex;
+  paymasterPostOpGasLimit: Hex;
+  paymasterData: Hex;
+  maxCost: Hex;
+  validAfter: Hex;
+  validUntil: Hex;
+  sponsorNonce: Hex;
+}
+
+export interface ExitQuote {
+  asset: Address;
+  amountIn: Hex;
+  amountOut: Hex;
+  amountOutMinimum: Hex;
+  path: Hex;
+  deadline: Hex;
+  observedAt: string;
+  source: "uniswap-v3-quoter-v2";
+}
+
 export interface ClaimRelayStatus {
   userOperationHash: Hex;
   status: "pending" | "confirmed" | "failed";
