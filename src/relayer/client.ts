@@ -2,6 +2,7 @@ import { assertPrivateRpcUrl } from "./rpc.ts";
 import type {
   Address,
   ClaimPaymasterAuthorizationResponse,
+  ClaimGasSeed,
   ClaimRelayAccepted,
   ClaimRelayStatus,
   Hex,
@@ -95,6 +96,28 @@ export class ConveyRelayerClient {
       userOperation: rpcUserOperation,
     });
     return body as UserOperationGasEstimate;
+  }
+
+  /** Reads live gas limits and current fee fields from Convey's private gateway. */
+  async claimGasSeed(): Promise<ClaimGasSeed> {
+    const body = await this.request("GET", "/v1/claims/gas-seed");
+    if (!body || typeof body !== "object") throw new Error("relay returned an invalid claim gas seed");
+    const response = body as Record<string, unknown>;
+    for (const field of [
+      "callGasLimit",
+      "verificationGasLimit",
+      "preVerificationGas",
+      "maxFeePerGas",
+      "maxPriorityFeePerGas",
+      "paymasterVerificationGasLimit",
+      "paymasterPostOpGasLimit",
+    ]) {
+      if (typeof response[field] !== "string") throw new Error(`relay gas seed is missing ${field}`);
+      assertQuantity(response[field], `relay gas seed ${field}`);
+    }
+    if (typeof response.sourceUserOperationHash !== "string") throw new Error("relay gas seed is missing sourceUserOperationHash");
+    assertUserOperationHash(response.sourceUserOperationHash, "relay gas seed sourceUserOperationHash");
+    return response as unknown as ClaimGasSeed;
   }
 
   /**

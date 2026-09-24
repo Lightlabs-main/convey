@@ -2,13 +2,16 @@
 
 ## Decision to resume
 
-The product is **Convey**. The previous name is retired; `AGENTS.md` records this as persistent project memory. The account-abstraction transaction gate has now passed through Convey's private OKBund on X Layer, using NodeFlare as OKBund's execution RPC. Particle is no longer a sponsor dependency. The product registry, escrow, claim paymaster, and launch asset entries are deployed and funded; the receiver vault and claim-flow library plus persistent private gateway are implemented, while browser ceremony, edge, and recovery proof remain separate work.
+The product is **Convey**. The previous name is retired; `AGENTS.md` records this as persistent project memory. The account-abstraction transaction gate has now passed through Convey's private OKBund on X Layer, using NodeFlare as OKBund's execution RPC. Particle is no longer a sponsor dependency. The product registry, escrow, claim paymaster, and launch asset entries are deployed and funded; the receiver vault and claim-flow library plus persistent private gateway are implemented. The public web edge is deployed; browser ceremony, recovery proof, and browser mainnet proof remain open.
 
 The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 EntryPoint v0.7. Its inspected implementation does **not** implement ERC-7579. A proposed per-receiver ECDSA key vault is recorded in `docs/aa-gate-design.md`; its passkey storage, recovery, and revocation paths still need implementation-specific proof. The first sponsor path is an operator-controlled v0.7 paymaster with a dedicated signer and funded EntryPoint deposit/stake. This paymaster is an infrastructure prerequisite to the verification gate; the sender-funded product gas model needs separate proof before gifting.
 
 ## Verified baseline
 
-- `pnpm verify` previously passed against X Layer mainnet at pinned block 71,272,554. Wrapper certification, USDT0, and live pool quotes are recorded in `docs/verification.md` and `docs/verification.raw.json`.
+- `pnpm verify` passed again on 2026-09-24 at `2026-09-24T16:55:00Z` against
+  X Layer mainnet at pinned block `71,272,554`. Wrapper certification, USDT0,
+  and live pool quotes are recorded in `docs/verification.md` and
+  `docs/verification.raw.json`.
 - NodeFlare's keyed X Layer RPC passed the JavaScript-tracer and state-override `debug_traceCall` checks on chain 196.
 - OKX OKBund is pinned to commit `77ac3770ba7dd4be949975b142623540e28f60e4`. Its Java 21 build passed `mvn verify`; the local loopback runtime probe returned chain 196 and EntryPoint v0.7. The later VPS run included the sponsored bootstrap operation recorded below.
 - The previous Particle Network dashboard issue was investigated. Its public dashboard code sends email codes through `POST https://dashboard-api.particle.network/code`. A malformed, non-deliverable probe from this environment received a Cloudflare 403 block page without browser CORS headers, consistent with a generic browser “Network Error”; this does not prove the user's request had the same response. The earlier `login.particle.io/signup` recommendation was incorrect: that domain belongs to a different Particle product. The correct Particle Network dashboard is `https://dashboard.particle.network/`, but this route is no longer required for Convey's gate.
@@ -21,7 +24,7 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
   stale short hash.
 - A bulk product rename from the retired name to Convey has been applied across package metadata, SDK identifiers, environment variable names, tests, docs, and the OKBund runbook. The package name is `convey`; the client class is `ConveyRelayerClient`; operator variables use the `CONVEY_` prefix. The local ignored `.env` variable names were migrated without displaying secret values.
 - The rename and documentation corrections are committed. `pnpm test` passes;
-  no fresh live `pnpm verify` was run during this continuation. Stale Particle
+  the live `pnpm verify` rerun is recorded below. Stale Particle
   bootstrap instructions were removed and its unused example credential slots
   were deleted.
 - [`contracts/bootstrap/ConveyBootstrapPaymasterV07.sol`](contracts/bootstrap/ConveyBootstrapPaymasterV07.sol) implements the one-operation, chain-196 v0.7 policy. Twelve Foundry tests pass. The expiry case uses a local EntryPoint stub; this is not a mainnet simulation or independent audit.
@@ -37,24 +40,26 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
 - The operator provisioned distinct `SMART_ACCOUNT_OWNER_PRIVATE_KEY`, `DEPLOYER_PRIVATE_KEY`, and `BOOTSTRAP_PAYMASTER_SIGNER_PRIVATE_KEY` values in the ignored local `.env`. Their public role addresses are distinct; no private values were printed. The receiver account `0x63B2A84d47cb07fb18EE72Ec386893506Fd963db` is now deployed on chain 196 by the sponsored operation. The deployed paymaster is `0x6647cef848fc54b0c821f91a88d83227f65e36b9`; its deployment and sponsorship transactions are recorded in `docs/verification.md`. Sponsor nonce `0`, paymaster verification gas limit `200000`, and max-cost cap `0.01 OKB` are configured. The receiver's EntryPoint nonce is now `1`; the paymaster authorization is consumed. `BUNDLER_PRIVATE_KEY` remains only in the VPS root-owned service environment, and its public wallet retains `0.000781673979083699 OKB`.
 - The ignored local `.env` was found with mode `0666` and changed to owner-only mode `0600` without reading or printing its contents. Keep operator keys in this file or a secret manager, never in chat.
 - Pinned OKBund is installed and running as a persistent loopback-only service on the Lightsail VPS. Its dedicated bundler wallet is funded. The product contracts and registry entries are deployed on X Layer; public addresses, receipts, and policy are in `docs/product-deployment.json`. Gift ID `1` reached on-chain claim inclusion but failed internally and was reclaimed. Gift ID `2` was subsequently created and claimed successfully through Convey's private route; the evidence is recorded below.
-- The connected-wallet sender module is now committed and exported as
-  `convey/sender`. It reads live registry/token/paymaster state, creates real
-  hashlocked gifts, and performs exact approval; browser UI and QR rendering
-  remain separate.
+- The connected-wallet sender module is committed and exported as
+  `convey/sender`; the Next.js home surface now connects an injected existing
+  wallet, reads live certified assets, and creates real hashlocked gifts.
+  QR rendering remains separate.
 - The persistent gateway's server-only claim authorization route is deployed.
   Its signer matches the live paymaster verifier; a non-mutating request for
   closed Gift ID `2` returned `409 gift_claim_reserve_unavailable`, and no new
   UserOperation was submitted.
 - The receiver flow library now joins the encrypted vault to the live claim
   path: PRF enrollment/unlock/recovery, live Gift preview, link parsing, claim
-  calldata, and private two-pass paymaster authorization are implemented and
-  locally tested. A real browser PRF ceremony, authenticated HTTPS edge, and
-  on-chain owner-management/revocation proof remain open.
+  calldata, live gas seed/estimation, and private two-pass paymaster
+  authorization are implemented and locally tested. A real browser PRF
+  ceremony and on-chain owner-management/revocation proof remain open. The
+  public HTTPS web edge is deployed separately.
 - The Next.js receiver surface is implemented and production-built. It reads
-  live escrow/registry state and the issuer valuation, shows the recovery key
-  once with explicit save confirmation, and proxies only allowlisted relay
-  paths server-side. It has not been presented as a completed browser claim:
-  the live estimator, public HTTPS edge, and browser mainnet proof remain open.
+  live escrow/registry state and issuer valuation, shows the recovery key once
+  with explicit save confirmation, performs the live seed/estimate/claim path,
+  and proxies only allowlisted relay paths server-side. It has not been
+  presented as a completed browser claim: the browser PRF ceremony and browser
+  mainnet proof remain open.
 
 ### Live sponsored bootstrap evidence
 
@@ -76,6 +81,12 @@ were excluded from this evidence. No private key or credential was printed.
 - The existing key is usable from this workspace; ordinary sandboxed SSH is blocked, so use the approved SSH escalation path. The VPS runs Ubuntu 24.04.4, has 2 GB swap, and already hosts other services; do not restart or overwrite them.
 - Pinned OKBund `77ac3770ba7dd4be949975b142623540e28f60e4` passed `mvn verify` on the VPS with Java 21/Maven. Jar SHA-256: `7aa098ee3629a83c7d08a8672deb2747205c418fbef59d104158b61b4ace7c60`.
 - `convey-okbund.service` is enabled and active. It binds only to `127.0.0.1:3000/rpc`; live RPC returned chain `0xc4` and the canonical v0.7 EntryPoint. A later workspace `pnpm bundler:check` through a temporary SSH tunnel passed for chain 196 and EntryPoint v0.7, superseding an earlier generic connection failure. The persistent `convey-relayer.service` is now enabled and active on `127.0.0.1:8800`; its authenticated live health evidence is in [`docs/verification.md`](docs/verification.md).
+- `convey-web.service` is enabled and active on `127.0.0.1:3001`. The
+  separate Nginx site terminates HTTPS at
+  `https://convey.13-62-181-128.sslip.io` and forwards to that loopback app.
+  The certificate was issued by Let's Encrypt on 2026-09-24 and automatic
+  renewal is configured. A public GET returned `200`; an unallowlisted relay
+  path returned `404`.
 - The generated bundler wallet is `0xa537812DdaD4AcaA3617E316c8f9b4Add6C9D67e`. Its key and the existing NodeFlare credential are stored in root-only `/etc/convey/okbund.env`; never read or print that file's contents. Its latest live balance is `0.000781673979083699 OKB`; the earlier zero-balance reading preceded funding. The initial gas price observation was `0x1406f40` wei.
 - After service start, it used about 199 MiB under a 650 MiB service cap; the host reported about 288 MiB memory available. The gateway has since been added after a fresh capacity check; continue watching host memory and the paymaster deposit. The local workspace has no `BUNDLER_RPC_URL`; from another process on this same VPS, the internal URL is `http://127.0.0.1:3000/rpc`.
 
@@ -83,8 +94,8 @@ were excluded from this evidence. No private key or credential was printed.
 
 1. Run the real WebAuthn PRF enrollment/recovery ceremonies with persistent
    client storage and prove the inspected OKX owner-revocation path.
-2. Wire the live claim estimator and authenticated HTTPS edge to the receiver
-   screen.
+2. Run the real browser PRF enrollment/recovery ceremony on the deployed web
+   edge and prove the inspected OKX owner-revocation path.
 3. Implement live-quoted gasless cash-out and gasless withdrawal.
 4. Execute and record one complete browser-to-browser X Layer mainnet flow.
 5. Add monitoring and paymaster top-up operations.
@@ -244,5 +255,6 @@ passed `mvn verify`. OKBund defaults to manual bundling in this deployment, so
 the accepted operation was included with its supported
 `debug_bundler_sendBundleNow` RPC. The claim proof used an ephemeral localhost
 gateway before the persistent service was installed. The persistent private
-gateway is now active on the supplied VPS; no public gateway or browser-facing
-HTTPS edge is deployed.
+gateway is now active on the supplied VPS, and the public web edge is deployed
+separately; no public gateway endpoint is exposed and no browser mainnet claim
+is recorded yet.

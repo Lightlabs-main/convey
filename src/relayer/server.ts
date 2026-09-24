@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { decodeAbiParameters, encodeFunctionData } from "viem";
+import { decodeAbiParameters, decodeFunctionData, encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { checkRelayerHealth } from "./health.ts";
 import { assertClaimExecutionCalldata, decodeClaimExecutionCalldata } from "./claim-policy.ts";
@@ -8,7 +8,7 @@ import { encodeClaimPaymasterData, signClaimPaymasterAuthorization } from "./cla
 import { JsonRpcRequestError, JsonRpcTransportError } from "./rpc.ts";
 import { JsonRpcClient } from "./rpc.ts";
 import { SelfHostedBundlerClient } from "./bundler.ts";
-import { fromRpcUserOperation, isAddress, isQuantity, toQuantity, type Address, type ClaimPaymasterAuthorizationResponse, type ClaimRelayStatus, type Hex, type RpcUserOperationV07 } from "./types.ts";
+import { fromRpcUserOperation, isAddress, isHex, isQuantity, toQuantity, toRpcUserOperation, type Address, type ClaimGasSeed, type ClaimPaymasterAuthorizationResponse, type ClaimRelayStatus, type Hex, type PackedUserOperation, type RpcUserOperationV07 } from "./types.ts";
 import {
   assertSponsoredUserOperation,
   assertRpcUserOperationV07,
@@ -80,6 +80,28 @@ const CLAIM_PAYMASTER_READ_ABI = [
     outputs: [{ name: "used", type: "bool" }],
   },
 ] as const;
+
+const ENTRYPOINT_HANDLE_OPS_ABI = [{
+  type: "function",
+  name: "handleOps",
+  stateMutability: "nonpayable",
+  inputs: [{
+    name: "ops",
+    type: "tuple[]",
+    components: [
+      { name: "sender", type: "address" },
+      { name: "nonce", type: "uint256" },
+      { name: "initCode", type: "bytes" },
+      { name: "callData", type: "bytes" },
+      { name: "accountGasLimits", type: "bytes32" },
+      { name: "preVerificationGas", type: "uint256" },
+      { name: "gasFees", type: "bytes32" },
+      { name: "paymasterAndData", type: "bytes" },
+      { name: "signature", type: "bytes" },
+    ],
+  }, { name: "beneficiary", type: "address" }],
+  outputs: [],
+}] as const;
 
 function zeroPaymasterData(value: Hex | undefined): boolean {
   return value === undefined || value === "0x" || value === `0x${"00".repeat(141)}`;
@@ -157,6 +179,50 @@ async function readBlockTimestamp(rpc: JsonRpcClient): Promise<bigint> {
   const block = await rpc.request<{ timestamp?: unknown } | null>("eth_getBlockByNumber", ["latest", false]);
   if (!block || typeof block.timestamp !== "string" || !isQuantity(block.timestamp)) throw new Error("execution RPC returned no live block timestamp");
   return BigInt(block.timestamp);
+}
+
+export function claimMaxCostFromUserOperation(userOperation: RpcUserOperationV07): bigint {
+  assertRpcUserOperationV07(userOperation);
+  if (!userOperation.paymasterVerificationGasLimit || !userOperation.paymasterPostOpGasLimit) {
+    throw new Error("claim operation is missing paymaster gas limits");
+  }
+  const requiredGas = BigInt(userOperation.callGasLimit)
+    + BigInt(userOperation.verificationGasLimit)
+    + BigInt(userOperation.preVerificationGas)
+    + BigInt(userOperation.paymasterVerificationGasLimit)
+    + BigInt(userOperation.paymasterPostOpGasLimit);
+  const maxFeePerGas = BigInt(userOperation.maxFeePerGas);
+  if (requiredGas <= 0n || maxFeePerGas <= 0n) throw new Error("claim operation has no gas exposure");
+  // ERC-4337 v0.7 EntryPoint pre-funds the complete account and paymaster
+  // gas envelope at maxFeePerGas. This is the value passed to
+  // validatePaymasterUserOp and must be the value covered by the signature.
+  return requiredGas * maxFeePerGas;
+}
+
+function seedOperation(value: unknown): RpcUserOperationV07 {
+  const record = isObject(value) && isObject(value.userOperation) ? value.userOperation : value;
+  assertRpcUserOperationV07(record);
+  return record;
+}
+
+function transactionHashOf(value: unknown): Hex | undefined {
+  if (!isObject(value) || typeof value.transactionHash !== "string" || !isHex(value.transactionHash)) return undefined;
+  return value.transactionHash;
+}
+
+function packedSeedFromTransaction(input: Hex, sender: Address, nonce: Hex): RpcUserOperationV07 {
+  const decoded = decodeFunctionData({ abi: ENTRYPOINT_HANDLE_OPS_ABI, data: input });
+  const operations = decoded.args[0] as readonly unknown[];
+  const match = operations.find((value) => {
+    if (!value || typeof value !== "object") return false;
+    const record = value as Record<string, unknown>;
+    return typeof record.sender === "string"
+      && record.sender.toLowerCase() === sender.toLowerCase()
+      && typeof record.nonce === "bigint"
+      && record.nonce === BigInt(nonce);
+  });
+  if (!match) throw new Error("bundle transaction did not contain the configured gas seed operation");
+  return toRpcUserOperation(match as PackedUserOperation);
 }
 
 function json(response: ServerResponse, status: number, value: unknown): void {
@@ -270,6 +336,65 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
     }
   }
 
+  async function claimGasSeed(): Promise<ClaimGasSeed> {
+    const sourceUserOperationHash = config.claimGasSeedUserOperationHash;
+    if (!sourceUserOperationHash) throw new HttpProblem(503, "claim_gas_seed_unavailable");
+    const raw = await bundler.getUserOperationByHash(sourceUserOperationHash);
+    if (!raw) throw new HttpProblem(503, "claim_gas_seed_unavailable");
+    let seed: RpcUserOperationV07;
+    try {
+      seed = seedOperation(raw);
+      if (!seed.paymasterVerificationGasLimit || !seed.paymasterPostOpGasLimit) {
+        const transactionHash = transactionHashOf(raw);
+        if (!transactionHash) throw new Error("gas seed response is missing its bundle transaction");
+        const transaction = await execution.request<{ to?: unknown; input?: unknown } | null>("eth_getTransactionByHash", [transactionHash]);
+        if (!transaction || typeof transaction.to !== "string" || transaction.to.toLowerCase() !== config.entryPoint.toLowerCase() || !isHex(transaction.input)) {
+          throw new Error("gas seed bundle transaction is not the configured EntryPoint call");
+        }
+        seed = packedSeedFromTransaction(transaction.input, seed.sender, seed.nonce);
+      }
+      if (isObject(raw) && typeof raw.entryPoint === "string" && raw.entryPoint.toLowerCase() !== config.entryPoint.toLowerCase()) {
+        throw new Error("gas seed belongs to a different EntryPoint");
+      }
+      assertSponsoredUserOperation(seed);
+      assertClaimExecutionCalldata(seed.callData, config.claimEscrow, config.claimFunctionSelector);
+    } catch {
+      throw new HttpProblem(503, "claim_gas_seed_unavailable");
+    }
+    const receipt = await bundler.getUserOperationReceipt(sourceUserOperationHash);
+    if (!receipt || receipt.success !== true) throw new HttpProblem(503, "claim_gas_seed_unavailable");
+
+    const [gasPriceValue, block] = await Promise.all([
+      execution.request<unknown>("eth_gasPrice"),
+      execution.request<{ baseFeePerGas?: unknown } | null>("eth_getBlockByNumber", ["latest", false]),
+    ]);
+    if (!isQuantity(gasPriceValue)) throw new HttpProblem(503, "claim_gas_seed_unavailable");
+    let maxPriorityFeePerGas = BigInt(seed.maxPriorityFeePerGas);
+    try {
+      const livePriority = await execution.request<unknown>("eth_maxPriorityFeePerGas");
+      if (isQuantity(livePriority) && BigInt(livePriority) > 0n) maxPriorityFeePerGas = BigInt(livePriority);
+    } catch {
+      // Some execution RPCs do not expose eth_maxPriorityFeePerGas. The
+      // successful seed operation's fee field is still a live observed value.
+    }
+    if (maxPriorityFeePerGas <= 0n) throw new HttpProblem(503, "claim_gas_seed_unavailable");
+    const gasPrice = BigInt(gasPriceValue);
+    const baseFee = block && isQuantity(block.baseFeePerGas) ? BigInt(block.baseFeePerGas) : gasPrice;
+    const maxFeePerGas = gasPrice > baseFee + maxPriorityFeePerGas
+      ? gasPrice
+      : baseFee + maxPriorityFeePerGas;
+    return {
+      callGasLimit: seed.callGasLimit,
+      verificationGasLimit: seed.verificationGasLimit,
+      preVerificationGas: seed.preVerificationGas,
+      maxFeePerGas: toQuantity(maxFeePerGas, "maxFeePerGas"),
+      maxPriorityFeePerGas: toQuantity(maxPriorityFeePerGas, "maxPriorityFeePerGas"),
+      paymasterVerificationGasLimit: seed.paymasterVerificationGasLimit!,
+      paymasterPostOpGasLimit: seed.paymasterPostOpGasLimit!,
+      sourceUserOperationHash,
+    };
+  }
+
   async function authorizeClaim(request: ClaimAuthorizationRequest): Promise<ClaimPaymasterAuthorizationResponse> {
     const privateKey = config.claimPaymasterSignerPrivateKey;
     if (!privateKey) throw new HttpProblem(503, "claim_sponsor_unavailable");
@@ -296,14 +421,21 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
       if (error instanceof JsonRpcRequestError) throw new HttpProblem(409, "gift_claim_reserve_unavailable");
       throw error;
     }
-    const maxCost = await readPaymasterValue(execution, config.paymaster, "maxClaimCost");
-    if (typeof maxCost !== "bigint" || maxCost <= 0n) throw new HttpProblem(503, "claim_paymaster_policy_unavailable");
-    if (reserve.state !== 0 || reserve.remaining < maxCost) throw new HttpProblem(409, "gift_claim_reserve_unavailable");
+    const maxClaimCost = await readPaymasterValue(execution, config.paymaster, "maxClaimCost");
+    if (typeof maxClaimCost !== "bigint" || maxClaimCost <= 0n) throw new HttpProblem(503, "claim_paymaster_policy_unavailable");
     const paymasterVerificationGasLimit = BigInt(request.userOperation.paymasterVerificationGasLimit!);
     const paymasterPostOpGasLimit = BigInt(request.userOperation.paymasterPostOpGasLimit!);
     if (paymasterVerificationGasLimit <= 0n || paymasterPostOpGasLimit <= 0n) {
       throw new HttpProblem(400, "claim_paymaster_gas_limits_required");
     }
+    let maxCost: bigint;
+    try {
+      maxCost = claimMaxCostFromUserOperation(request.userOperation);
+    } catch {
+      throw new HttpProblem(400, "claim_gas_fields_invalid");
+    }
+    if (maxCost > maxClaimCost) throw new HttpProblem(409, "claim_cost_exceeds_policy");
+    if (reserve.state !== 0 || reserve.remaining < maxCost) throw new HttpProblem(409, "gift_claim_reserve_unavailable");
 
     const sponsorNonce = await nextSponsorNonce();
     try {
@@ -350,6 +482,10 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
     if (request.method === "GET" && path === "/healthz") {
       const report = await checkRelayerHealth(config);
       json(response, report.healthy ? 200 : 503, report);
+      return;
+    }
+    if (request.method === "GET" && path === "/v1/claims/gas-seed") {
+      json(response, 200, await claimGasSeed());
       return;
     }
     if (request.method === "POST" && path === "/v1/claims/authorize") {

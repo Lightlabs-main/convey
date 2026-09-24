@@ -1,6 +1,6 @@
 import { assertPrivateRpcUrl } from "./rpc.ts";
 import type { Address, Hex } from "./types.ts";
-import { assertAddress } from "./types.ts";
+import { assertAddress, assertUserOperationHash } from "./types.ts";
 
 export const XLAYER_CHAIN_ID = 196;
 export const XLAYER_ENTRYPOINT_V07 = "0x0000000071727de22e5e9d8baf0edac6f37da032" as Address;
@@ -23,6 +23,7 @@ export interface SelfHostedRelayerConfig {
   port: number;
   authToken?: string;
   claimPaymasterSignerPrivateKey?: Hex;
+  claimGasSeedUserOperationHash?: Hex;
 }
 
 export interface RelayClientConfig {
@@ -55,6 +56,13 @@ function privateKeyFromEnv(env: Record<string, string | undefined>, name: string
   const value = env[name]?.trim();
   if (!value) return undefined;
   if (!/^0x[0-9a-fA-F]{64}$/.test(value)) throw new Error(`${name} must be a 32-byte private key`);
+  return value.toLowerCase() as Hex;
+}
+
+function userOperationHashFromEnv(env: Record<string, string | undefined>, name: string): Hex | undefined {
+  const value = env[name]?.trim();
+  if (!value) return undefined;
+  assertUserOperationHash(value, name);
   return value.toLowerCase() as Hex;
 }
 
@@ -120,6 +128,7 @@ export function loadSelfHostedRelayerConfig(env: Record<string, string | undefin
     port: integerFromEnv(env, "RELAYER_SERVER_PORT", 8787, 1, 65_535),
     authToken: env.CONVEY_RELAYER_AUTH_TOKEN?.trim() || undefined,
     claimPaymasterSignerPrivateKey: privateKeyFromEnv(env, "CONVEY_CLAIM_PAYMASTER_SIGNER_PRIVATE_KEY"),
+    claimGasSeedUserOperationHash: userOperationHashFromEnv(env, "CONVEY_CLAIM_GAS_SEED_USER_OPERATION_HASH"),
   };
 }
 

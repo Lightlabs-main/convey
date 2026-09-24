@@ -9,8 +9,9 @@ private Convey gateway and operator-controlled OKBund bundler.
 The product is currently in live verification, not production release. The
 account-abstraction bootstrap gate and one sender-funded product claim passed
 on X Layer; the product contracts are deployed and funded. The persistent
-private gateway is deployed on the supplied VPS. The receiver application and
-browser-facing authenticated edge are still being completed.
+private gateway and production-built web application are deployed on the
+supplied VPS. A real browser PRF ceremony and browser-to-browser mainnet claim
+are still unproven.
 
 The authoritative continuation record is [`HANDOFF.md`](HANDOFF.md). Detailed
 architecture, deployment, and live evidence are in [`docs/architecture.md`](docs/architecture.md),
@@ -49,18 +50,22 @@ As of 2026-09-24:
 - The persistent claim gateway is enabled on that VPS, bound only to
   `127.0.0.1:8800`, authenticated, and forwarding to loopback OKBund. No public
   gateway endpoint is exposed.
-- The connected-wallet sender module now reads the live registry, token balance,
-  allowance, and claim reserve; it creates real hashlocked gifts through the
-  deployed escrow. Browser UI and QR rendering remain separate work.
-- The receiver flow library now links PRF-backed local key enrollment and
-  recovery to live Gift preview and private two-pass claim authorization. The
-  browser ceremony, receiver screen, and public HTTPS edge remain separate
-  work.
-- A minimal Next.js receiver surface now reads the live GiftEscrow record and
-  registered issuer valuation in the browser. Its relay API route keeps the
-  gateway URL and bearer token server-side; it does not claim a completed
-  browser-to-browser claim until that edge and the live claim estimator are
-  deployed.
+- The production-built web application is live at
+  [`https://convey.13-62-181-128.sslip.io`](https://convey.13-62-181-128.sslip.io).
+  Nginx terminates TLS and forwards only to the loopback Next.js service;
+  relay credentials remain server-side.
+- The connected-wallet sender surface now reads the live registry, token
+  balance, allowance, and claim reserve; it creates real hashlocked gifts
+  through the deployed escrow. QR rendering remains separate work.
+- The receiver flow library links PRF-backed local key enrollment and recovery
+  to live Gift preview, gas estimation, and private two-pass claim
+  authorization. The browser PRF/recovery ceremony and browser mainnet proof
+  remain separate work.
+- The Next.js receiver surface reads live GiftEscrow/issuer data, enrolls the
+  receiver key locally, and calls the live gas seed/estimate/claim route through
+  a same-origin proxy. Its relay URL and bearer token remain server-side. A
+  browser mainnet claim is not recorded yet because the PRF-capable browser
+  test and fresh open gift remain open.
 - The claim gateway now performs event-aware `debug_traceCall` preflight before
   forwarding a claim. It requires the matching EntryPoint
   `UserOperationEvent.success` to be true and fails closed if tracing is
@@ -170,6 +175,7 @@ The browser-safe SDK is `ConveyRelayerClient`. The server-side gateway uses
 | Route | Behavior |
 |---|---|
 | `GET /healthz` | Checks execution RPC, chain, EntryPoint, bundler capability, and paymaster funding |
+| `GET /v1/claims/gas-seed` | Returns live gas/fee fields from the configured successful claim seed; no calldata |
 | `POST /v1/claims/authorize` | Signs one claim-scoped paymaster authorization for an unsigned operation; never returns the sponsor key |
 | `POST /v1/claims/estimate` | Forwards a scoped gas-estimation request to the private bundler |
 | `POST /v1/claims` | Preflights and then submits one signed sponsored UserOperation |
@@ -185,9 +191,9 @@ The gateway accepts only a signed, sponsored v0.7 operation that:
 There is no raw-transaction route, public-bundler fallback, or secret storage
 in the gateway. Idempotency retains only a short-lived request key and
 UserOperation hash. The live Gift ID `2` proof used a temporary localhost
-gateway over the private OKBund route; the persistent private service is now
-deployed on the supplied VPS, while the browser-facing HTTPS edge remains
-separate.
+gateway over the private OKBund route. The persistent authenticated gateway is
+now deployed on the supplied VPS; the browser-facing HTTPS web edge is deployed
+separately at the URL in the checkpoint above.
 
 ### Event-aware preflight
 
@@ -346,8 +352,10 @@ pnpm relayer:serve
 
 The default bind address is loopback. The persistent private service is deployed
 on the supplied VPS with authentication, a capacity check, and the private
-OKBund endpoint. Browser integration still requires a separate authenticated
-HTTPS route; no public production gateway endpoint is claimed.
+OKBund endpoint. The web app is available at
+[`https://convey.13-62-181-128.sslip.io`](https://convey.13-62-181-128.sslip.io);
+it uses a same-origin server proxy to reach the private gateway. No public
+gateway endpoint is exposed.
 
 ## Live verification record
 
@@ -374,8 +382,9 @@ and [`HANDOFF.md`](HANDOFF.md). Gift creation included the configured native
 claim reserve, and escrow held the exact asset amount under its accounting.
 
 The private relay and event-aware preflight are now proven by the successful
-Gift ID `2` claim. The receiver application still needs to connect this path to
-the passkey vault and present the claim experience in a browser.
+Gift ID `2` claim. The receiver application is now connected to this path and
+deployed at the public HTTPS web edge. A real browser PRF ceremony and
+browser-to-browser mainnet claim are not yet recorded.
 
 ## Security and operating rules
 
@@ -399,10 +408,9 @@ the passkey vault and present the claim experience in a browser.
 ## Resume point
 
 The next work follows the product order in [`PROGRESS.md`](PROGRESS.md): finish
-the browser receiver enrollment/recovery proof, build the connected-wallet
-sender flow, then the receiver claim screen and gasless exit paths. The live
-claim proof is complete; the persistent gateway is private and not yet a
-browser-facing public service.
+the browser receiver enrollment/recovery proof, implement the live gasless exit
+paths, and execute one browser-to-browser mainnet flow. The live claim proof is
+complete; the gateway remains private behind the deployed web app.
 
 ## Further documentation
 

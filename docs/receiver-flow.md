@@ -21,6 +21,15 @@ gateway or bundler.
    live operation fields, then signs the exact authorized operation locally.
    `ConveyRelayerClient.submitClaim()` sends it only to the private gateway and
    OKBund. There is no public-mempool fallback.
+6. `ConveyRelayerClient.claimGasSeed()` reads gas fields from a recorded,
+   successful live claim through the private bundler. When OKBund omits the
+   optional v0.7 paymaster fields, the gateway recovers the packed operation
+   from its recorded EntryPoint bundle transaction and returns only gas/fee
+   fields, never calldata or the secret.
+7. `prepareReceiverClaim()` authorizes the exact signed operation, calls the
+   private bundler's live estimator, and re-builds/re-authorizes if the live
+   estimate requires larger limits. The gateway signs the operation's computed
+   v0.7 pre-fund, not the policy cap; the cap remains a live safety ceiling.
 
 The claim is gasless for the receiver. The sender-funded reserve is already
 locked in the live claim paymaster at gift creation; no token-price conversion or
@@ -36,12 +45,15 @@ the new credential. The recovery envelope is retained so the recovery key can
 be used again if the new vault is lost; the application must rotate or revoke
 that recovery material as a separate product decision.
 
-The browser integration still needs a real PRF-capable browser/device test and
-an authenticated HTTPS edge in front of the private gateway. Until those are
-proven, this library path is not described as product-complete.
+The public HTTPS web edge is deployed at
+`https://convey.13-62-181-128.sslip.io`. The browser integration still needs a
+real PRF-capable browser/device test and a browser-to-browser mainnet claim;
+none is recorded yet.
 
-The Next.js surface in `app/g/[secret]` is intentionally live-data-only: it
-reads the escrow and registry from the configured public X Layer RPC, fetches
-the issuer value for wrapped xStocks, and never invents a balance or USD
-amount. The `/api/relay/*` route is a same-origin server proxy; its relay URL
-and bearer token are server-only environment variables.
+The Next.js surface in `app/g/[secret]` reads the escrow and registry from the
+configured public X Layer RPC, fetches the issuer value for wrapped xStocks,
+and never invents a balance or USD amount. After local key enrollment and
+explicit recovery-key confirmation it builds, live-estimates, and submits the
+gasless claim through the same-origin `/api/relay/*` proxy. The relay URL and
+bearer token are server-only environment variables. Cash-out and withdrawal
+remain intentionally unavailable until their live routes are implemented.

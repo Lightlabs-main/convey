@@ -22,14 +22,20 @@ private bundler.
 
 The browser path then:
 
-1. Build an unsigned v0.7 UserOperation for the receiver smart account.
-2. Ask `/v1/claims/authorize` for a claim-scoped paymaster authorization. The
+1. Read a live gas seed from `/v1/claims/gas-seed`. The seed comes from a
+   successful recorded claim UserOperation; the gateway returns no claim
+   calldata.
+2. Build an unsigned v0.7 UserOperation for the receiver smart account.
+3. Ask `/v1/claims/authorize` for a claim-scoped paymaster authorization. The
    gateway signs it with the configured claim-paymaster signer only after
-   checking the live open reserve and exact escrow/claim target.
-3. Put the returned paymaster data into the operation and sign the final
+   checking the live open reserve, exact escrow/claim target, and the computed
+   EntryPoint v0.7 gas pre-fund against the live paymaster cap.
+4. Put the returned paymaster data into the operation and sign the final
    operation locally with the receiver owner key.
-4. Send it to Convey's `/v1/claims` endpoint over HTTPS.
-5. Poll `/v1/claims/:userOperationHash` for the bundler receipt.
+5. Ask `/v1/claims/estimate` for the exact signed operation's live gas
+   estimate. If any limit rises, rebuild and authorize again.
+6. Send it to Convey's `/v1/claims` endpoint over HTTPS.
+7. Poll `/v1/claims/:userOperationHash` for the bundler receipt.
 
 `src/relayer/okx.ts` contains the account-specific builder. It reads the live
 X Layer chain ID, EntryPoint bytecode, factory-derived counterfactual address,
@@ -43,8 +49,9 @@ and its exposed secret is retired.
 
 The gateway uses `SelfHostedBundlerClient` for the private JSON-RPC methods
 `eth_supportedEntryPoints`, `eth_estimateUserOperationGas`,
-`eth_sendUserOperation`, and `eth_getUserOperationReceipt`. It has no method
-for `eth_sendRawTransaction` and has no public-bundler fallback.
+`eth_sendUserOperation`, `eth_getUserOperationByHash`, and
+`eth_getUserOperationReceipt`. It has no method for `eth_sendRawTransaction`
+and has no public-bundler fallback.
 
 Before a live claim is submitted, the operator can run
 `preflightEntryPointUserOperation` from `src/relayer/preflight.ts` against the
@@ -106,10 +113,10 @@ pnpm relayer:serve
 The current workspace still requires a private `BUNDLER_RPC_URL` at runtime;
 it is intentionally not saved in the local `.env`. The deployed bootstrap and
 claim paymasters have passed their recorded live checks, and Gift ID `2` was
-claimed successfully through the private route. The gateway used for that
-proof was temporary and localhost-only; the durable private deployment is the
-next infrastructure task. No fake endpoint is committed to make a health check
-appear green.
+claimed successfully through the private route. The durable gateway is now
+active on the supplied VPS at loopback `127.0.0.1:8800`; the browser-facing
+HTTPS edge is the remaining deployment step. No fake endpoint is committed to
+make a health check appear green.
 
 ## Operator bundler gate
 
@@ -127,6 +134,7 @@ checked-in service unit in
 runs the gateway on loopback port `8800`, forwards to loopback OKBund, and
 loads its NodeFlare URL and bearer token from root-controlled service
 configuration. Existing unrelated VPS services occupy ports `8787`, `8797`,
-and `8798`, so Convey uses `8800`. The gateway has no public listener; an
-authenticated HTTPS edge remains a separate deployment step before browser
-integration.
+and `8798`, so Convey uses `8800`. The gateway has no public listener. The
+separate HTTPS web edge is deployed at
+`https://convey.13-62-181-128.sslip.io` and proxies the browser's same-origin
+relay requests to this loopback service.

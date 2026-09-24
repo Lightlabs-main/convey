@@ -64,6 +64,22 @@ export interface UserOperationGasEstimate {
   paymasterPostOpGasLimit?: Hex;
 }
 
+/**
+ * Live gas fields used to bootstrap the first estimate for a new claim. The
+ * values are read from a successful UserOperation held by the private
+ * bundler, then refreshed with current execution-RPC fee data.
+ */
+export interface ClaimGasSeed {
+  callGasLimit: Hex;
+  verificationGasLimit: Hex;
+  preVerificationGas: Hex;
+  maxFeePerGas: Hex;
+  maxPriorityFeePerGas: Hex;
+  paymasterVerificationGasLimit: Hex;
+  paymasterPostOpGasLimit: Hex;
+  sourceUserOperationHash: Hex;
+}
+
 export interface ClaimRelayAccepted {
   userOperationHash: Hex;
   status: "submitted";

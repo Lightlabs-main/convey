@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { formatUnits } from "viem";
+import { formatUnits, isAddress, type Address } from "viem";
 import {
   enrollReceiverAccount,
   parseClaimLink,
+  prepareReceiverClaim,
+  receiverClaimGasSeedFromLive,
   readGiftPreview,
   readLiveGiftValuation,
   type EnrolledReceiverAccount,
   type ReceiverGiftPreview,
   type ReceiverGiftValuation,
 } from "@/src/receiver/flow";
+import { ConveyRelayerClient } from "@/src/relayer/client";
 import { createBrowserReceiverVaultStorage } from "@/src/receiver/storage";
 
 function shortAddress(value: string): string {
@@ -22,6 +25,8 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
   const [valuation, setValuation] = useState<ReceiverGiftValuation>();
   const [account, setAccount] = useState<EnrolledReceiverAccount>();
   const [recoverySaved, setRecoverySaved] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimed, setClaimed] = useState(false);
   const [status, setStatus] = useState("Reading the live gift record…");
   const [error, setError] = useState("");
   const claim = useMemo(() => {
@@ -81,6 +86,77 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
     }
   }
 
+  function requiredAddress(name: string): Address {
+    const value = {
+      NEXT_PUBLIC_CONVEY_ENTRYPOINT_ADDRESS: process.env.NEXT_PUBLIC_CONVEY_ENTRYPOINT_ADDRESS,
+      NEXT_PUBLIC_CONVEY_SMART_WALLET_FACTORY: process.env.NEXT_PUBLIC_CONVEY_SMART_WALLET_FACTORY,
+      NEXT_PUBLIC_CONVEY_SMART_WALLET_IMPLEMENTATION: process.env.NEXT_PUBLIC_CONVEY_SMART_WALLET_IMPLEMENTATION,
+      NEXT_PUBLIC_CONVEY_CLAIM_ESCROW_ADDRESS: process.env.NEXT_PUBLIC_CONVEY_CLAIM_ESCROW_ADDRESS,
+      NEXT_PUBLIC_CONVEY_CLAIM_PAYMASTER_ADDRESS: process.env.NEXT_PUBLIC_CONVEY_CLAIM_PAYMASTER_ADDRESS,
+    }[name as "NEXT_PUBLIC_CONVEY_ENTRYPOINT_ADDRESS" | "NEXT_PUBLIC_CONVEY_SMART_WALLET_FACTORY" | "NEXT_PUBLIC_CONVEY_SMART_WALLET_IMPLEMENTATION" | "NEXT_PUBLIC_CONVEY_CLAIM_ESCROW_ADDRESS" | "NEXT_PUBLIC_CONVEY_CLAIM_PAYMASTER_ADDRESS"];
+    if (!value || !isAddress(value)) throw new Error(`${name} is not configured with a live address`);
+    return value as Address;
+  }
+
+  function requiredSelector(name: string): `0x${string}` {
+    const value = process.env.NEXT_PUBLIC_CONVEY_CLAIM_FUNCTION_SELECTOR;
+    if (!value || !/^0x[0-9a-fA-F]{8}$/u.test(value)) throw new Error(`${name} is not configured with a live selector`);
+    return value as `0x${string}`;
+  }
+
+  function requiredSalt(): bigint {
+    const value = process.env.NEXT_PUBLIC_CONVEY_RECEIVER_SALT;
+    if (!value || !/^\d+$/u.test(value)) throw new Error("NEXT_PUBLIC_CONVEY_RECEIVER_SALT is not configured");
+    return BigInt(value);
+  }
+
+  async function claimGift() {
+    if (!claim || !preview || !account?.session || !recoverySaved) return;
+    setError("");
+    setClaiming(true);
+    setStatus("Reading live gas fields from Convey's private bundler…");
+    try {
+      const executionRpcUrl = process.env.NEXT_PUBLIC_XLAYER_RPC_URL;
+      if (!executionRpcUrl) throw new Error("The receiver screen is missing its live X Layer RPC");
+      const relay = new ConveyRelayerClient({
+        relayUrl: new URL("/api/relay", window.location.origin).toString().replace(/\/$/u, ""),
+        entryPoint: requiredAddress("NEXT_PUBLIC_CONVEY_ENTRYPOINT_ADDRESS"),
+        chainId: 196,
+      });
+      const seed = receiverClaimGasSeedFromLive(await relay.claimGasSeed());
+      setStatus("Authorizing and estimating the exact sponsored claim…");
+      const prepared = await prepareReceiverClaim({
+        claim,
+        executionRpcUrl,
+        entryPoint: requiredAddress("NEXT_PUBLIC_CONVEY_ENTRYPOINT_ADDRESS"),
+        factory: requiredAddress("NEXT_PUBLIC_CONVEY_SMART_WALLET_FACTORY"),
+        implementation: requiredAddress("NEXT_PUBLIC_CONVEY_SMART_WALLET_IMPLEMENTATION"),
+        escrow: requiredAddress("NEXT_PUBLIC_CONVEY_CLAIM_ESCROW_ADDRESS"),
+        claimFunctionSelector: requiredSelector("NEXT_PUBLIC_CONVEY_CLAIM_FUNCTION_SELECTOR"),
+        paymaster: requiredAddress("NEXT_PUBLIC_CONVEY_CLAIM_PAYMASTER_ADDRESS"),
+        signer: account.session.signer,
+        salt: requiredSalt(),
+        gasSeed: seed,
+        relay,
+      });
+      setStatus("Sending the signed claim through Convey's private route…");
+      const accepted = await relay.submitClaim(prepared.userOperation.userOperation, {
+        idempotencyKey: `claim-${preview.giftId.toString()}-${prepared.account.toLowerCase()}`,
+      });
+      const result = await relay.waitForClaim(accepted.userOperationHash);
+      if (result.status !== "confirmed" || result.success !== true) throw new Error("the sponsored claim was included but did not succeed");
+      setClaimed(true);
+      const refreshed = await readGiftPreview(executionRpcUrl, requiredAddress("NEXT_PUBLIC_CONVEY_CLAIM_ESCROW_ADDRESS"), claim);
+      setPreview(refreshed);
+      setStatus(`Claim confirmed in X Layer block ${result.blockNumber ?? ""}. Your asset is in ${prepared.account}.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The sponsored claim could not be completed.");
+      setStatus("Your gift has not moved.");
+    } finally {
+      setClaiming(false);
+    }
+  }
+
   const tokenAmount = preview ? formatUnits(preview.amount, preview.decimals) : "—";
 
   return (
@@ -102,9 +178,10 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
             {account && !recoverySaved ? <div className="recovery"><div className="recovery-label">Save this recovery key once</div><code>{account.recoveryKey}</code><button type="button" onClick={() => { setRecoverySaved(true); setStatus("Recovery key saved. Your device-local owner key is ready for the sponsored claim."); }}>I saved it</button></div> : null}
             {account && recoverySaved ? <div className="risk">Your device-local owner key is enrolled at {shortAddress(account.owner)}. The key never leaves this device.</div> : null}
             {preview?.state === "open" && !preview.expired && !account ? <button className="button" type="button" onClick={secureAccount}>Secure my claim</button> : null}
+            {preview?.state === "open" && !preview.expired && account && recoverySaved && !claimed ? <button className="button" type="button" onClick={claimGift} disabled={claiming}>{claiming ? "Claiming securely…" : "Claim this gift"}</button> : null}
             <p className="status" aria-live="polite">{status}</p>
             <div className="actions">
-              <button className="action" type="button" disabled><span><strong>Keep it</strong><br />Hold your tokenized exposure</span><span>soon</span></button>
+              <button className="action" type="button" disabled={!claimed} onClick={() => setStatus("Your tokenized exposure is held in your smart account.")}><span><strong>Keep it</strong><br />Hold your tokenized exposure</span><span>{claimed ? "ready" : "after claim"}</span></button>
               {preview?.cashOutRoute !== "0x0000000000000000000000000000000000000000" ? <button className="action" type="button" disabled><span><strong>Cash out</strong><br />Live quote to USDT0</span><span>soon</span></button> : null}
               <button className="action" type="button" disabled><span><strong>Move it</strong><br />Send to any address</span><span>soon</span></button>
             </div>

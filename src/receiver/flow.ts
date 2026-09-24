@@ -11,7 +11,7 @@ import {
 import { buildOkxClaimUserOperation, type BuiltOkxClaimUserOperation, type OkxClaimGas, type OkxEcdsaMessageSigner } from "../relayer/okx.ts";
 import { ConveyRelayerClient } from "../relayer/client.ts";
 import { XLAYER_CHAIN_ID, XLAYER_ENTRYPOINT_V07 } from "../relayer/config.ts";
-import type { ClaimPaymasterAuthorizationResponse, UserOperationGasEstimate } from "../relayer/types.ts";
+import type { ClaimGasSeed, ClaimPaymasterAuthorizationResponse, UserOperationGasEstimate } from "../relayer/types.ts";
 import { enrollReceiverPasskey, unlockReceiverPasskey } from "./passkey.ts";
 import { receiverSignerFromPrivateKey } from "./signer.ts";
 import { storedReceiverVault, type ReceiverVaultStorage } from "./storage.ts";
@@ -138,6 +138,8 @@ export interface EnrolledReceiverAccount {
   owner: Address;
   credentialId: string;
   recoveryKey: Hex;
+  /** Short-lived in-memory signer from the enrollment ceremony. */
+  session: ReceiverAccountSession;
 }
 
 export interface ReceiverEnrollmentOptions {
@@ -185,6 +187,22 @@ export interface BuiltReceiverClaim {
   claimData: Hex;
   authorization: ClaimPaymasterAuthorizationResponse;
   userOperation: BuiltOkxClaimUserOperation;
+}
+
+export interface ReceiverClaimGasSeed {
+  gas: OkxClaimGas;
+  paymasterVerificationGasLimit: bigint;
+  paymasterPostOpGasLimit: bigint;
+}
+
+export interface PreparedReceiverClaim extends BuiltReceiverClaim {
+  estimate: UserOperationGasEstimate;
+  gas: ReceiverClaimGasSeed;
+}
+
+export interface ReceiverClaimPreparationOptions extends Omit<ReceiverClaimBuildOptions, "gas" | "paymasterVerificationGasLimit" | "paymasterPostOpGasLimit"> {
+  gasSeed: ReceiverClaimGasSeed;
+  maxPasses?: number;
 }
 
 export interface ReceiverGiftValuation {
@@ -392,10 +410,12 @@ export async function enrollReceiverAccount(options: ReceiverEnrollmentOptions):
   });
   const enrollment = await enrollReceiverKey(passkey.credentialId, passkey.prfOutput);
   options.storage.save(storedReceiverVault(enrollment, passkey.prfSalt));
+  const privateKey = await unlockReceiverKey(enrollment.vault, passkey.prfOutput);
   return {
     owner: enrollment.vault.owner,
     credentialId: passkey.credentialId,
     recoveryKey: enrollment.recoveryKey,
+    session: { owner: enrollment.vault.owner, signer: receiverSignerFromPrivateKey(privateKey) },
   };
 }
 
@@ -427,7 +447,13 @@ export async function recoverReceiverAccount(options: ReceiverRecoveryOptions): 
     passkey.prfOutput,
   );
   options.storage.save({ version: 1, vault, recovery: stored.recovery, prfSalt: passkey.prfSalt });
-  return { owner: vault.owner, credentialId: vault.credentialId, recoveryKey: options.recoveryKey };
+  const privateKey = await unlockReceiverKey(vault, passkey.prfOutput);
+  return {
+    owner: vault.owner,
+    credentialId: vault.credentialId,
+    recoveryKey: options.recoveryKey,
+    session: { owner: vault.owner, signer: receiverSignerFromPrivateKey(privateKey) },
+  };
 }
 
 function requireEstimateValue(value: string | undefined, name: string): bigint {
@@ -505,4 +531,80 @@ export function liveGasFromEstimate(estimate: UserOperationGasEstimate, gasFees:
     maxFeePerGas: gasFees.maxFeePerGas,
     maxPriorityFeePerGas: gasFees.maxPriorityFeePerGas,
   };
+}
+
+function positiveEstimateValue(value: string | undefined, name: string): bigint {
+  const result = requireEstimateValue(value, name);
+  if (result <= 0n) throw new Error(`live claim estimate returned an empty ${name}`);
+  return result;
+}
+
+function maxBigint(left: bigint, right: bigint): bigint {
+  return left > right ? left : right;
+}
+
+export function receiverClaimGasSeedFromLive(seed: ClaimGasSeed): ReceiverClaimGasSeed {
+  return {
+    gas: {
+      callGasLimit: positiveEstimateValue(seed.callGasLimit, "callGasLimit"),
+      verificationGasLimit: positiveEstimateValue(seed.verificationGasLimit, "verificationGasLimit"),
+      preVerificationGas: positiveEstimateValue(seed.preVerificationGas, "preVerificationGas"),
+      maxFeePerGas: positiveEstimateValue(seed.maxFeePerGas, "maxFeePerGas"),
+      maxPriorityFeePerGas: positiveEstimateValue(seed.maxPriorityFeePerGas, "maxPriorityFeePerGas"),
+    },
+    paymasterVerificationGasLimit: positiveEstimateValue(seed.paymasterVerificationGasLimit, "paymasterVerificationGasLimit"),
+    paymasterPostOpGasLimit: positiveEstimateValue(seed.paymasterPostOpGasLimit, "paymasterPostOpGasLimit"),
+  };
+}
+
+/**
+ * Authorizes and estimates the exact signed operation. If the live bundler
+ * reports a larger limit, the operation is rebuilt with those returned fields
+ * and re-authorized. No gas number is invented by the receiver flow.
+ */
+export async function prepareReceiverClaim(options: ReceiverClaimPreparationOptions): Promise<PreparedReceiverClaim> {
+  const maxPasses = options.maxPasses ?? 3;
+  if (!Number.isInteger(maxPasses) || maxPasses < 1 || maxPasses > 5) throw new Error("maxPasses must be between 1 and 5");
+  let gas = options.gasSeed.gas;
+  let paymasterVerificationGasLimit = options.gasSeed.paymasterVerificationGasLimit;
+  let paymasterPostOpGasLimit = options.gasSeed.paymasterPostOpGasLimit;
+
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    const built = await buildReceiverClaim({
+      ...options,
+      gas,
+      paymasterVerificationGasLimit,
+      paymasterPostOpGasLimit,
+    });
+    const estimate = await options.relay.estimateClaim(built.userOperation.userOperation);
+    const nextGas: OkxClaimGas = {
+      callGasLimit: maxBigint(gas.callGasLimit, positiveEstimateValue(estimate.callGasLimit, "callGasLimit")),
+      verificationGasLimit: maxBigint(gas.verificationGasLimit, positiveEstimateValue(estimate.verificationGasLimit, "verificationGasLimit")),
+      preVerificationGas: maxBigint(gas.preVerificationGas, positiveEstimateValue(estimate.preVerificationGas, "preVerificationGas")),
+      maxFeePerGas: gas.maxFeePerGas,
+      maxPriorityFeePerGas: gas.maxPriorityFeePerGas,
+    };
+    const nextPaymasterVerificationGasLimit = estimate.paymasterVerificationGasLimit === undefined
+      ? paymasterVerificationGasLimit
+      : maxBigint(paymasterVerificationGasLimit, positiveEstimateValue(estimate.paymasterVerificationGasLimit, "paymasterVerificationGasLimit"));
+    const nextPaymasterPostOpGasLimit = estimate.paymasterPostOpGasLimit === undefined
+      ? paymasterPostOpGasLimit
+      : maxBigint(paymasterPostOpGasLimit, positiveEstimateValue(estimate.paymasterPostOpGasLimit, "paymasterPostOpGasLimit"));
+    const converged = nextGas.callGasLimit === gas.callGasLimit
+      && nextGas.verificationGasLimit === gas.verificationGasLimit
+      && nextGas.preVerificationGas === gas.preVerificationGas
+      && nextPaymasterVerificationGasLimit === paymasterVerificationGasLimit
+      && nextPaymasterPostOpGasLimit === paymasterPostOpGasLimit;
+    if (converged) {
+      return {
+        ...built,
+        estimate,
+        gas: { gas, paymasterVerificationGasLimit, paymasterPostOpGasLimit },
+      };
+    }
+    gas = nextGas;
+    paymasterVerificationGasLimit = nextPaymasterVerificationGasLimit;
+    paymasterPostOpGasLimit = nextPaymasterPostOpGasLimit;
+  }
+  throw new Error("live claim estimate did not converge");
 }

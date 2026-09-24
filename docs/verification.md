@@ -1,6 +1,6 @@
 # X Layer mainnet verification
 
-Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core and persistent private gateway are now implemented; browser ceremony/recovery proof and the authenticated browser edge remain open.
+Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core, persistent private gateway, and public HTTPS web edge are now deployed; browser ceremony/recovery proof and browser mainnet proof remain open.
 
 ## Live continuation checks — 2026-09-24
 
@@ -129,8 +129,21 @@ At `2026-09-24T15:07:13Z`, the service was active and enabled. An unauthenticate
 `0x0000000071727de22e5e9d8baf0edac6f37da032`, EntryPoint code size `16035`
 bytes, and a staked claim paymaster with deposit `197696031949403` wei against
 the configured minimum `20000000000000` wei. No secret token or RPC credential
-was printed or committed. This is a private loopback deployment; an
-authenticated HTTPS edge for browser access is not installed.
+was printed or committed. At that check this was still a private loopback
+deployment; the public web edge was installed later and is recorded below.
+
+The live gas-seed route was then enabled with the successful Gift ID `2`
+UserOperation hash
+`0x1ed2abda8798479bd1dd74c81073007ca791a292b1c727af198da552e3a94403`. Because
+the installed OKBund response omits optional v0.7 paymaster fields from
+`eth_getUserOperationByHash`, the gateway recovered the packed operation from
+the recorded EntryPoint bundle transaction and returned only gas/fee fields.
+The authenticated route returned `callGasLimit = 0x61a80`,
+`verificationGasLimit = 0x30d40`, `preVerificationGas = 0xea60`,
+`paymasterVerificationGasLimit = 0x30d40`, and
+`paymasterPostOpGasLimit = 0x13880`; current execution-RPC fee fields were
+`maxFeePerGas = 0x1406f40` and `maxPriorityFeePerGas = 0xf4240`. No claim
+calldata, secret, key, or UserOperation was submitted by this check.
 
 The server-only claim-paymaster signer is installed in the same root-controlled
 environment. A non-mutating `/v1/claims/authorize` request for already-closed
@@ -145,8 +158,8 @@ configured private execution RPC. A read-only ERC-20 transfer trace captured a
 This validates the tracer's live stack-word and memory handling used by the
 claim preflight.
 
-- The local private bundler runtime probe and later tunneled VPS check passed. OKBund is persistent on the supplied VPS, and the live sponsored-operation evidence is recorded below. The product escrow and claim selector are deployed; successful claim execution is the remaining product proof.
-- The receiver account is now deployed, its EntryPoint nonce is `1`, and the one-use paymaster authorization is consumed. The paymaster's remaining EntryPoint deposit is `193006039650302` wei and it remains staked with a `1` wei stake.
+- The local private bundler runtime probe and later tunneled VPS check passed. OKBund is persistent on the supplied VPS, and the live sponsored-operation evidence is recorded below. The product escrow and claim selector are deployed; browser claim proof remains open.
+- The receiver account is deployed, its EntryPoint nonce is `3` after the recorded product claim, and the Gift ID `2` paymaster authorization is consumed. The paymaster remains staked and funded; refresh the deposit before a new live gift.
 - Session-key support, paymaster pre-charge/refund behavior, ERC-20 payment mode, EntryPoint deposit/stake funding, and private relay routing remain unverified on the self-hosted deployment.
 - Gas-price variance needs repeated observations over time; one block only confirms the floor at that instant.
 - The issuer API and RPC evidence must be refreshed at deploy time because wrapper certification, trading halts, multipliers, and liquidity can change.
@@ -494,8 +507,31 @@ SSTORE gas-floor rule. The two-file change passed the pinned OKBund Maven
 reactor build. This is an operational compatibility patch, not an upstream or
 third-party audit. The claim proof used a temporary localhost gateway before
 the persistent service was installed. The persistent private gateway is now
-deployed on the supplied VPS, but no public gateway or browser-facing HTTPS
-edge is claimed.
+deployed on the supplied VPS and the public web edge is recorded below; no
+public gateway endpoint or browser mainnet claim is claimed.
+
+### Web surface deployment — 2026-09-24
+
+The production Next.js build was deployed to the supplied Lightsail VPS as
+`convey-web.service`, running as the dedicated `convey-web` user on loopback
+`127.0.0.1:3001`. Its server environment contains only the loopback relay URL
+and the existing gateway bearer token; no operator or NodeFlare credential is
+passed to the web process.
+
+Nginx was configured as a separate site and Let's Encrypt issued a certificate
+for [`https://convey.13-62-181-128.sslip.io`](https://convey.13-62-181-128.sslip.io)
+at approximately `2026-09-24T16:48:25Z`. The certificate expires on
+`2026-12-23` and automatic renewal is enabled. Live checks returned:
+
+- public HTTPS GET `/`: HTTP `200`;
+- public GET `/api/relay/not-allowed`: HTTP `404`;
+- `convey-web.service`: active;
+- `convey-relayer.service`: active;
+- `convey-okbund.service`: active.
+
+This proves the web deployment and the server-side relay boundary. It does not
+prove a real browser PRF ceremony or a browser-to-browser mainnet claim; no such
+claim is recorded yet.
 
 ## Sources
 

@@ -1,0 +1,28 @@
+[Unit]
+Description=Convey web application
+After=network-online.target convey-relayer.service
+Wants=network-online.target
+Requires=convey-relayer.service
+
+[Service]
+Type=simple
+User=convey-web
+Group=convey-web
+WorkingDirectory=/srv/convey/web
+EnvironmentFile=/etc/convey/web.env
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3001
+ExecStart=/usr/bin/node /srv/convey/web/node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3001
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+MemoryHigh=180M
+MemoryMax=300M
+LimitNOFILE=16384
+
+[Install]
+WantedBy=multi-user.target

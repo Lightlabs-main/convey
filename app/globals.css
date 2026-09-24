@@ -109,10 +109,27 @@ h1 { max-width: 680px; margin: 14px 0 22px; font-size: clamp(48px, 7vw, 86px); l
 .side-list li { display: flex; gap: 9px; color: #4e5a51; font: 12px/1.4 ui-sans-serif, system-ui, sans-serif; }
 .side-list li::before { content: "✓"; color: var(--green); font-weight: 800; }
 
+.sender-panel { margin: 0 0 90px; padding: clamp(24px, 5vw, 46px); border: 1px solid var(--line); border-radius: 25px; background: rgba(255,254,249,.88); box-shadow: var(--shadow); }
+.sender-panel h2 { max-width: 620px; margin: 10px 0 10px; font-size: clamp(32px, 5vw, 55px); line-height: .98; letter-spacing: -.055em; }
+.panel-copy { max-width: 620px; margin: 0 0 24px; color: var(--muted); font: 14px/1.55 ui-sans-serif, system-ui, sans-serif; }
+.sender-meta, .sender-asset-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 20px 0; color: var(--muted); font: 12px ui-sans-serif, system-ui, sans-serif; }
+.sender-asset-row label, .gift-form label { display: grid; gap: 7px; color: var(--ink); font: 700 12px ui-sans-serif, system-ui, sans-serif; }
+.sender-asset-row select, .gift-form input { min-width: 180px; padding: 12px 13px; border: 1px solid var(--line); border-radius: 11px; color: var(--ink); background: var(--card); }
+.live-balance { color: var(--green); }
+.gift-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; }
+.gift-form .button { min-height: 44px; }
+.optional { color: var(--muted); font-weight: 400; }
+.created-link { display: grid; gap: 7px; margin-top: 20px; padding: 15px; border-radius: 12px; background: var(--green-soft); font: 12px/1.5 ui-sans-serif, system-ui, sans-serif; }
+.created-link span { color: var(--green); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.created-link a { overflow-wrap: anywhere; color: var(--green); }
+
 @media (max-width: 800px) {
   .hero { grid-template-columns: 1fr; gap: 15px; padding-top: 30px; }
   .hero-art { min-height: 360px; }
   .claim-grid { grid-template-columns: 1fr; }
   .link-form { flex-direction: column; }
   .link-form .button { width: 100%; }
+  .sender-meta, .sender-asset-row { align-items: flex-start; flex-direction: column; }
+  .sender-asset-row select { width: 100%; }
+  .gift-form { grid-template-columns: 1fr; }
 }

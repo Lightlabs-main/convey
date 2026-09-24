@@ -7,6 +7,7 @@ function allowedPath(path: string): boolean {
     || path === "v1/claims"
     || path === "v1/claims/authorize"
     || path === "v1/claims/estimate"
+    || path === "v1/claims/gas-seed"
     || (path.startsWith("v1/claims/") && CLAIM_HASH.test(path.slice("v1/claims/".length)));
 }
 

@@ -475,6 +475,7 @@ export class ConnectedWalletSender {
     if (allowance < amount) approvalTransactions.push(await this.approve(asset.token, amount));
 
     const createTransaction = await this.walletClient.writeContract({
+      chain: null,
       account: sender,
       address: this.deployment.escrow,
       abi: ESCROW_ABI,
@@ -483,7 +484,7 @@ export class ConnectedWalletSender {
       value: reserve,
     });
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash: createTransaction });
-    checkReceiptStatus(receipt);
+    checkReceiptStatus(receipt, "createGift");
     const events = parseEventLogs({ abi: ESCROW_ABI, eventName: "GiftCreated", logs: receipt.logs, strict: true });
     if (events.length !== 1) throw new Error("createGift succeeded without exactly one GiftCreated event");
     const giftId = events[0].args.giftId;
@@ -510,6 +511,7 @@ export class ConnectedWalletSender {
     if (gift.sender.toLowerCase() !== sender.toLowerCase()) throw new Error("only the gift sender can reclaim this gift");
     if (gift.state !== 0) throw new Error("only an open gift can be reclaimed");
     const transaction = await this.walletClient.writeContract({
+      chain: null,
       account: sender,
       address: this.deployment.escrow,
       abi: ESCROW_ABI,
@@ -517,12 +519,13 @@ export class ConnectedWalletSender {
       args: [giftId],
     });
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash: transaction });
-    checkReceiptStatus(receipt);
+    checkReceiptStatus(receipt, "reclaim");
     return transaction;
   }
 
   private async approve(token: Address, amount: bigint): Promise<Hex> {
     const transaction = await this.walletClient.writeContract({
+      chain: null,
       account: this.connectedAddress(),
       address: token,
       abi: ERC20_ABI,
@@ -530,7 +533,7 @@ export class ConnectedWalletSender {
       args: [this.deployment.escrow, amount],
     });
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash: transaction });
-    checkReceiptStatus(receipt);
+    checkReceiptStatus(receipt, "approve");
     return transaction;
   }
 }

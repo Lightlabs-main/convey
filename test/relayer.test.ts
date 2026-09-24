@@ -38,7 +38,7 @@ import {
   signClaimPaymasterAuthorization,
 } from "../src/relayer/claim-paymaster.ts";
 import * as browserSdk from "../src/index.ts";
-import { statusFromReceipt } from "../src/relayer/server.ts";
+import { claimMaxCostFromUserOperation, statusFromReceipt } from "../src/relayer/server.ts";
 import {
   assertSuccessfulEntryPointSimulation,
   preflightEntryPointUserOperation,
@@ -85,6 +85,17 @@ test("claim validation requires a sponsored, signed operation", () => {
   assert.doesNotThrow(() => assertSponsoredUserOperation(expandedOperation));
   assert.throws(() => assertSponsoredUserOperation({ ...expandedOperation, paymaster: undefined, paymasterVerificationGasLimit: undefined, paymasterPostOpGasLimit: undefined, paymasterData: undefined }), /paymaster/);
   assert.throws(() => assertSponsoredUserOperation({ ...expandedOperation, signature: "0x" }), /signature/);
+});
+
+test("claim authorization cost is the live v0.7 gas envelope, not the policy cap", () => {
+  assert.equal(
+    claimMaxCostFromUserOperation(expandedOperation),
+    (120_000n + 300_000n + 50_000n + 100_000n + 100_000n) * 1n,
+  );
+  assert.throws(() => claimMaxCostFromUserOperation({
+    ...expandedOperation,
+    paymasterVerificationGasLimit: undefined,
+  }), /paymasterVerificationGasLimit/);
 });
 
 test("private relay URLs fail closed outside HTTPS or localhost", () => {
@@ -197,6 +208,7 @@ test("self-hosted configuration cannot accidentally use the public execution RPC
     PAYMASTER_MIN_STAKE_WEI: "1",
     CONVEY_CLAIM_ESCROW_ADDRESS: escrow,
     CONVEY_CLAIM_FUNCTION_SELECTOR: "0x12345678",
+    CONVEY_CLAIM_GAS_SEED_USER_OPERATION_HASH: userOperationHash,
   };
   const config = loadSelfHostedRelayerConfig(env);
   assert.equal(config.chainId, 196);
@@ -204,6 +216,7 @@ test("self-hosted configuration cannot accidentally use the public execution RPC
   assert.equal(config.paymaster, paymaster);
   assert.equal(config.claimEscrow, escrow);
   assert.equal(config.claimPaymasterSignerPrivateKey, undefined);
+  assert.equal(config.claimGasSeedUserOperationHash, userOperationHash);
   assert.equal(
     loadSelfHostedRelayerConfig({ ...env, CONVEY_CLAIM_PAYMASTER_SIGNER_PRIVATE_KEY: `0x${"12".repeat(32)}` }).claimPaymasterSignerPrivateKey,
     `0x${"12".repeat(32)}`,

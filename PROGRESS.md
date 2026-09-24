@@ -8,7 +8,9 @@
 - Documented the EVM/Token-2022 distinction.
 - Verified the deployed OKX Smart Wallet factory and implementation at the pinned block and confirmed it uses ERC-4337 EntryPoint v0.7.
 - Inspected the deployed wallet's published source and found that it is modular but does not implement ERC-7579, contrary to the requested stack description.
-- Re-ran `pnpm verify` successfully on 2026-09-22 and made the mixed evidence model explicit: on-chain reads are pinned; issuer API values are live and timestamped.
+- Re-ran `pnpm verify` successfully on 2026-09-22 and again on 2026-09-24 at
+  `2026-09-24T16:55:00Z`. The on-chain reads remain pinned; issuer API values
+  are live and timestamped.
 - Corrected quote terminology: comparison with an issuer-derived nominal amount is an executable delta, not AMM price impact.
 - Selected the deployed OKX Smart Wallet as the account path, as allowed by the specification's explicit mismatch resolution. Convey describes it accurately as an OKX-specific modular ERC-4337 v0.7 account, not ERC-7579.
 - Researched X Layer sponsor and account options. Particle was retired as a bootstrap dependency; the current provider assessment is in [`docs/aa-provider-research.md`](docs/aa-provider-research.md).
@@ -83,16 +85,25 @@
   gateway plus OKBund's supported manual bundle RPC.
 - Added the persistent private gateway service definition. It is scoped to
   loopback port `8800`, authenticates requests, uses the existing NodeFlare and
-  OKBund path, and keeps the public HTTPS edge separate from the browser work.
+  OKBund path. The public HTTPS web edge is now deployed separately; browser
+  PRF and mainnet proof remain open.
 - Added the connected-wallet sender module. It requires a standard EIP-1193
   provider, reads the live registry/token/paymaster state, performs exact
   approval, creates a real hashlocked gift, returns the receipt-derived Gift ID
   and claim link, and supports sender status/reclaim. It does not fabricate
   balances, prices, reserves, or QR output.
+- Added the connected-wallet sender surface to the Next.js home page. It uses
+  the injected existing wallet, live registry asset slots, and receipt-derived
+  claim links; no sender key is created or stored by Convey.
 - Added the server-side `/v1/claims/authorize` route. It signs only an unsigned
   operation targeting the configured escrow claim selector, checks the live
   open reserve and paymaster verifying signer, and allocates an unused sponsor
   nonce. The signer remains in the root-controlled VPS environment.
+- Corrected claim authorization to sign the live ERC-4337 v0.7 gas pre-fund
+  computed from the operation's gas fields, while retaining the deployed
+  paymaster's maximum-cost cap. The gateway now exposes a live gas seed from
+  the successful Gift ID `2` operation, recovering omitted paymaster fields from
+  its recorded EntryPoint bundle transaction when OKBund leaves them out.
 - Installed the existing claim-paymaster signer into that environment without
   printing it. The deployed route was probed against closed Gift ID `2` and
   returned the expected `409 gift_claim_reserve_unavailable`; no operation was
@@ -103,22 +114,26 @@
   and the two-pass private gateway authorization needed to sign a gasless
   claim. The receiver private key remains local; browser ceremony and
   on-chain owner-revocation proof are still not claimed as complete.
+- Added iterative live claim preparation: the receiver gets live seed fields,
+  signs the exact sponsor authorization locally, asks OKBund for a live
+  estimate, and re-authorizes only if the returned limits grow. The enrollment
+  ceremony keeps a short-lived signer in memory so it does not ask for a second
+  passkey ceremony before the claim.
 - Added the Next.js receiver surface and same-origin relay proxy. The screen
   reads live escrow/registry data and issuer valuation, shows the recovery key
-  once with explicit save confirmation, and keeps relay credentials server-side.
-  Production browser claim submission is not claimed until the live estimator
-  and authenticated HTTPS edge are deployed.
+  once with explicit save confirmation, calls the live claim route, and keeps
+  relay credentials server-side. The production build is deployed behind the
+  public HTTPS web edge; the browser PRF ceremony and browser mainnet claim
+  remain open.
 
 ## Next
 
 - Exercise the real browser WebAuthn PRF ceremony and persistent storage, then
   prove the inspected OKX owner-revocation path. The library path and local
   tests are in place; see `docs/receiver-flow.md`.
-- Wire the live claim estimator and authenticated HTTPS edge to the receiver
-  screen, then implement live-quoted gasless cash-out and gasless withdrawal.
-- Add the browser-facing authenticated edge and execute one complete
-  browser-to-browser mainnet flow through the persistent private gateway,
-  recording every receipt.
+- Implement live-quoted gasless cash-out and gasless withdrawal.
+- Execute one complete browser-to-browser mainnet flow through the persistent
+  private gateway, recording every receipt.
 - Add gateway/paymaster monitoring and a documented top-up operation before
   starting Drop.
 - Then build Drop, prove an OKX-specific recurring authorization design, and
@@ -131,7 +146,10 @@
   host. The gateway is loopback-only and authenticated; monitor host memory and
   the paymaster deposit before browser traffic is enabled.
 - A later workspace `pnpm bundler:check` through the temporary SSH tunnel passed for chain 196 and EntryPoint v0.7. An earlier generic connection failure is superseded; the persistent gateway health check is now recorded in `docs/verification.md`.
-- The relay SDK and gateway are implemented. The persistent gateway health check passed against live X Layer/OKBund, but an authenticated HTTPS edge for the browser is still required; the SDK does not substitute for that edge.
+- The relay SDK and gateway are implemented. The persistent gateway health check
+  passed against live X Layer/OKBund, and the public web edge is deployed at
+  `https://convey.13-62-181-128.sslip.io`; the browser PRF ceremony and browser
+  mainnet proof are still required.
 - The account-standard decision is settled on the deployed OKX modular ERC-4337 v0.7 account; it is not labeled ERC-7579. The encrypted receiver signer vault is implemented and locally tested; the browser ceremony and on-chain owner revocation proof remain open.
 - Product escrow and claim-reserve code are deployed and funded. The private claim route now has a successful sender-funded Gift ID `2` claim; browser receiver integration remains open.
 - The Codespace still does not have `forge`; the Solidity suite was compiled and run on the supplied Lightsail host. Product constructor, cross-contract readbacks, and the successful live Gift ID `2` claim are recorded.
@@ -144,7 +162,7 @@ case uses a local EntryPoint stub. The pinned OKBund source passed `mvn verify`
 with Java 21 (no upstream tests are present), and its local read-only runtime
 probe returned chain `196` and the selected v0.7 EntryPoint. `pnpm verify`
 passed against X Layer mainnet at
-`2026-09-22T19:24:57Z` with the same pinned block; the baseline is in
+`2026-09-24T16:55:00Z` with the same pinned block; the latest raw report is in
 `docs/verification.raw.json`. `pnpm verify:bundler-rpc` passed against the
 keyed NodeFlare X Layer endpoint at `2026-09-23T04:32:18Z`; both required
 `debug_traceCall` variants succeeded. The latest raw capability report is in
@@ -176,3 +194,9 @@ submitted during these gateway checks.
 The Next.js production build passed with Next `16.3.6`; `pnpm exec tsc --noEmit`
 and the six-test TypeScript suite passed. A local HTTP smoke test returned
 `200` for the landing page and `404` for an unallowlisted relay path.
+The production build was deployed to the supplied VPS as `convey-web.service`
+on `127.0.0.1:3001`, with Nginx TLS at
+`https://convey.13-62-181-128.sslip.io`. A live public GET returned `200` and
+the public unallowlisted relay path returned `404`; `convey-okbund.service`,
+`convey-relayer.service`, and `convey-web.service` were all active. This is
+deployment evidence, not a browser PRF or browser mainnet claim proof.
