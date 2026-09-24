@@ -192,7 +192,7 @@ at block `71480514`; `createGift` was
 `0x67d63026316a0d929edd434436806f6dca4fe8d07aa0c1fd839f330274e01f68`
 at block `71480785`.
 
-The sponsored claim UserOperation
+The gasless sponsored claim UserOperation
 `0x1ed2abda8798479bd1dd74c81073007ca791a292b1c727af198da552e3a94403`
 was included by transaction
 `0x05179c720349f882b589562ad56df7c57385094233dabc6559947e5c8ea6945b`

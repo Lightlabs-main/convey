@@ -10,7 +10,8 @@ multi-claim drops, and recurring authorization remain ahead.
 
 - **Sender:** connect an existing wallet with standard wallet-connect. The
   sender signs gift creation and funds the gift and its claim allowance.
-- **Receiver:** arrive with no prior wallet, gas, or account. A device-local
+- **Receiver:** arrive with no prior wallet, gas, or account. The claim is
+  gasless: a device-local
   credential authorizes the receiver owner key; the claim UserOperation uses
   the counterfactual ERC-4337 account path when deployment is needed, binds the
   claim to that account, and reaches the escrow through Convey's private relay
@@ -32,7 +33,8 @@ multi-claim drops, and recurring authorization remain ahead.
   private OKBund endpoint. Its signer,
   operation limits, and open invariants are recorded in
   [`aa-gate-design.md`](aa-gate-design.md). This one-operation proof is separate
-  from the sender-funded claim-gas reserve required by the product.
+  from the sender-funded claim-gas reserve required by the product, so the
+  receiver never supplies native gas.
 
 ## Contracts
 

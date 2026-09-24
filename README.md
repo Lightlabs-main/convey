@@ -2,8 +2,8 @@
 
 Convey is a private X Layer mainnet application for gifting tokenized
 real-world assets, beginning with xStocks. A sender funds a gift and sends a
-link; the receiver arrives without a prior wallet, gas, or account and claims
-the asset into an ERC-4337 smart account. The claim is submitted through a
+link; the receiver arrives without a prior wallet, gas, or account and makes a
+gasless claim into an ERC-4337 smart account. The claim is submitted through a
 private Convey gateway and operator-controlled OKBund bundler.
 
 The product is currently in live verification, not production release. The
@@ -18,13 +18,14 @@ architecture, deployment, and live evidence are in [`docs/architecture.md`](docs
 
 ## The product: send a stock gift without requiring a wallet
 
-Someone sends you a stock gift link. You tap **Claim**. No wallet download, no
-browser extension, no network switch, no OKB, and no pre-funded account.
+Someone sends you a stock gift link. You tap **Claim**. The claim is gasless:
+no wallet download, no browser extension, no network switch, no OKB, and no
+pre-funded account.
 
 Convey creates or uses your receiver smart account, wraps the claim in an
 ERC-4337 UserOperation, and routes it through a private sponsored path. The
-sender-funded claim reserve pays the gas. Your asset arrives in a smart account
-you control—not in a custodial Convey balance.
+sender-funded claim reserve and Convey paymaster pay the gas. Your asset
+arrives in a smart account you control—not in a custodial Convey balance.
 
 “No wallet” means no pre-existing or funded crypto wallet is required. The
 receiver still needs the claim link and a device-local credential to authorize
@@ -50,7 +51,8 @@ As of 2026-09-24:
   unavailable.
 - A live sender-funded acquisition and GiftEscrow setup were completed with
   NVDAx, including the exact asset amount and native claim reserve.
-- Gift ID `2` was created and claimed successfully on mainnet. The receiver
+- Gift ID `2` was created and claimed successfully through a gasless sponsored
+  UserOperation on mainnet. The receiver
   received the full `0.030965586663211895` NVDAx, while escrow and sender
   balances returned to zero. The live hashes are in the verification record.
 

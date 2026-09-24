@@ -3,7 +3,8 @@
 Convey does not depend on ZeroDev, Pimlico, Particle, or a subscription relay.
 The application owns the claim gateway and the SDK that submits claims through
 it. The gateway forwards only to an operator-controlled ERC-4337 v0.7 bundler
-over `BUNDLER_RPC_URL`.
+over `BUNDLER_RPC_URL`; the receiver's claim is gasless because the sender-funded
+reserve and Convey paymaster cover the UserOperation.
 
 ## Boundary
 

@@ -1,6 +1,6 @@
 # X Layer mainnet verification
 
-Status: **account-abstraction and private product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster. Receiver enrollment and recovery remain separate product work.
+Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. Receiver enrollment and recovery remain separate product work.
 
 ## Live continuation checks — 2026-09-24
 
@@ -442,7 +442,7 @@ at block `71480514`. `createGift` succeeded in transaction
 [`0x67d63026316a0d929edd434436806f6dca4fe8d07aa0c1fd839f330274e01f68`](https://www.oklink.com/xlayer/tx/0x67d63026316a0d929edd434436806f6dca4fe8d07aa0c1fd839f330274e01f68)
 at block `71480785`, with the configured `0.00002 OKB` reserve.
 
-The final sponsored claim was accepted by Convey's ephemeral localhost
+The final gasless sponsored claim was accepted by Convey's ephemeral localhost
 gateway and private OKBund, then forced from OKBund's manual queue using its
 supported `debug_bundler_sendBundleNow` RPC:
 
