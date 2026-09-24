@@ -84,7 +84,13 @@
 
 ## Next
 
-- Choose and prove receiver key enrollment, passkey PRF storage, device migration, recovery, and owner revocation for the OKX ECDSA owner path.
+- Complete receiver key enrollment and recovery. The browser-safe vault core now
+  generates a dedicated OKX ECDSA owner key, encrypts it under WebAuthn PRF
+  material, creates a separate one-time recovery envelope, and rewraps the same
+  owner during migration. Local tests cover unlock, wrong PRF, recovery,
+  migration, and tampering. The actual browser WebAuthn ceremony, persistent
+  client storage, and inspected on-chain OKX owner revocation remain open; see
+  `docs/receiver-key-management.md`.
 - Decide where to run the Convey gateway. The Lightsail check found no gateway there, and its current free memory/swap usage makes co-location a capacity decision before adding the workload.
 - Verify private claim routing, reserve accounting on success and failure, duplicate settlement, EntryPoint deposit/stake behavior, and recurring-gift owner permissions on the deployed integration.
 - Sample gas price over time and record variance.
