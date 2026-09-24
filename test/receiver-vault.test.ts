@@ -7,6 +7,7 @@ import {
   rewrapRecoveredReceiverKey,
   unlockReceiverKey,
 } from "../src/receiver/vault.ts";
+import { createBrowserReceiverVaultStorage, storedReceiverVault } from "../src/receiver/storage.ts";
 
 const prf = (fill: number) => new Uint8Array(32).fill(fill);
 
@@ -46,4 +47,24 @@ test("tampering with encrypted receiver material fails closed", async () => {
     unlockReceiverKey({ ...enrollment.vault, ciphertext }, prf(6)),
     /could not be unlocked/,
   );
+});
+
+test("browser storage persists only encrypted receiver material", async () => {
+  const values = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+    clear: () => values.clear(),
+    key: () => null,
+    length: 0,
+  } as Storage;
+  const enrollment = await enrollReceiverKey("credential-one", prf(7));
+  const adapter = createBrowserReceiverVaultStorage(storage);
+  adapter.save(storedReceiverVault(enrollment, "0x010203".padEnd(66, "0") as `0x${string}`));
+  const serialized = values.values().next().value as string;
+  assert.equal(serialized.includes(enrollment.recoveryKey), false);
+  assert.equal(adapter.load()?.vault.owner, enrollment.vault.owner);
+  adapter.clear();
+  assert.equal(adapter.load(), null);
 });
