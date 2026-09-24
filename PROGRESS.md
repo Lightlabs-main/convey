@@ -103,14 +103,19 @@
   and the two-pass private gateway authorization needed to sign a gasless
   claim. The receiver private key remains local; browser ceremony and
   on-chain owner-revocation proof are still not claimed as complete.
+- Added the Next.js receiver surface and same-origin relay proxy. The screen
+  reads live escrow/registry data and issuer valuation, shows the recovery key
+  once with explicit save confirmation, and keeps relay credentials server-side.
+  Production browser claim submission is not claimed until the live estimator
+  and authenticated HTTPS edge are deployed.
 
 ## Next
 
 - Exercise the real browser WebAuthn PRF ceremony and persistent storage, then
   prove the inspected OKX owner-revocation path. The library path and local
   tests are in place; see `docs/receiver-flow.md`.
-- Build the receiver claim screen against the private gateway, then implement
-  live-quoted gasless cash-out and gasless withdrawal.
+- Wire the live claim estimator and authenticated HTTPS edge to the receiver
+  screen, then implement live-quoted gasless cash-out and gasless withdrawal.
 - Add the browser-facing authenticated edge and execute one complete
   browser-to-browser mainnet flow through the persistent private gateway,
   recording every receipt.
@@ -168,3 +173,6 @@ unauthenticated request returned `401`, authenticated health returned chain
 non-mutating authorization request for closed Gift ID `2` returned
 `409 gift_claim_reserve_unavailable`. No new transaction or UserOperation was
 submitted during these gateway checks.
+The Next.js production build passed with Next `16.3.6`; `pnpm exec tsc --noEmit`
+and the six-test TypeScript suite passed. A local HTTP smoke test returned
+`200` for the landing page and `404` for an unallowlisted relay path.

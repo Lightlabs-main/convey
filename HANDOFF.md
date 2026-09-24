@@ -50,6 +50,11 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
   calldata, and private two-pass paymaster authorization are implemented and
   locally tested. A real browser PRF ceremony, authenticated HTTPS edge, and
   on-chain owner-management/revocation proof remain open.
+- The Next.js receiver surface is implemented and production-built. It reads
+  live escrow/registry state and the issuer valuation, shows the recovery key
+  once with explicit save confirmation, and proxies only allowlisted relay
+  paths server-side. It has not been presented as a completed browser claim:
+  the live estimator, public HTTPS edge, and browser mainnet proof remain open.
 
 ### Live sponsored bootstrap evidence
 
@@ -78,7 +83,8 @@ were excluded from this evidence. No private key or credential was printed.
 
 1. Run the real WebAuthn PRF enrollment/recovery ceremonies with persistent
    client storage and prove the inspected OKX owner-revocation path.
-2. Build the receiver claim screen against the authenticated private gateway.
+2. Wire the live claim estimator and authenticated HTTPS edge to the receiver
+   screen.
 3. Implement live-quoted gasless cash-out and gasless withdrawal.
 4. Execute and record one complete browser-to-browser X Layer mainnet flow.
 5. Add monitoring and paymaster top-up operations.
