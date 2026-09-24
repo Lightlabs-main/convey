@@ -16,6 +16,22 @@ architecture, deployment, and live evidence are in [`docs/architecture.md`](docs
 [`docs/product-deployment.json`](docs/product-deployment.json), and
 [`docs/verification.md`](docs/verification.md).
 
+## The punchline: claim a stock gift without a wallet
+
+Someone sends you a stock gift. You tap **Claim**. No wallet download, no
+browser extension, no network switch, no OKB, and no pre-funded account.
+
+Convey creates or uses your receiver smart account, wraps the claim in an
+ERC-4337 UserOperation, and routes it through a private sponsored path. The
+sender-funded claim reserve pays the gas. Your asset arrives in a smart account
+you control—not in a custodial Convey balance.
+
+“No wallet” means no pre-existing or funded crypto wallet is required. The
+claimer still needs the claim secret/link and a device-local signing credential
+to control the receiver account; Convey never receives that private key. The
+passkey enrollment and recovery experience is still being proven, and the
+successful live claim remains the next verification gate.
+
 ## Current checkpoint
 
 As of 2026-09-24:
