@@ -36,6 +36,14 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
 - The operator provisioned distinct `SMART_ACCOUNT_OWNER_PRIVATE_KEY`, `DEPLOYER_PRIVATE_KEY`, and `BOOTSTRAP_PAYMASTER_SIGNER_PRIVATE_KEY` values in the ignored local `.env`. Their public role addresses are distinct; no private values were printed. The receiver account `0x63B2A84d47cb07fb18EE72Ec386893506Fd963db` is now deployed on chain 196 by the sponsored operation. The deployed paymaster is `0x6647cef848fc54b0c821f91a88d83227f65e36b9`; its deployment and sponsorship transactions are recorded in `docs/verification.md`. Sponsor nonce `0`, paymaster verification gas limit `200000`, and max-cost cap `0.01 OKB` are configured. The receiver's EntryPoint nonce is now `1`; the paymaster authorization is consumed. `BUNDLER_PRIVATE_KEY` remains only in the VPS root-owned service environment, and its public wallet retains `0.000781673979083699 OKB`.
 - The ignored local `.env` was found with mode `0666` and changed to owner-only mode `0600` without reading or printing its contents. Keep operator keys in this file or a secret manager, never in chat.
 - Pinned OKBund is installed and running as a persistent loopback-only service on the Lightsail VPS. Its dedicated bundler wallet is funded. The product contracts and registry entries are deployed on X Layer; public addresses, receipts, and policy are in `docs/product-deployment.json`. Gift ID `1` reached on-chain claim inclusion but failed internally and was reclaimed. Gift ID `2` was subsequently created and claimed successfully through Convey's private route; the evidence is recorded below.
+- The connected-wallet sender module is now committed and exported as
+  `convey/sender`. It reads live registry/token/paymaster state, creates real
+  hashlocked gifts, and performs exact approval; browser UI and QR rendering
+  remain separate.
+- The persistent gateway's server-only claim authorization route is deployed.
+  Its signer matches the live paymaster verifier; a non-mutating request for
+  closed Gift ID `2` returned `409 gift_claim_reserve_unavailable`, and no new
+  UserOperation was submitted.
 
 ### Live sponsored bootstrap evidence
 

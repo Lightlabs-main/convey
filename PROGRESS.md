@@ -84,6 +84,19 @@
 - Added the persistent private gateway service definition. It is scoped to
   loopback port `8800`, authenticates requests, uses the existing NodeFlare and
   OKBund path, and keeps the public HTTPS edge separate from the browser work.
+- Added the connected-wallet sender module. It requires a standard EIP-1193
+  provider, reads the live registry/token/paymaster state, performs exact
+  approval, creates a real hashlocked gift, returns the receipt-derived Gift ID
+  and claim link, and supports sender status/reclaim. It does not fabricate
+  balances, prices, reserves, or QR output.
+- Added the server-side `/v1/claims/authorize` route. It signs only an unsigned
+  operation targeting the configured escrow claim selector, checks the live
+  open reserve and paymaster verifying signer, and allocates an unused sponsor
+  nonce. The signer remains in the root-controlled VPS environment.
+- Installed the existing claim-paymaster signer into that environment without
+  printing it. The deployed route was probed against closed Gift ID `2` and
+  returned the expected `409 gift_claim_reserve_unavailable`; no operation was
+  submitted.
 
 ## Next
 
@@ -91,13 +104,11 @@
   browser WebAuthn PRF ceremony and persistent storage, then prove the inspected
   OKX owner revocation path. The encrypted vault core and local tests are in
   place; see `docs/receiver-key-management.md`.
-- Build the connected-wallet sender flow around the deployed registry and
-  `GiftEscrow`: OKX Wallet first, live asset reads, exact approval, gift
-  creation, and link/QR output. No sender-side mock balances or quotes.
 - Build the receiver claim screen against the private gateway, then implement
   live-quoted gasless cash-out and gasless withdrawal.
-- Execute one complete browser-to-browser mainnet flow through the persistent
-  private gateway and record every receipt.
+- Add the browser-facing authenticated edge and execute one complete
+  browser-to-browser mainnet flow through the persistent private gateway,
+  recording every receipt.
 - Add gateway/paymaster monitoring and a documented top-up operation before
   starting Drop.
 - Then build Drop, prove an OKX-specific recurring authorization design, and
@@ -146,3 +157,9 @@ the public receipts and live getter readback are recorded in
 acquisition, Gift ID `1` creation, failed on-chain claim, and protective
 reclaim completed; their hashes and final private-RPC state are recorded in
 `docs/verification.md` and `HANDOFF.md`.
+The persistent gateway was then verified active on `127.0.0.1:8800`: an
+unauthenticated request returned `401`, authenticated health returned chain
+`196` with the canonical EntryPoint and funded/staked claim paymaster, and a
+non-mutating authorization request for closed Gift ID `2` returned
+`409 gift_claim_reserve_unavailable`. No new transaction or UserOperation was
+submitted during these gateway checks.

@@ -132,6 +132,13 @@ the configured minimum `20000000000000` wei. No secret token or RPC credential
 was printed or committed. This is a private loopback deployment; an
 authenticated HTTPS edge for browser access is not installed.
 
+The server-only claim-paymaster signer is installed in the same root-controlled
+environment. A non-mutating `/v1/claims/authorize` request for already-closed
+Gift ID `2` returned HTTP `409` with `gift_claim_reserve_unavailable`, after the
+gateway reached the live paymaster policy. It did not submit a UserOperation or
+change chain state. This confirms the signer route is configured without
+claiming that a fresh open gift has been authorized.
+
 On 2026-09-24, the new Convey EntryPoint event tracer was accepted by the
 configured private execution RPC. A read-only ERC-20 transfer trace captured a
 `Transfer` log with event data; no transaction or UserOperation was submitted.
