@@ -15,7 +15,9 @@ The receiver never connects to this path.
    secret/code/note for the contract, reads the claim paymaster's live minimum
    reserve, and performs exact approval before calling `GiftEscrow.createGift`.
 4. The successful receipt is required to contain exactly one `GiftCreated`
-   event. The returned `claimLink` is the only place the secret is exposed.
+   event. The returned `claimLink` contains the bearer secret and the
+   non-secret `giftId` lookup hint; the secret is never stored in Convey's
+   database or sent to the gateway before the receiver signs a claim.
 5. `readGift()` provides sender status and `reclaimGift()` uses the escrow's
    sender-only refund path.
 
@@ -49,6 +51,10 @@ const gift = await sender.createGift({
 
 // Share gift.claimLink through the sender's existing chat channel.
 ```
+
+The link is `/g/<secret>?giftId=<id>`. `GiftEscrow` intentionally stores only
+the hash and has no secret-to-ID lookup, so the ID travels as a non-secret hint;
+the receiver still proves possession of the secret in the signed claim.
 
 The runtime deployment addresses are configuration, not constants in the
 sender module. They must come from the verified deployment record or a live

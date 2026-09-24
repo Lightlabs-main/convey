@@ -324,10 +324,15 @@ export function parseGiftAmount(value: string, decimals: number): bigint {
   return parsed;
 }
 
-export function buildClaimLink(claimBaseUrl: string, secret: Hex): string {
+export function buildClaimLink(claimBaseUrl: string, secret: Hex, giftId?: bigint): string {
   if (!/^0x[0-9a-fA-F]{64}$/u.test(secret)) throw new Error("gift secret must contain exactly 32 bytes");
   const base = normaliseBaseUrl(claimBaseUrl);
-  return `${base}/g/${secret.slice(2).toLowerCase()}`;
+  const url = new URL(`${base}/g/${secret.slice(2).toLowerCase()}`);
+  if (giftId !== undefined) {
+    if (giftId <= 0n) throw new Error("giftId must be greater than zero");
+    url.searchParams.set("giftId", giftId.toString());
+  }
+  return url.toString();
 }
 
 function checkReceiptStatus(receipt: { status: string }, operation: string): void {
@@ -494,7 +499,7 @@ export class ConnectedWalletSender {
       claimReserveWei: reserve,
       approvalTransactions,
       createTransaction,
-      claimLink: buildClaimLink(this.claimBaseUrl, secret),
+      claimLink: buildClaimLink(this.claimBaseUrl, secret, giftId),
     };
   }
 

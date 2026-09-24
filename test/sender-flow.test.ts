@@ -10,9 +10,10 @@ test("sender amount parsing uses the live token decimals supplied by the registr
   assert.throws(() => parseGiftAmount("1.0000000000000000001", 18), /at most 18 places/);
 });
 
-test("sender claim links contain only the generated bearer secret", () => {
+test("sender claim links contain the bearer secret and optional lookup hint", () => {
   const secret = `0x${"ab".repeat(32)}` as `0x${string}`;
   assert.equal(buildClaimLink("https://convey.example/", secret), `https://convey.example/g/${"ab".repeat(32)}`);
+  assert.equal(buildClaimLink("https://convey.example/", secret, 7n), `https://convey.example/g/${"ab".repeat(32)}?giftId=7`);
   assert.throws(() => buildClaimLink("http://example.com", secret), /HTTPS/);
 });
 

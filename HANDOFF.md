@@ -2,7 +2,7 @@
 
 ## Decision to resume
 
-The product is **Convey**. The previous name is retired; `AGENTS.md` records this as persistent project memory. The account-abstraction transaction gate has now passed through Convey's private OKBund on X Layer, using NodeFlare as OKBund's execution RPC. Particle is no longer a sponsor dependency. The product registry, escrow, claim paymaster, and launch asset entries are deployed and funded; the receiver vault core and persistent private gateway are implemented, while browser integration and recovery proof remain separate work.
+The product is **Convey**. The previous name is retired; `AGENTS.md` records this as persistent project memory. The account-abstraction transaction gate has now passed through Convey's private OKBund on X Layer, using NodeFlare as OKBund's execution RPC. Particle is no longer a sponsor dependency. The product registry, escrow, claim paymaster, and launch asset entries are deployed and funded; the receiver vault and claim-flow library plus persistent private gateway are implemented, while browser ceremony, edge, and recovery proof remain separate work.
 
 The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 EntryPoint v0.7. Its inspected implementation does **not** implement ERC-7579. A proposed per-receiver ECDSA key vault is recorded in `docs/aa-gate-design.md`; its passkey storage, recovery, and revocation paths still need implementation-specific proof. The first sponsor path is an operator-controlled v0.7 paymaster with a dedicated signer and funded EntryPoint deposit/stake. This paymaster is an infrastructure prerequisite to the verification gate; the sender-funded product gas model needs separate proof before gifting.
 
@@ -16,8 +16,9 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
 
 ## Workspace state after the latest continuation
 
-- `AGENTS.md` and this handoff are committed project memory files; the latest
-  pushed commits are `4f82635` and `b9c947f`.
+- `AGENTS.md` and this handoff are committed project memory files. Use git
+  history for the current pushed commit; this document does not duplicate a
+  stale short hash.
 - A bulk product rename from the retired name to Convey has been applied across package metadata, SDK identifiers, environment variable names, tests, docs, and the OKBund runbook. The package name is `convey`; the client class is `ConveyRelayerClient`; operator variables use the `CONVEY_` prefix. The local ignored `.env` variable names were migrated without displaying secret values.
 - The rename and documentation corrections are committed. `pnpm test` passes;
   no fresh live `pnpm verify` was run during this continuation. Stale Particle
@@ -44,6 +45,11 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
   Its signer matches the live paymaster verifier; a non-mutating request for
   closed Gift ID `2` returned `409 gift_claim_reserve_unavailable`, and no new
   UserOperation was submitted.
+- The receiver flow library now joins the encrypted vault to the live claim
+  path: PRF enrollment/unlock/recovery, live Gift preview, link parsing, claim
+  calldata, and private two-pass paymaster authorization are implemented and
+  locally tested. A real browser PRF ceremony, authenticated HTTPS edge, and
+  on-chain owner-management/revocation proof remain open.
 
 ### Live sponsored bootstrap evidence
 
@@ -70,20 +76,17 @@ were excluded from this evidence. No private key or credential was printed.
 
 ## Resume in this order
 
-1. Finish the receiver browser integration: run the real WebAuthn PRF
-   enrollment/recovery ceremonies with persistent client storage and prove the
-   inspected OKX owner-revocation path. The encrypted vault core and its local
-   tests are already committed.
-2. Build the connected-wallet sender flow using OKX Wallet first: live asset
-   reads, exact approval, `createGift`, and link/QR output.
-3. Build the receiver claim screen against the authenticated private gateway.
-4. Implement live-quoted gasless cash-out and gasless withdrawal.
-5. Execute and record one complete browser-to-browser X Layer mainnet flow.
-6. Add monitoring and paymaster top-up operations.
-7. Then build Drop with its one-claim-per-wallet invariant.
-8. Prove an OKX-specific recurring authorization design with explicit bounds and
+1. Run the real WebAuthn PRF enrollment/recovery ceremonies with persistent
+   client storage and prove the inspected OKX owner-revocation path.
+2. Build the receiver claim screen against the authenticated private gateway.
+3. Implement live-quoted gasless cash-out and gasless withdrawal.
+4. Execute and record one complete browser-to-browser X Layer mainnet flow.
+5. Add monitoring and paymaster top-up operations.
+6. Then build Drop with its one-claim-per-wallet invariant.
+7. Prove an OKX-specific recurring authorization design with explicit bounds and
    revocation.
-9. Finish the SDK, CI, README, and production review.
+8. Finish the SDK, CI, README, and production review. The connected-wallet
+   sender module is already implemented and exported as `convey/sender`.
 
 The project builder's in-house source review is complete for the one-operation
 bootstrap path; no third-party audit is claimed. The successful live evidence

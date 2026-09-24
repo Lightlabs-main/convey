@@ -1,0 +1,365 @@
+import {
+  createPublicClient,
+  defineChain,
+  encodeFunctionData,
+  http,
+  isAddress,
+  stringToHex,
+  type Address,
+  type Hex,
+} from "viem";
+import { buildOkxClaimUserOperation, type BuiltOkxClaimUserOperation, type OkxClaimGas, type OkxEcdsaMessageSigner } from "../relayer/okx.ts";
+import { ConveyRelayerClient } from "../relayer/client.ts";
+import { XLAYER_CHAIN_ID, XLAYER_ENTRYPOINT_V07 } from "../relayer/config.ts";
+import type { ClaimPaymasterAuthorizationResponse, UserOperationGasEstimate } from "../relayer/types.ts";
+import { enrollReceiverPasskey, unlockReceiverPasskey } from "./passkey.ts";
+import { receiverSignerFromPrivateKey } from "./signer.ts";
+import { storedReceiverVault, type ReceiverVaultStorage } from "./storage.ts";
+import {
+  enrollReceiverKey,
+  unlockReceiverKey,
+  rewrapRecoveredReceiverKey,
+} from "./vault.ts";
+
+const ZERO_BYTES = "0x" as Hex;
+const CLAIM_PAYMASTER_PLACEHOLDER = `0x${"00".repeat(141)}` as Hex;
+
+const ESCROW_ABI = [
+  {
+    type: "function",
+    name: "getGift",
+    stateMutability: "view",
+    inputs: [{ name: "giftId", type: "uint256" }],
+    outputs: [
+      {
+        name: "gift",
+        type: "tuple",
+        components: [
+          { name: "sender", type: "address" },
+          { name: "asset", type: "address" },
+          { name: "amount", type: "uint256" },
+          { name: "secretHash", type: "bytes32" },
+          { name: "codeHash", type: "bytes32" },
+          { name: "expiry", type: "uint64" },
+          { name: "noteHash", type: "bytes32" },
+          { name: "state", type: "uint8" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "function",
+    name: "claim",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "giftId", type: "uint256" },
+      { name: "secret", type: "bytes" },
+      { name: "code", type: "bytes" },
+    ],
+    outputs: [],
+  },
+] as const;
+
+export interface ParsedClaimLink {
+  giftId: bigint;
+  secret: Hex;
+}
+
+export interface ReceiverGiftPreview {
+  giftId: bigint;
+  sender: Address;
+  asset: Address;
+  amount: bigint;
+  secretHash: Hex;
+  codeRequired: boolean;
+  expiry: bigint;
+  noteHash: Hex;
+  state: "open" | "claimed" | "reclaimed";
+  expired: boolean;
+  blockTimestamp: bigint;
+}
+
+export interface ReceiverAccountSession {
+  owner: Address;
+  signer: OkxEcdsaMessageSigner;
+}
+
+export interface EnrolledReceiverAccount {
+  owner: Address;
+  credentialId: string;
+  recoveryKey: Hex;
+}
+
+export interface ReceiverEnrollmentOptions {
+  storage: ReceiverVaultStorage;
+  userName: string;
+  displayName: string;
+  rpName?: string;
+  rpId?: string;
+  userId?: Uint8Array;
+}
+
+export interface ReceiverRecoveryOptions {
+  storage: ReceiverVaultStorage;
+  recoveryKey: Hex;
+  userName: string;
+  displayName: string;
+  rpName?: string;
+  rpId?: string;
+  userId?: Uint8Array;
+}
+
+export interface ReceiverClaimBuildOptions {
+  claim: ParsedClaimLink;
+  code?: string;
+  executionRpcUrl: string;
+  entryPoint?: Address;
+  factory: Address;
+  implementation: Address;
+  escrow: Address;
+  claimFunctionSelector: Hex;
+  paymaster: Address;
+  signer: OkxEcdsaMessageSigner;
+  salt: bigint;
+  gas: OkxClaimGas;
+  paymasterVerificationGasLimit: bigint;
+  paymasterPostOpGasLimit: bigint;
+  relay: ConveyRelayerClient;
+  timeoutMs?: number;
+  fetchImpl?: typeof fetch;
+}
+
+export interface BuiltReceiverClaim {
+  account: Address;
+  deployed: boolean;
+  claimData: Hex;
+  authorization: ClaimPaymasterAuthorizationResponse;
+  userOperation: BuiltOkxClaimUserOperation;
+}
+
+function randomUserId(): Uint8Array {
+  if (!globalThis.crypto?.getRandomValues) throw new Error("Web Crypto is required for receiver enrollment");
+  return globalThis.crypto.getRandomValues(new Uint8Array(32));
+}
+
+function positiveGiftId(value: bigint): bigint {
+  if (typeof value !== "bigint" || value <= 0n) throw new Error("giftId must be greater than zero");
+  return value;
+}
+
+function tupleValue(value: unknown, key: string, index: number): unknown {
+  if (Array.isArray(value)) return value[index];
+  if (value && typeof value === "object" && key in value) return (value as Record<string, unknown>)[key];
+  throw new Error(`escrow returned an invalid gift tuple (${key})`);
+}
+
+function addressValue(value: unknown, name: string): Address {
+  if (typeof value !== "string" || !isAddress(value)) throw new Error(`escrow returned an invalid ${name}`);
+  return value as Address;
+}
+
+function bigintValue(value: unknown, name: string): bigint {
+  if (typeof value !== "bigint") throw new Error(`escrow returned an invalid ${name}`);
+  return value;
+}
+
+function numberValue(value: unknown, name: string): number {
+  if (typeof value !== "number" && typeof value !== "bigint") throw new Error(`escrow returned an invalid ${name}`);
+  const result = Number(value);
+  if (!Number.isSafeInteger(result) || result < 0) throw new Error(`escrow returned an invalid ${name}`);
+  return result;
+}
+
+/**
+ * Parses the shareable link. The secret is the bearer credential; giftId is a
+ * non-secret lookup hint because GiftEscrow deliberately has no secret-to-ID
+ * mapping. No secret is sent to the gateway until the signed claim operation.
+ */
+export function parseClaimLink(value: string): ParsedClaimLink {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("claim link is not a valid URL");
+  }
+  const match = /^\/g\/([0-9a-fA-F]{64})\/?$/u.exec(url.pathname);
+  if (!match) throw new Error("claim link must contain a 32-byte secret at /g/<secret>");
+  const rawGiftId = url.searchParams.get("giftId");
+  if (!rawGiftId || !/^\d+$/u.test(rawGiftId)) throw new Error("claim link is missing a valid giftId");
+  const giftId = positiveGiftId(BigInt(rawGiftId));
+  return { giftId, secret: `0x${match[1].toLowerCase()}` as Hex };
+}
+
+export function buildClaimCalldata(claim: ParsedClaimLink, code?: string): Hex {
+  positiveGiftId(claim.giftId);
+  if (!/^0x[0-9a-fA-F]{64}$/u.test(claim.secret)) throw new Error("claim secret must contain exactly 32 bytes");
+  return encodeFunctionData({
+    abi: ESCROW_ABI,
+    functionName: "claim",
+    args: [claim.giftId, claim.secret, code === undefined ? ZERO_BYTES : stringToHex(code)],
+  });
+}
+
+export async function readGiftPreview(
+  executionRpcUrl: string,
+  escrow: Address,
+  claim: ParsedClaimLink,
+): Promise<ReceiverGiftPreview> {
+  positiveGiftId(claim.giftId);
+  if (!isAddress(escrow)) throw new Error("escrow must be an EVM address");
+  const client = createPublicClient({
+    chain: defineChain({
+      id: XLAYER_CHAIN_ID,
+      name: "X Layer",
+      nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
+      rpcUrls: { default: { http: [executionRpcUrl] } },
+    }),
+    transport: http(executionRpcUrl),
+  });
+  const [giftValue, block] = await Promise.all([
+    client.readContract({ address: escrow, abi: ESCROW_ABI, functionName: "getGift", args: [claim.giftId] }),
+    client.getBlock(),
+  ]);
+  const tuple = giftValue as unknown;
+  const stateValue = numberValue(tupleValue(tuple, "state", 7), "gift state");
+  if (stateValue > 2) throw new Error("escrow returned an unknown gift state");
+  const expiry = bigintValue(tupleValue(tuple, "expiry", 5), "gift expiry");
+  return {
+    giftId: claim.giftId,
+    sender: addressValue(tupleValue(tuple, "sender", 0), "sender"),
+    asset: addressValue(tupleValue(tuple, "asset", 1), "asset"),
+    amount: bigintValue(tupleValue(tuple, "amount", 2), "gift amount"),
+    secretHash: tupleValue(tuple, "secretHash", 3) as Hex,
+    codeRequired: (tupleValue(tuple, "codeHash", 4) as Hex).toLowerCase() !== `0x${"00".repeat(32)}`,
+    expiry,
+    noteHash: tupleValue(tuple, "noteHash", 6) as Hex,
+    state: (["open", "claimed", "reclaimed"] as const)[stateValue],
+    expired: stateValue === 0 && expiry !== 0n && block.timestamp >= expiry,
+    blockTimestamp: block.timestamp,
+  };
+}
+
+export async function enrollReceiverAccount(options: ReceiverEnrollmentOptions): Promise<EnrolledReceiverAccount> {
+  const passkey = await enrollReceiverPasskey({
+    userId: options.userId ?? randomUserId(),
+    userName: options.userName,
+    displayName: options.displayName,
+    rpName: options.rpName,
+    rpId: options.rpId,
+  });
+  const enrollment = await enrollReceiverKey(passkey.credentialId, passkey.prfOutput);
+  options.storage.save(storedReceiverVault(enrollment, passkey.prfSalt));
+  return {
+    owner: enrollment.vault.owner,
+    credentialId: enrollment.credentialId,
+    recoveryKey: enrollment.recoveryKey,
+  };
+}
+
+export async function unlockReceiverAccount(
+  storage: ReceiverVaultStorage,
+  rpId?: string,
+): Promise<ReceiverAccountSession> {
+  const stored = storage.load();
+  if (!stored) throw new Error("receiver account is not enrolled on this device");
+  const prfOutput = await unlockReceiverPasskey(stored.vault.credentialId, stored.prfSalt, rpId);
+  const privateKey = await unlockReceiverKey(stored.vault, prfOutput);
+  return { owner: stored.vault.owner, signer: receiverSignerFromPrivateKey(privateKey) };
+}
+
+export async function recoverReceiverAccount(options: ReceiverRecoveryOptions): Promise<EnrolledReceiverAccount> {
+  const stored = options.storage.load();
+  if (!stored) throw new Error("receiver account is not enrolled on this device");
+  const passkey = await enrollReceiverPasskey({
+    userId: options.userId ?? randomUserId(),
+    userName: options.userName,
+    displayName: options.displayName,
+    rpName: options.rpName,
+    rpId: options.rpId,
+  });
+  const vault = await rewrapRecoveredReceiverKey(
+    stored.recovery,
+    options.recoveryKey,
+    passkey.credentialId,
+    passkey.prfOutput,
+  );
+  options.storage.save({ version: 1, vault, recovery: stored.recovery, prfSalt: passkey.prfSalt });
+  return { owner: vault.owner, credentialId: vault.credentialId, recoveryKey: options.recoveryKey };
+}
+
+function requireEstimateValue(value: string | undefined, name: string): bigint {
+  if (!value || !/^0x(?:0|[1-9a-fA-F][0-9a-fA-F]*)$/u.test(value)) {
+    throw new Error(`live claim estimate is missing ${name}`);
+  }
+  return BigInt(value);
+}
+
+/**
+ * Builds the two-pass receiver claim. The first pass is unsigned and contains
+ * a zeroed 141-byte authorization field; the private gateway signs the live
+ * operation fields. The second pass signs the exact returned authorization.
+ */
+export async function buildReceiverClaim(options: ReceiverClaimBuildOptions): Promise<BuiltReceiverClaim> {
+  const entryPoint = options.entryPoint ?? XLAYER_ENTRYPOINT_V07;
+  const claimData = buildClaimCalldata(options.claim, options.code);
+  const provisional = await buildOkxClaimUserOperation({
+    executionRpcUrl: options.executionRpcUrl,
+    entryPoint,
+    factory: options.factory,
+    implementation: options.implementation,
+    signer: options.signer,
+    salt: options.salt,
+    escrow: options.escrow,
+    claimFunctionSelector: options.claimFunctionSelector,
+    claimData,
+    gas: options.gas,
+    paymaster: {
+      address: options.paymaster,
+      verificationGasLimit: options.paymasterVerificationGasLimit,
+      postOpGasLimit: options.paymasterPostOpGasLimit,
+      data: CLAIM_PAYMASTER_PLACEHOLDER,
+    },
+    validUntil: 0n,
+    timeoutMs: options.timeoutMs,
+    fetchImpl: options.fetchImpl,
+  });
+  const authorization = await options.relay.authorizeClaim({ ...provisional.rpcUserOperation, signature: "0x" });
+  const final = await buildOkxClaimUserOperation({
+    executionRpcUrl: options.executionRpcUrl,
+    entryPoint,
+    factory: options.factory,
+    implementation: options.implementation,
+    signer: options.signer,
+    salt: options.salt,
+    escrow: options.escrow,
+    claimFunctionSelector: options.claimFunctionSelector,
+    claimData,
+    gas: options.gas,
+    paymaster: {
+      address: authorization.paymaster,
+      verificationGasLimit: requireEstimateValue(authorization.paymasterVerificationGasLimit, "paymasterVerificationGasLimit"),
+      postOpGasLimit: requireEstimateValue(authorization.paymasterPostOpGasLimit, "paymasterPostOpGasLimit"),
+      data: authorization.paymasterData,
+    },
+    validUntil: requireEstimateValue(authorization.validUntil, "validUntil"),
+    timeoutMs: options.timeoutMs,
+    fetchImpl: options.fetchImpl,
+  });
+  return {
+    account: final.account,
+    deployed: final.deployed,
+    claimData,
+    authorization,
+    userOperation: final,
+  };
+}
+
+export function liveGasFromEstimate(estimate: UserOperationGasEstimate, gasFees: Pick<OkxClaimGas, "maxFeePerGas" | "maxPriorityFeePerGas">): OkxClaimGas {
+  return {
+    callGasLimit: requireEstimateValue(estimate.callGasLimit, "callGasLimit"),
+    verificationGasLimit: requireEstimateValue(estimate.verificationGasLimit, "verificationGasLimit"),
+    preVerificationGas: requireEstimateValue(estimate.preVerificationGas, "preVerificationGas"),
+    maxFeePerGas: gasFees.maxFeePerGas,
+    maxPriorityFeePerGas: gasFees.maxPriorityFeePerGas,
+  };
+}

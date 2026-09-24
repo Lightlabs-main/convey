@@ -1,7 +1,7 @@
 # Receiver key enrollment and recovery
 
-Status: local cryptographic foundation implemented; browser ceremony and live
-account integration remain to be completed.
+Status: encrypted vault and receiver-flow integration implemented; real browser
+ceremony, authenticated edge, and live owner-management proof remain open.
 
 Convey's deployed OKX Smart Wallet uses its built-in ECDSA validator. Each
 receiver therefore needs a dedicated secp256k1 owner key. Convey must never

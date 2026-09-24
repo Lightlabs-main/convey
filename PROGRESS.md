@@ -97,13 +97,18 @@
   printing it. The deployed route was probed against closed Gift ID `2` and
   returned the expected `409 gift_claim_reserve_unavailable`; no operation was
   submitted.
+- Added the receiver flow library: PRF-backed passkey enrollment, encrypted
+  vault unlock and recovery rewrap, live escrow gift preview,
+  `/g/<secret>?giftId=<id>` parsing, claim calldata, live-estimate conversion,
+  and the two-pass private gateway authorization needed to sign a gasless
+  claim. The receiver private key remains local; browser ceremony and
+  on-chain owner-revocation proof are still not claimed as complete.
 
 ## Next
 
-- Finish receiver key enrollment and recovery integration: exercise the real
-  browser WebAuthn PRF ceremony and persistent storage, then prove the inspected
-  OKX owner revocation path. The encrypted vault core and local tests are in
-  place; see `docs/receiver-key-management.md`.
+- Exercise the real browser WebAuthn PRF ceremony and persistent storage, then
+  prove the inspected OKX owner-revocation path. The library path and local
+  tests are in place; see `docs/receiver-flow.md`.
 - Build the receiver claim screen against the private gateway, then implement
   live-quoted gasless cash-out and gasless withdrawal.
 - Add the browser-facing authenticated edge and execute one complete

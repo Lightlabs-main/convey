@@ -52,6 +52,10 @@ As of 2026-09-24:
 - The connected-wallet sender module now reads the live registry, token balance,
   allowance, and claim reserve; it creates real hashlocked gifts through the
   deployed escrow. Browser UI and QR rendering remain separate work.
+- The receiver flow library now links PRF-backed local key enrollment and
+  recovery to live Gift preview and private two-pass claim authorization. The
+  browser ceremony, receiver screen, and public HTTPS edge remain separate
+  work.
 - The claim gateway now performs event-aware `debug_traceCall` preflight before
   forwarding a claim. It requires the matching EntryPoint
   `UserOperationEvent.success` to be true and fails closed if tracing is
