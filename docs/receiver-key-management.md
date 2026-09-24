@@ -22,6 +22,14 @@ boundary:
   owner under a new credential's PRF output. The owner address and `keyHash`
   remain unchanged.
 
+[`src/receiver/passkey.ts`](../src/receiver/passkey.ts) implements the browser
+ceremony boundary. It creates a discoverable passkey with required user
+verification, rejects authenticators that do not advertise WebAuthn PRF,
+evaluates a per-vault random PRF salt, and can obtain the same PRF output during
+unlock. Challenges are generated freshly for each local ceremony. This module
+uses passkeys only to unlock local encryption; it does not treat that ceremony
+as server authentication.
+
 The module fails closed on the wrong PRF output, wrong recovery key, modified
 ciphertext, modified owner metadata, or unsupported record version. Tests cover
 normal unlock, wrong-PRF rejection, recovery and migration, and tampering.
@@ -33,8 +41,9 @@ owner rotation. It does not establish that a browser supports the WebAuthn PRF
 extension or that a credential is synchronized safely across devices. The
 sender/receiver application must:
 
-1. require and verify a PRF-capable WebAuthn credential;
-2. persist only the encrypted vault and recovery envelope;
+1. integrate the PRF-capable WebAuthn ceremony into the receiver UI and test
+   the supported browser/authenticator matrix;
+2. persist only the encrypted vault, PRF salt, and recovery envelope;
 3. show the recovery key once and require an explicit save confirmation;
 4. keep decrypted key material in memory only for the shortest signing window;
 5. prove enrollment, migration, and claim signing in supported browsers; and
