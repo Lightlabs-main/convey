@@ -1,4 +1,4 @@
-import { keccak256, type Address, type Hex } from "viem";
+import { isAddress, keccak256, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 const VAULT_VERSION = 1 as const;
@@ -28,11 +28,52 @@ export interface ReceiverRecoveryEnvelope {
   ciphertext: Hex;
 }
 
+export interface ReceiverRecoveryBundle {
+  version: typeof VAULT_VERSION;
+  recovery: ReceiverRecoveryEnvelope;
+}
+
 export interface ReceiverEnrollment {
   vault: ReceiverVaultCiphertext;
   recovery: ReceiverRecoveryEnvelope;
   /** Display once and require the receiver to save it outside the device. */
   recoveryKey: Hex;
+}
+
+export function encodeReceiverRecoveryBundle(recovery: ReceiverRecoveryEnvelope): string {
+  return JSON.stringify({ version: VAULT_VERSION, recovery } satisfies ReceiverRecoveryBundle);
+}
+
+export function decodeReceiverRecoveryBundle(value: string): ReceiverRecoveryEnvelope {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error("recovery bundle is not valid JSON");
+  }
+  if (!parsed || typeof parsed !== "object") throw new Error("recovery bundle is invalid");
+  const bundle = parsed as Record<string, unknown>;
+  if (bundle.version !== VAULT_VERSION || !bundle.recovery || typeof bundle.recovery !== "object") {
+    throw new Error("recovery bundle version is unsupported");
+  }
+  const recovery = bundle.recovery as Record<string, unknown>;
+  if (
+    recovery.version !== VAULT_VERSION
+    || typeof recovery.owner !== "string"
+    || !isAddress(recovery.owner)
+    || typeof recovery.salt !== "string"
+    || typeof recovery.iv !== "string"
+    || typeof recovery.ciphertext !== "string"
+  ) {
+    throw new Error("recovery bundle is invalid");
+  }
+  return {
+    version: VAULT_VERSION,
+    owner: recovery.owner as Address,
+    salt: recovery.salt as Hex,
+    iv: recovery.iv as Hex,
+    ciphertext: recovery.ciphertext as Hex,
+  };
 }
 
 function requireCrypto(): Crypto {

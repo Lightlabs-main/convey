@@ -62,8 +62,9 @@ As of 2026-09-24:
   authorization. The browser PRF/recovery ceremony and browser mainnet proof
   remain separate work.
 - The Next.js receiver surface reads live GiftEscrow/issuer data, enrolls the
-  receiver key locally, and calls the live gas seed/estimate/claim route through
-  a same-origin proxy. Its relay URL and bearer token remain server-side. A
+  receiver key locally, offers an encrypted recovery bundle, and calls the live
+  gas seed/estimate/claim route through a same-origin proxy. Its relay URL and
+  bearer token remain server-side. A
   browser mainnet claim is not recorded yet because the PRF-capable browser
   test and fresh open gift remain open.
 - The claim gateway now performs event-aware `debug_traceCall` preflight before

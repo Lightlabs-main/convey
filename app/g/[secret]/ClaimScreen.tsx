@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { formatUnits, isAddress, type Address } from "viem";
+import { formatUnits, isAddress, type Address, type Hex } from "viem";
 import {
   enrollReceiverAccount,
+  recoverReceiverAccount,
   parseClaimLink,
   prepareReceiverClaim,
   receiverClaimGasSeedFromLive,
   readGiftPreview,
   readLiveGiftValuation,
+  unlockReceiverAccount,
   type EnrolledReceiverAccount,
   type ReceiverGiftPreview,
   type ReceiverGiftValuation,
@@ -20,11 +22,22 @@ function shortAddress(value: string): string {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
 
+type ReceiverClaimAccount = {
+  owner: Address;
+  credentialId: string;
+  session: EnrolledReceiverAccount["session"];
+  recoveryKey?: Hex;
+  recoveryBundle?: string;
+};
+
 export default function ClaimScreen({ secret, giftId }: { secret: string; giftId: string }) {
   const [preview, setPreview] = useState<ReceiverGiftPreview>();
   const [valuation, setValuation] = useState<ReceiverGiftValuation>();
-  const [account, setAccount] = useState<EnrolledReceiverAccount>();
+  const [account, setAccount] = useState<ReceiverClaimAccount>();
   const [recoverySaved, setRecoverySaved] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoveryKeyInput, setRecoveryKeyInput] = useState("");
+  const [recoveryBundleInput, setRecoveryBundleInput] = useState("");
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [status, setStatus] = useState("Reading the live gift record…");
@@ -72,8 +85,10 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
     setError("");
     setStatus("Waiting for your device to create a secure passkey…");
     try {
+      const storage = createBrowserReceiverVaultStorage();
+      if (storage.load()) throw new Error("A receiver account is already enrolled on this device. Use it or recover it instead.");
       const enrolled = await enrollReceiverAccount({
-        storage: createBrowserReceiverVaultStorage(),
+        storage,
         userName: `receiver-${preview.giftId.toString()}`,
         displayName: "Convey receiver",
         rpName: "Convey",
@@ -82,6 +97,51 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
       setStatus("Save your recovery key before continuing. It is shown once and is not stored by Convey.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Passkey enrollment was not completed.");
+      setStatus("Your gift has not moved.");
+    }
+  }
+
+  async function unlockExistingAccount() {
+    setError("");
+    setStatus("Verify your existing Convey passkey on this device…");
+    try {
+      const storage = createBrowserReceiverVaultStorage();
+      const stored = storage.load();
+      if (!stored) throw new Error("No receiver account is enrolled on this device yet.");
+      const session = await unlockReceiverAccount(storage);
+      setAccount({ owner: stored.vault.owner, credentialId: stored.vault.credentialId, session });
+      setRecoverySaved(true);
+      setRecoveryMode(false);
+      setStatus("Your existing device-local owner key is ready for the sponsored claim.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The existing receiver account could not be unlocked.");
+      setStatus("Your gift has not moved.");
+    }
+  }
+
+  async function recoverAccount(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!preview) return;
+    setError("");
+    setStatus("Creating a new passkey and restoring your existing owner key…");
+    try {
+      if (!/^0x[0-9a-fA-F]{64}$/u.test(recoveryKeyInput.trim())) throw new Error("The recovery key must contain exactly 32 bytes.");
+      const recovered = await recoverReceiverAccount({
+        storage: createBrowserReceiverVaultStorage(),
+        recoveryKey: recoveryKeyInput.trim() as Hex,
+        recoveryBundle: recoveryBundleInput.trim() || undefined,
+        userName: `receiver-${preview.giftId.toString()}`,
+        displayName: "Convey receiver",
+        rpName: "Convey",
+      });
+      setAccount(recovered);
+      setRecoverySaved(true);
+      setRecoveryMode(false);
+      setRecoveryKeyInput("");
+      setRecoveryBundleInput("");
+      setStatus(`Recovered the existing owner key at ${shortAddress(recovered.owner)}. It is ready for the sponsored claim.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The receiver account could not be recovered.");
       setStatus("Your gift has not moved.");
     }
   }
@@ -175,9 +235,10 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
             </div>
             {preview ? <div className="risk">{preview.riskTag}</div> : null}
             {error ? <div className="error" role="alert">{error}</div> : null}
-            {account && !recoverySaved ? <div className="recovery"><div className="recovery-label">Save this recovery key once</div><code>{account.recoveryKey}</code><button type="button" onClick={() => { setRecoverySaved(true); setStatus("Recovery key saved. Your device-local owner key is ready for the sponsored claim."); }}>I saved it</button></div> : null}
+            {account && !recoverySaved ? <div className="recovery"><div className="recovery-label">Save this recovery key once</div><code>{account.recoveryKey}</code><p>Keep the key separate from this encrypted bundle. The bundle contains ciphertext only and is needed on a replacement device.</p>{account.recoveryBundle ? <a className="recovery-download" href={`data:application/json;charset=utf-8,${encodeURIComponent(account.recoveryBundle)}`} download="convey-recovery-bundle.json">Download encrypted recovery bundle</a> : null}<button type="button" onClick={() => { setRecoverySaved(true); setStatus("Recovery key saved. Your device-local owner key is ready for the sponsored claim."); }}>I saved it</button></div> : null}
             {account && recoverySaved ? <div className="risk">Your device-local owner key is enrolled at {shortAddress(account.owner)}. The key never leaves this device.</div> : null}
-            {preview?.state === "open" && !preview.expired && !account ? <button className="button" type="button" onClick={secureAccount}>Secure my claim</button> : null}
+            {preview?.state === "open" && !preview.expired && !account && !recoveryMode ? <><button className="button" type="button" onClick={secureAccount}>Create secure account</button><button className="secondary-button" type="button" onClick={unlockExistingAccount}>Use existing account</button><button className="text-button" type="button" onClick={() => setRecoveryMode(true)}>Recover an existing account</button></> : null}
+            {preview?.state === "open" && !preview.expired && !account && recoveryMode ? <form className="recovery recovery-form" onSubmit={recoverAccount}><div className="recovery-label">Recover an existing account</div><p>Enter the recovery key you saved separately. Paste the encrypted bundle too when using a replacement device; on this device it may already be stored locally.</p><label>Recovery key<input value={recoveryKeyInput} onChange={(event) => setRecoveryKeyInput(event.target.value)} autoComplete="off" required /></label><label>Encrypted recovery bundle<textarea value={recoveryBundleInput} onChange={(event) => setRecoveryBundleInput(event.target.value)} placeholder="Paste the downloaded JSON bundle on a new device" rows={4} /></label><div><button className="button" type="submit">Recover account</button><button className="text-button" type="button" onClick={() => setRecoveryMode(false)}>Cancel</button></div></form> : null}
             {preview?.state === "open" && !preview.expired && account && recoverySaved && !claimed ? <button className="button" type="button" onClick={claimGift} disabled={claiming}>{claiming ? "Claiming securely…" : "Claim this gift"}</button> : null}
             <p className="status" aria-live="polite">{status}</p>
             <div className="actions">

@@ -16,9 +16,12 @@ import { enrollReceiverPasskey, unlockReceiverPasskey } from "./passkey.ts";
 import { receiverSignerFromPrivateKey } from "./signer.ts";
 import { storedReceiverVault, type ReceiverVaultStorage } from "./storage.ts";
 import {
+  decodeReceiverRecoveryBundle,
+  encodeReceiverRecoveryBundle,
   enrollReceiverKey,
   unlockReceiverKey,
   rewrapRecoveredReceiverKey,
+  type ReceiverRecoveryEnvelope,
 } from "./vault.ts";
 
 const ZERO_BYTES = "0x" as Hex;
@@ -138,6 +141,8 @@ export interface EnrolledReceiverAccount {
   owner: Address;
   credentialId: string;
   recoveryKey: Hex;
+  /** Encrypted recovery ciphertext; it does not contain the recovery key. */
+  recoveryBundle: string;
   /** Short-lived in-memory signer from the enrollment ceremony. */
   session: ReceiverAccountSession;
 }
@@ -154,6 +159,8 @@ export interface ReceiverEnrollmentOptions {
 export interface ReceiverRecoveryOptions {
   storage: ReceiverVaultStorage;
   recoveryKey: Hex;
+  /** Optional encrypted bundle for a replacement device. */
+  recoveryBundle?: string;
   userName: string;
   displayName: string;
   rpName?: string;
@@ -415,6 +422,7 @@ export async function enrollReceiverAccount(options: ReceiverEnrollmentOptions):
     owner: enrollment.vault.owner,
     credentialId: passkey.credentialId,
     recoveryKey: enrollment.recoveryKey,
+    recoveryBundle: encodeReceiverRecoveryBundle(enrollment.recovery),
     session: { owner: enrollment.vault.owner, signer: receiverSignerFromPrivateKey(privateKey) },
   };
 }
@@ -432,7 +440,9 @@ export async function unlockReceiverAccount(
 
 export async function recoverReceiverAccount(options: ReceiverRecoveryOptions): Promise<EnrolledReceiverAccount> {
   const stored = options.storage.load();
-  if (!stored) throw new Error("receiver account is not enrolled on this device");
+  const recovery: ReceiverRecoveryEnvelope = options.recoveryBundle
+    ? decodeReceiverRecoveryBundle(options.recoveryBundle)
+    : stored?.recovery ?? (() => { throw new Error("an encrypted recovery bundle is required on this device"); })();
   const passkey = await enrollReceiverPasskey({
     userId: options.userId ?? randomUserId(),
     userName: options.userName,
@@ -441,17 +451,18 @@ export async function recoverReceiverAccount(options: ReceiverRecoveryOptions): 
     rpId: options.rpId,
   });
   const vault = await rewrapRecoveredReceiverKey(
-    stored.recovery,
+    recovery,
     options.recoveryKey,
     passkey.credentialId,
     passkey.prfOutput,
   );
-  options.storage.save({ version: 1, vault, recovery: stored.recovery, prfSalt: passkey.prfSalt });
+  options.storage.save({ version: 1, vault, recovery, prfSalt: passkey.prfSalt });
   const privateKey = await unlockReceiverKey(vault, passkey.prfOutput);
   return {
     owner: vault.owner,
     credentialId: vault.credentialId,
     recoveryKey: options.recoveryKey,
+    recoveryBundle: encodeReceiverRecoveryBundle(recovery),
     session: { owner: vault.owner, signer: receiverSignerFromPrivateKey(privateKey) },
   };
 }

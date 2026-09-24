@@ -56,7 +56,7 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
   public HTTPS web edge is deployed separately.
 - The Next.js receiver surface is implemented and production-built. It reads
   live escrow/registry state and issuer valuation, shows the recovery key once
-  with explicit save confirmation, performs the live seed/estimate/claim path,
+  with an encrypted recovery bundle and explicit save confirmation, performs the live seed/estimate/claim path,
   and proxies only allowlisted relay paths server-side. It has not been
   presented as a completed browser claim: the browser PRF ceremony and browser
   mainnet proof remain open.

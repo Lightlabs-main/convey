@@ -3,6 +3,8 @@ import test from "node:test";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   enrollReceiverKey,
+  decodeReceiverRecoveryBundle,
+  encodeReceiverRecoveryBundle,
   recoverReceiverKey,
   rewrapRecoveredReceiverKey,
   unlockReceiverKey,
@@ -37,6 +39,14 @@ test("recovery key restores and rewraps the same owner for a new credential", as
   const migratedKey = await unlockReceiverKey(migrated, prf(5));
   assert.equal(privateKeyToAccount(migratedKey).address, enrollment.vault.owner);
   await assert.rejects(unlockReceiverKey(migrated, prf(4)), /could not be unlocked/);
+});
+
+test("recovery bundle contains ciphertext but never the recovery key", async () => {
+  const enrollment = await enrollReceiverKey("credential-bundle", prf(8));
+  const bundle = encodeReceiverRecoveryBundle(enrollment.recovery);
+  assert.equal(bundle.includes(enrollment.recoveryKey), false);
+  assert.equal(decodeReceiverRecoveryBundle(bundle).owner, enrollment.vault.owner);
+  assert.throws(() => decodeReceiverRecoveryBundle("{}"), /recovery bundle/);
 });
 
 test("tampering with encrypted receiver material fails closed", async () => {

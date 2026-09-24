@@ -533,6 +533,11 @@ This proves the web deployment and the server-side relay boundary. It does not
 prove a real browser PRF ceremony or a browser-to-browser mainnet claim; no such
 claim is recorded yet.
 
+The receiver recovery update was redeployed and returned a public HTTPS `200`
+at `2026-09-24T17:02:33Z`. This update adds only encrypted-bundle handling and
+same-device unlock/recovery UI; it does not change the deployed contracts or
+claim paymaster.
+
 ## Sources
 
 - [X Layer official RPC configuration](https://web3.okx.com/onchainos/dev-docs/xlayer/developer/setup-rpc/setup-rpc)

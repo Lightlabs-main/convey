@@ -101,8 +101,17 @@ h1 { max-width: 680px; margin: 14px 0 22px; font-size: clamp(48px, 7vw, 86px); l
 .error { padding: 14px; border-radius: 12px; color: #8b3d2e; background: #f8e6de; font: 13px/1.5 ui-sans-serif, system-ui, sans-serif; }
 .recovery { margin: 18px 0; padding: 16px; border: 1px solid #e3c27c; border-radius: 14px; background: #fff5dc; }
 .recovery-label { color: #876124; font: 700 11px ui-sans-serif, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.recovery p { margin: 10px 0 14px; color: #6e5b35; font: 12px/1.5 ui-sans-serif, system-ui, sans-serif; }
 .recovery code { display: block; overflow-wrap: anywhere; margin: 10px 0 14px; color: #5c461e; font: 12px/1.5 ui-monospace, monospace; }
 .recovery button { border: 0; padding: 9px 11px; border-radius: 9px; color: #fff; background: #876124; font: 700 12px ui-sans-serif, system-ui, sans-serif; }
+.recovery-download { display: inline-block; margin: 0 10px 14px 0; color: #6e511d; font: 700 12px ui-sans-serif, system-ui, sans-serif; }
+.secondary-button { display: block; margin-top: 10px; padding: 11px 14px; border: 1px solid var(--green); border-radius: 11px; color: var(--green); background: transparent; font: 700 13px ui-sans-serif, system-ui, sans-serif; }
+.text-button { margin: 10px 0 0; padding: 0; border: 0; color: var(--green); background: transparent; font: 700 12px ui-sans-serif, system-ui, sans-serif; text-decoration: underline; }
+.recovery-form .button { color: #fff; background: var(--green); }
+.recovery-form .text-button { margin-left: 10px; padding: 0; border: 0; color: var(--green); background: transparent; font: 700 12px ui-sans-serif, system-ui, sans-serif; text-decoration: underline; }
+.recovery-form { display: grid; gap: 12px; }
+.recovery-form label { display: grid; gap: 6px; color: #6e5b35; font: 700 11px ui-sans-serif, system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+.recovery-form input, .recovery-form textarea { width: 100%; padding: 10px; border: 1px solid #e3c27c; border-radius: 9px; color: var(--ink); background: #fffdf5; font: 12px/1.4 ui-monospace, monospace; text-transform: none; }
 .side-title { margin: 0 0 14px; font-size: 20px; }
 .side-copy { color: var(--muted); font: 13px/1.55 ui-sans-serif, system-ui, sans-serif; }
 .side-list { display: grid; gap: 12px; padding: 0; margin: 18px 0 0; list-style: none; }

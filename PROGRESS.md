@@ -119,10 +119,15 @@
   estimate, and re-authorizes only if the returned limits grow. The enrollment
   ceremony keeps a short-lived signer in memory so it does not ask for a second
   passkey ceremony before the claim.
+- Added replacement-device recovery to the receiver surface: enrollment offers
+  an encrypted recovery bundle download, same-device unlock uses the existing
+  passkey, and migration accepts the bundle plus separately saved recovery key.
+  The tested production artifact was redeployed at `2026-09-24T17:02:33Z`.
 - Added the Next.js receiver surface and same-origin relay proxy. The screen
   reads live escrow/registry data and issuer valuation, shows the recovery key
-  once with explicit save confirmation, calls the live claim route, and keeps
-  relay credentials server-side. The production build is deployed behind the
+  once with an encrypted recovery bundle and explicit save confirmation, calls
+  the live claim route, and keeps relay credentials server-side. The production
+  build is deployed behind the
   public HTTPS web edge; the browser PRF ceremony and browser mainnet claim
   remain open.
 

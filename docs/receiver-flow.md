@@ -9,7 +9,9 @@ gateway or bundler.
    its PRF, generates the OKX owner key with Web Crypto, and persists only the
    encrypted vault, PRF salt, and recovery envelope.
 2. The UI displays the returned `recoveryKey` once and requires the receiver to
-   save it outside the device. It is not persisted in browser storage.
+   save it outside the device. It is not persisted in browser storage. It also
+   offers an encrypted recovery bundle download; the bundle contains
+   ciphertext only and is useless without the separate key.
 3. `unlockReceiverAccount()` evaluates the passkey PRF and returns a short-lived
    signer adapter for the deployed OKX Smart Wallet owner. The account remains
    counterfactual until the claim operation needs deployment.
@@ -40,10 +42,11 @@ EntryPoint v0.7. Its inspected implementation is modular but does not implement
 ERC-7579, so Convey describes it accurately and does not claim ERC-7579 support.
 
 Recovery creates a new passkey on the replacement device, decrypts the existing
-owner key with the one-time recovery key, and re-encrypts that same owner under
-the new credential. The recovery envelope is retained so the recovery key can
-be used again if the new vault is lost; the application must rotate or revoke
-that recovery material as a separate product decision.
+owner key with the separate recovery key and encrypted recovery bundle, and
+re-encrypts that same owner under the new credential. On the original device,
+the retained encrypted envelope may be used without pasting the bundle. The
+application must rotate or revoke that recovery material as a separate product
+decision.
 
 The public HTTPS web edge is deployed at
 `https://convey.13-62-181-128.sslip.io`. The browser integration still needs a

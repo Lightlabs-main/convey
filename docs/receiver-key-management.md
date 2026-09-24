@@ -18,10 +18,12 @@ boundary:
   credential ID as authenticated data.
 - Create a separate recovery envelope encrypted by a random 32-byte recovery
   key. The recovery key is returned once for the receiver to store outside the
-  device; it is not part of the vault and must not be sent to Convey.
-- On migration, decrypt with that recovery key and re-encrypt the same OKX
-  owner under a new credential's PRF output. The owner address and `keyHash`
-  remain unchanged.
+  device; it is not part of the vault and must not be sent to Convey. The UI
+  can export the encrypted envelope as a recovery bundle; the bundle contains
+  no recovery key.
+- On migration, decrypt the bundle with that recovery key and re-encrypt the
+  same OKX owner under a new credential's PRF output. The owner address and
+  `keyHash` remain unchanged.
 
 [`src/receiver/passkey.ts`](../src/receiver/passkey.ts) implements the browser
 ceremony boundary. It creates a discoverable passkey with required user
@@ -45,7 +47,8 @@ sender/receiver application must:
 1. integrate the PRF-capable WebAuthn ceremony into the receiver UI and test
    the supported browser/authenticator matrix;
 2. persist only the encrypted vault, PRF salt, and recovery envelope;
-3. show the recovery key once and require an explicit save confirmation;
+3. show the recovery key once, export the encrypted bundle, and require an
+   explicit save confirmation;
 4. keep decrypted key material in memory only for the shortest signing window;
 5. prove enrollment, migration, and claim signing in supported browsers; and
 6. separately inspect and test the deployed OKX owner-management calls before
