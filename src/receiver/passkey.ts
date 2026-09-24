@@ -6,9 +6,11 @@ export interface ReceiverPasskeyEnrollment {
   prfOutput: Uint8Array;
 }
 
-interface PrfClientExtensionResults extends AuthenticationExtensionsClientOutputs {
+interface PrfClientExtensionResults {
   prf?: { enabled?: boolean; results?: { first?: ArrayBuffer } };
 }
+
+const bufferSource = (bytes: Uint8Array): BufferSource => bytes as unknown as BufferSource;
 
 const random = (length: number): Uint8Array => {
   if (!globalThis.crypto?.getRandomValues) throw new Error("Web Crypto is required for passkey enrollment");
@@ -41,7 +43,7 @@ function credentials(): CredentialsContainer {
 }
 
 export function extractPrfOutput(result: AuthenticationExtensionsClientOutputs): Uint8Array {
-  const first = (result as PrfClientExtensionResults).prf?.results?.first;
+  const first = (result as unknown as PrfClientExtensionResults).prf?.results?.first;
   if (!(first instanceof ArrayBuffer) || first.byteLength < 32) {
     throw new Error("this passkey did not return a WebAuthn PRF result");
   }
@@ -51,12 +53,12 @@ export function extractPrfOutput(result: AuthenticationExtensionsClientOutputs):
 async function evaluatePrf(credentialId: string, prfSalt: Uint8Array, rpId?: string): Promise<Uint8Array> {
   const assertion = await credentials().get({
     publicKey: {
-      challenge: random(32),
+      challenge: bufferSource(random(32)),
       rpId,
-      allowCredentials: [{ type: "public-key", id: unbase64url(credentialId) }],
+      allowCredentials: [{ type: "public-key", id: bufferSource(unbase64url(credentialId)) }],
       userVerification: "required",
       timeout: 60_000,
-      extensions: { prf: { eval: { first: prfSalt } } } as AuthenticationExtensionsClientInputs,
+      extensions: { prf: { eval: { first: bufferSource(prfSalt) } } } as unknown as AuthenticationExtensionsClientInputs,
     },
   });
   if (!(assertion instanceof PublicKeyCredential)) throw new Error("passkey assertion was cancelled");
@@ -74,9 +76,9 @@ export async function enrollReceiverPasskey(options: {
   if (!options.userName.trim() || !options.displayName.trim()) throw new Error("passkey user name is required");
   const credential = await credentials().create({
     publicKey: {
-      challenge: random(32),
+      challenge: bufferSource(random(32)),
       rp: { name: options.rpName ?? "Convey", id: options.rpId },
-      user: { id: options.userId, name: options.userName, displayName: options.displayName },
+      user: { id: bufferSource(options.userId), name: options.userName, displayName: options.displayName },
       pubKeyCredParams: [
         { type: "public-key", alg: -7 },
         { type: "public-key", alg: -257 },
@@ -84,7 +86,7 @@ export async function enrollReceiverPasskey(options: {
       authenticatorSelection: { residentKey: "required", userVerification: "required" },
       attestation: "none",
       timeout: 60_000,
-      extensions: { prf: {} } as AuthenticationExtensionsClientInputs,
+      extensions: { prf: {} } as unknown as AuthenticationExtensionsClientInputs,
     },
   });
   if (!(credential instanceof PublicKeyCredential)) throw new Error("passkey enrollment was cancelled");

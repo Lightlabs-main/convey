@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "verify": "node script/verify.ts",
     "verify:bundler-rpc": "node --env-file-if-exists=.env script/check-bundler-rpc.ts",
     "account:inspect": "node --env-file=.env script/account.ts",
@@ -30,6 +33,15 @@
     "./sender": "./src/sender/index.ts"
   },
   "dependencies": {
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "viem": "^2.56.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "@types/react": "19.1.2",
+    "@types/react-dom": "19.1.2",
+    "typescript": "5.9.3"
   }
 }

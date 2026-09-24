@@ -56,6 +56,11 @@ As of 2026-09-24:
   recovery to live Gift preview and private two-pass claim authorization. The
   browser ceremony, receiver screen, and public HTTPS edge remain separate
   work.
+- A minimal Next.js receiver surface now reads the live GiftEscrow record and
+  registered issuer valuation in the browser. Its relay API route keeps the
+  gateway URL and bearer token server-side; it does not claim a completed
+  browser-to-browser claim until that edge and the live claim estimator are
+  deployed.
 - The claim gateway now performs event-aware `debug_traceCall` preflight before
   forwarding a claim. It requires the matching EntryPoint
   `UserOperationEvent.success` to be true and fails closed if tracing is

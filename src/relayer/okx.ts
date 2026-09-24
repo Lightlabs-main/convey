@@ -262,7 +262,7 @@ function ownerMessagePrehash(userOpHash: Hex, validUntil: bigint, implementation
   // applied by signMessage({ message: { raw } }) below.
   return keccak256(encodeAbiParameters(
     [{ type: "bytes32" }, { type: "uint48" }, { type: "address" }],
-    [userOpHash, validUntil, implementation],
+    [userOpHash, Number(validUntil), implementation],
   )) as Hex;
 }
 

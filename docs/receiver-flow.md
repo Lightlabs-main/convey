@@ -39,3 +39,9 @@ that recovery material as a separate product decision.
 The browser integration still needs a real PRF-capable browser/device test and
 an authenticated HTTPS edge in front of the private gateway. Until those are
 proven, this library path is not described as product-complete.
+
+The Next.js surface in `app/g/[secret]` is intentionally live-data-only: it
+reads the escrow and registry from the configured public X Layer RPC, fetches
+the issuer value for wrapped xStocks, and never invents a balance or USD
+amount. The `/api/relay/*` route is a same-origin server proxy; its relay URL
+and bearer token are server-only environment variables.

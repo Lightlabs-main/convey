@@ -2,6 +2,8 @@
 .env.*
 !.env.example
 node_modules/
+.next/
+tsconfig.tsbuildinfo
 out/
 cache_forge/
 *.pem

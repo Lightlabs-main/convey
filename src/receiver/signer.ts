@@ -11,6 +11,6 @@ export function receiverSignerFromPrivateKey(privateKey: Hex): OkxEcdsaMessageSi
   const account = privateKeyToAccount(privateKey);
   return {
     address: account.address,
-    signMessage: ({ message }) => account.signMessage(message),
+    signMessage: ({ message }) => account.signMessage({ message }),
   };
 }

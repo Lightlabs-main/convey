@@ -27,6 +27,13 @@ const CLAIM_PAYMASTER_PLACEHOLDER = `0x${"00".repeat(141)}` as Hex;
 const ESCROW_ABI = [
   {
     type: "function",
+    name: "registry",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "registry", type: "address" }],
+  },
+  {
+    type: "function",
     name: "getGift",
     stateMutability: "view",
     inputs: [{ name: "giftId", type: "uint256" }],
@@ -60,6 +67,39 @@ const ESCROW_ABI = [
   },
 ] as const;
 
+const REGISTRY_ABI = [{
+  type: "function",
+  name: "getAsset",
+  stateMutability: "view",
+  inputs: [{ name: "token", type: "address" }],
+  outputs: [{ name: "entry", type: "tuple", components: [
+    { name: "token", type: "address" },
+    { name: "kind", type: "uint8" },
+    { name: "decimals", type: "uint8" },
+    { name: "isWrapped", type: "bool" },
+    { name: "underlying", type: "address" },
+    { name: "valuation", type: "uint8" },
+    { name: "valuationRef", type: "address" },
+    { name: "cashOutRoute", type: "address" },
+    { name: "certified", type: "bool" },
+    { name: "enabled", type: "bool" },
+    { name: "riskTag", type: "string" },
+  ] }],
+}] as const;
+
+const ERC20_METADATA_ABI = [
+  { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+  { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+] as const;
+
+const WRAPPER_ABI = [{
+  type: "function",
+  name: "convertToAssets",
+  stateMutability: "view",
+  inputs: [{ name: "shares", type: "uint256" }],
+  outputs: [{ name: "assets", type: "uint256" }],
+}] as const;
+
 export interface ParsedClaimLink {
   giftId: bigint;
   secret: Hex;
@@ -67,9 +107,19 @@ export interface ParsedClaimLink {
 
 export interface ReceiverGiftPreview {
   giftId: bigint;
+  registry: Address;
   sender: Address;
   asset: Address;
   amount: bigint;
+  symbol: string;
+  decimals: number;
+  isWrapped: boolean;
+  underlying: Address;
+  valuation: number;
+  cashOutRoute: Address;
+  certified: boolean;
+  enabled: boolean;
+  riskTag: string;
   secretHash: Hex;
   codeRequired: boolean;
   expiry: bigint;
@@ -135,6 +185,18 @@ export interface BuiltReceiverClaim {
   claimData: Hex;
   authorization: ClaimPaymasterAuthorizationResponse;
   userOperation: BuiltOkxClaimUserOperation;
+}
+
+export interface ReceiverGiftValuation {
+  symbol: string;
+  tokenAmount: bigint;
+  underlyingAmount: bigint;
+  underlyingDecimals: number;
+  underlyingPriceUsd: number;
+  estimatedUsd: number;
+  multiplier: number;
+  observedAt: string;
+  source: "issuer-api";
 }
 
 function randomUserId(): Uint8Array {
@@ -216,19 +278,40 @@ export async function readGiftPreview(
     }),
     transport: http(executionRpcUrl),
   });
-  const [giftValue, block] = await Promise.all([
+  const [giftValue, block, registry] = await Promise.all([
     client.readContract({ address: escrow, abi: ESCROW_ABI, functionName: "getGift", args: [claim.giftId] }),
     client.getBlock(),
+    client.readContract({ address: escrow, abi: ESCROW_ABI, functionName: "registry" }),
   ]);
   const tuple = giftValue as unknown;
   const stateValue = numberValue(tupleValue(tuple, "state", 7), "gift state");
   if (stateValue > 2) throw new Error("escrow returned an unknown gift state");
   const expiry = bigintValue(tupleValue(tuple, "expiry", 5), "gift expiry");
+  const asset = addressValue(tupleValue(tuple, "asset", 1), "asset");
+  const registryAddress = addressValue(registry, "asset registry");
+  const [assetValue, symbol, decimals] = await Promise.all([
+    client.readContract({ address: registryAddress, abi: REGISTRY_ABI, functionName: "getAsset", args: [asset] }),
+    client.readContract({ address: asset, abi: ERC20_METADATA_ABI, functionName: "symbol" }),
+    client.readContract({ address: asset, abi: ERC20_METADATA_ABI, functionName: "decimals" }),
+  ]);
+  const assetTuple = assetValue as unknown;
+  if (typeof symbol !== "string" || !symbol) throw new Error("asset returned an invalid symbol");
+  const assetDecimals = numberValue(decimals, "asset decimals");
   return {
     giftId: claim.giftId,
+    registry: registryAddress,
     sender: addressValue(tupleValue(tuple, "sender", 0), "sender"),
-    asset: addressValue(tupleValue(tuple, "asset", 1), "asset"),
+    asset,
     amount: bigintValue(tupleValue(tuple, "amount", 2), "gift amount"),
+    symbol,
+    decimals: assetDecimals,
+    isWrapped: tupleValue(assetTuple, "isWrapped", 3) as boolean,
+    underlying: addressValue(tupleValue(assetTuple, "underlying", 4), "underlying asset"),
+    valuation: numberValue(tupleValue(assetTuple, "valuation", 5), "valuation source"),
+    cashOutRoute: addressValue(tupleValue(assetTuple, "cashOutRoute", 7), "cash-out route"),
+    certified: tupleValue(assetTuple, "certified", 8) as boolean,
+    enabled: tupleValue(assetTuple, "enabled", 9) as boolean,
+    riskTag: tupleValue(assetTuple, "riskTag", 10) as string,
     secretHash: tupleValue(tuple, "secretHash", 3) as Hex,
     codeRequired: (tupleValue(tuple, "codeHash", 4) as Hex).toLowerCase() !== `0x${"00".repeat(32)}`,
     expiry,
@@ -236,6 +319,66 @@ export async function readGiftPreview(
     state: (["open", "claimed", "reclaimed"] as const)[stateValue],
     expired: stateValue === 0 && expiry !== 0n && block.timestamp >= expiry,
     blockTimestamp: block.timestamp,
+  };
+}
+
+function finiteNumber(value: unknown, name: string): number {
+  const result = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  if (!Number.isFinite(result) || result <= 0) throw new Error(`issuer API returned an invalid ${name}`);
+  return result;
+}
+
+/**
+ * Reads the display value for a wrapped xStock from the live wrapper and the
+ * live issuer API. Wrapper conversion supplies accounting units only; the API
+ * quote supplies the independent underlying price.
+ */
+export async function readLiveGiftValuation(
+  executionRpcUrl: string,
+  preview: ReceiverGiftPreview,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ReceiverGiftValuation> {
+  if (!preview.isWrapped || preview.valuation !== 1) {
+    throw new Error("this asset does not have a live issuer valuation path");
+  }
+  const client = createPublicClient({
+    chain: defineChain({
+      id: XLAYER_CHAIN_ID,
+      name: "X Layer",
+      nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
+      rpcUrls: { default: { http: [executionRpcUrl] } },
+    }),
+    transport: http(executionRpcUrl),
+  });
+  const [underlyingAmount, underlyingDecimals, priceResponse, multiplierResponse] = await Promise.all([
+    client.readContract({ address: preview.asset, abi: WRAPPER_ABI, functionName: "convertToAssets", args: [preview.amount] }),
+    client.readContract({ address: preview.underlying, abi: ERC20_METADATA_ABI, functionName: "decimals" }),
+    fetchImpl(`https://api.backed.fi/api/v2/public/assets/${encodeURIComponent(preview.symbol)}/price-data`).then(async (response) => {
+      if (!response.ok) throw new Error(`issuer price API returned HTTP ${response.status}`);
+      return response.json() as Promise<unknown>;
+    }),
+    fetchImpl(`https://api.backed.fi/api/v2/public/assets/${encodeURIComponent(preview.symbol)}/multiplier?network=XLayer`).then(async (response) => {
+      if (!response.ok) throw new Error(`issuer multiplier API returned HTTP ${response.status}`);
+      return response.json() as Promise<unknown>;
+    }),
+  ]);
+  const priceRecord = priceResponse && typeof priceResponse === "object" ? priceResponse as Record<string, unknown> : {};
+  const multiplierRecord = multiplierResponse && typeof multiplierResponse === "object" ? multiplierResponse as Record<string, unknown> : {};
+  const price = finiteNumber(priceRecord.quote, "underlying price");
+  const multiplier = finiteNumber(multiplierRecord.currentMultiplier, "wrapper multiplier");
+  const decimals = numberValue(underlyingDecimals, "underlying decimals");
+  const estimatedUsd = Number(underlyingAmount) / (10 ** decimals) * price;
+  if (!Number.isFinite(estimatedUsd) || estimatedUsd < 0) throw new Error("live gift valuation is outside display range");
+  return {
+    symbol: preview.symbol,
+    tokenAmount: preview.amount,
+    underlyingAmount,
+    underlyingDecimals: decimals,
+    underlyingPriceUsd: price,
+    estimatedUsd,
+    multiplier,
+    observedAt: new Date().toISOString(),
+    source: "issuer-api",
   };
 }
 
@@ -251,7 +394,7 @@ export async function enrollReceiverAccount(options: ReceiverEnrollmentOptions):
   options.storage.save(storedReceiverVault(enrollment, passkey.prfSalt));
   return {
     owner: enrollment.vault.owner,
-    credentialId: enrollment.credentialId,
+    credentialId: passkey.credentialId,
     recoveryKey: enrollment.recoveryKey,
   };
 }

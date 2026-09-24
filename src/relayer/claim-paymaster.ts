@@ -139,8 +139,8 @@ export function claimPaymasterAuthorizationDigest(
       authorization.maxCost,
       authorization.paymasterVerificationGasLimit,
       authorization.paymasterPostOpGasLimit,
-      authorization.validAfter,
-      authorization.validUntil,
+      Number(authorization.validAfter),
+      Number(authorization.validUntil),
       authorization.sponsorNonce,
     ],
   ));
@@ -158,7 +158,7 @@ export function encodeClaimPaymasterData(
   assertUint(authorization.sponsorNonce, 256, "sponsorNonce");
   const data = encodePacked(
     ["uint256", "uint48", "uint48", "uint256", "bytes"],
-    [authorization.giftId, authorization.validAfter, authorization.validUntil, authorization.sponsorNonce, signature],
+    [authorization.giftId, Number(authorization.validAfter), Number(authorization.validUntil), authorization.sponsorNonce, signature],
   ) as Hex;
   if ((data.length - 2) / 2 !== CLAIM_PAYMASTER_DATA_LENGTH) throw new Error("encoded claim paymaster data has the wrong length");
   return data;

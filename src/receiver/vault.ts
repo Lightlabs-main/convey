@@ -8,6 +8,8 @@ const SALT_BYTES = 32;
 const PRF_CONTEXT = new TextEncoder().encode("convey/receiver-vault/prf/v1");
 const RECOVERY_CONTEXT = new TextEncoder().encode("convey/receiver-vault/recovery/v1");
 
+const bufferSource = (bytes: Uint8Array): BufferSource => bytes as unknown as BufferSource;
+
 export interface ReceiverVaultCiphertext {
   version: typeof VAULT_VERSION;
   credentialId: string;
@@ -68,9 +70,9 @@ function aad(version: number, owner: Address, credentialId?: string): Uint8Array
 async function deriveAesKey(material: Uint8Array, salt: Uint8Array, info: Uint8Array): Promise<CryptoKey> {
   if (material.length < KEY_BYTES) throw new Error("key material must contain at least 32 bytes");
   const crypto = requireCrypto();
-  const baseKey = await crypto.subtle.importKey("raw", material, "HKDF", false, ["deriveKey"]);
+  const baseKey = await crypto.subtle.importKey("raw", bufferSource(material), "HKDF", false, ["deriveKey"]);
   return crypto.subtle.deriveKey(
-    { name: "HKDF", hash: "SHA-256", salt, info },
+    { name: "HKDF", hash: "SHA-256", salt: bufferSource(salt), info: bufferSource(info) },
     baseKey,
     { name: "AES-GCM", length: 256 },
     false,
@@ -89,9 +91,9 @@ async function encryptPrivateKey(
   const iv = randomBytes(IV_BYTES);
   const key = await deriveAesKey(material, salt, context);
   const ciphertext = await requireCrypto().subtle.encrypt(
-    { name: "AES-GCM", iv, additionalData: aad(VAULT_VERSION, owner, credentialId), tagLength: 128 },
+    { name: "AES-GCM", iv: bufferSource(iv), additionalData: bufferSource(aad(VAULT_VERSION, owner, credentialId)), tagLength: 128 },
     key,
-    hexToBytes(privateKey, KEY_BYTES),
+    bufferSource(hexToBytes(privateKey, KEY_BYTES)),
   );
   return { salt: bytesToHex(salt), iv: bytesToHex(iv), ciphertext: bytesToHex(new Uint8Array(ciphertext)) };
 }
@@ -109,12 +111,12 @@ async function decryptPrivateKey(
     plaintext = await requireCrypto().subtle.decrypt(
       {
         name: "AES-GCM",
-        iv: hexToBytes(envelope.iv, IV_BYTES),
-        additionalData: aad(envelope.version, envelope.owner, credentialId),
+        iv: bufferSource(hexToBytes(envelope.iv, IV_BYTES)),
+        additionalData: bufferSource(aad(envelope.version, envelope.owner, credentialId)),
         tagLength: 128,
       },
       key,
-      hexToBytes(envelope.ciphertext),
+      bufferSource(hexToBytes(envelope.ciphertext)),
     );
   } catch {
     throw new Error("receiver vault could not be unlocked");

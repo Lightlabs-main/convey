@@ -6,6 +6,7 @@ import {
   encodeFunctionData,
   getAddress,
   isAddress,
+  http,
   keccak256,
   parseEventLogs,
   parseUnits,
