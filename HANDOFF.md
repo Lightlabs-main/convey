@@ -154,12 +154,23 @@ balance read was performed without printing any private key or credential.
   read-only trace confirmed the private RPC accepts the tracer and captures
   event data.
 
-### Next continuation step
+### Pause checkpoint — resume after operator limit reset
 
-Before creating Gift ID `2`, run the new preflight against a fresh operation,
-then validate a higher account-level `callGasLimit` while keeping total
-prefund within the `0.00002 OKB` reserve. Generate an entirely new secret and
-use sponsor nonce `1`. Gift creation and claim submission require fresh
-operator authorization.
+The workspace is intentionally paused until the operator's usage limit resets.
+The latest pushed commit is `51805ca` (`add event-aware claim preflight`), the
+working tree is clean, and the TypeScript suite passes 3/3. The private
+execution RPC accepted the new event tracer and a read-only ERC-20 trace
+captured event data.
+
+On resumption, do not reuse Gift ID `1` or its exposed secret. Gift ID `1` is
+`Reclaimed`, all NVDAx is back with the sender, and all gift reserve buckets
+are zero. No Gift ID `2` exists and no additional on-chain action is authorized
+yet.
+
+The next authorized decision is to create Gift ID `2` with a completely fresh
+secret, validate a higher account-level `callGasLimit` within the `0.00002 OKB`
+reserve using the event-aware preflight, and then submit its claim with sponsor
+nonce `1`. Obtain explicit operator authorization immediately before the Gift
+ID `2` creation and claim actions.
 
 Current git command form: `git --git-dir=convey-repo/.git --work-tree=.`.
