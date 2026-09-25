@@ -1,10 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Convey — a stock gift, in one link",
-  description: "Receive a real tokenized stock on X Layer without a prior wallet or gas.",
+  title: "Convey · Gift xStocks on X Layer",
+  description: "Send tokenized xStocks from OKX Wallet in one link. Recipients claim gasless into their own smart account on X Layer.",
 };
+
+export const viewport: Viewport = { themeColor: "#050505" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

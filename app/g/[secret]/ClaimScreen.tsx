@@ -23,6 +23,8 @@ import {
 } from "@/src/receiver/flow";
 import { ConveyRelayerClient } from "@/src/relayer/client";
 import { createBrowserReceiverVaultStorage } from "@/src/receiver/storage";
+import { LiveTicker } from "../../components/LiveTicker";
+import { SiteHeader } from "../../components/SiteHeader";
 
 function shortAddress(value: string): string {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
@@ -113,7 +115,12 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
                 : "This gift has already been closed.");
         }
       } catch (cause) {
-        if (!cancelled) setError(cause instanceof Error ? cause.message : "The live gift record could not be read.");
+        if (!cancelled) {
+          const message = cause instanceof Error ? cause.message : "";
+          // 0xbc663ca6 is GiftEscrow.UnknownGift(): the link names a gift this escrow never created.
+          setError(message.includes("0xbc663ca6") ? "This gift link doesn't match a Convey gift. Check that you copied the whole link." : message || "The live gift record could not be read.");
+          setStatus("");
+        }
       }
     })();
     return () => { cancelled = true; };
@@ -366,13 +373,13 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
 
   return (
     <main>
-      <div className="network-bar">X Layer mainnet · chain 196 · gasless receiver claim</div>
-      <div className="claim-shell">
-        <nav className="nav"><a className="wordmark" href="/">convey.</a><div className="nav-actions"><span className="nav-note">your gift is waiting</span><span className="live-pill">private claim</span></div></nav>
+      <div className="page">
+        <LiveTicker />
+        <SiteHeader variant="app"><span className="chain-tag">Private claim · X Layer</span></SiteHeader>
         <div className="claim-main">
           <section className="claim-card">
-            <div className="eyebrow">A real gift, on-chain</div>
-            <h1 className="claim-title">Someone sent you a stock.</h1>
+            <span className="eyebrow"><i className="pulse" />A real xStock, onchain</span>
+            <h1 className="claim-title">Someone sent you <span className="gradient-text">a stock</span>.</h1>
             <p className="claim-subtitle">No wallet was needed to send it. Your claim is gasless, and the asset goes to a smart account created for you.</p>
             <div className="gift-value">
               <div><strong>{valuation ? `$${valuation.estimatedUsd.toFixed(2)}` : tokenAmount}</strong><span>{valuation ? `${preview?.symbol ?? "asset"} · live issuer value` : preview ? `${preview.symbol} · live chain amount` : "Reading live chain…"}</span></div>

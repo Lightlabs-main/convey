@@ -1,512 +1,157 @@
 # Convey
 
-## The product
+**Gift a share of NVIDIA in one link.** Convey sends tokenized xStocks on
+X Layer from OKX Wallet. The recipient opens a link, confirms with a passkey,
+and owns the asset in their own OKX Smart Wallet. They don't need a wallet
+first, don't buy OKB, and don't pay gas.
 
-> **Give someone real ownership in one link.**
+**Live:** [conveyapp.site](https://conveyapp.site) · **App:** [conveyapp.site/app](https://conveyapp.site/app) · **Chain:** X Layer mainnet (196)
 
-**Live product:** [conveyapp.site](https://conveyapp.site) · [open the deployed app](https://www.conveyapp.site)
+<!-- Demo video: add the link here once recorded. -->
 
-Convey is a link-native gifting product for tokenized real-world assets,
-starting with xStocks. A sender chooses a certified asset, funds a gift, and
-shares one link. The recipient opens it and receives real ownership in a
-device-secured ERC-4337 smart account—without first installing a wallet,
-buying OKB, finding an address, or learning blockchain infrastructure.
+---
 
-## The problem
+## Why it matters
 
-Tokenized assets make ownership programmable, but receiving one still feels
-like an infrastructure task. A recipient is expected to understand wallets,
-seed phrases, network switching, gas, smart-account deployment, and unfamiliar
-addresses before they can receive something as simple as a gift.
+Tokenized stocks are programmable, but receiving one still means installing a
+wallet, writing down a seed phrase, switching networks, and buying gas. That
+barrier is highest for exactly the people you'd most want to give a first
+share to.
 
-That is the wrong first impression for an asset meant to move between people.
-Convey hides the operational complexity at the moment of delivery while
-keeping the important property intact: the asset settles to the recipient's
-account, not to a Convey custodial balance. The sender gets a shareable gift
-link; the recipient gets an ownable asset.
+Convey handles all of that at delivery time without taking custody. The asset
+settles to the recipient's own ERC-4337 account, not to a Convey balance.
 
-## Why this build is different
+## Built for the OKX stack
 
-Convey connects a consumer-grade gift experience to real mainnet settlement:
+| Layer | What Convey uses | How |
+|---|---|---|
+| **Chain** | X Layer mainnet | All contracts, gifts and claims settle on chain 196 |
+| **Assets** | xStocks: NVDAx, AAPLx, TSLAx | Certified in Convey's on-chain `AssetRegistry`; live issuer prices |
+| **Sender wallet** | OKX Wallet | EIP-6963 discovery (`com.okex.wallet`), with `window.okxwallet` as fallback; adds or switches to X Layer automatically; on phones, opens in the OKX Wallet app via deep link |
+| **Receiver account** | OKX Smart Wallet (ERC-4337 v0.7) | Created from a device passkey; deployed on first claim |
+| **Bundler** | OKX OKBund (pinned) | Self-hosted, private; sponsored UserOperations only |
 
-- **One-link delivery.** The sender creates a gift locked to a one-time claim
-  key and shares a private link. The recipient does not need a pre-existing wallet or browser
-  extension.
-- **Non-custodial recipient ownership.** The receiver's device creates and
-  unlocks the local owner key; the asset lands in the selected OKX Smart
-  Wallet account at ERC-4337 EntryPoint v0.7.
-- **Front-run-resistant claims.** The link secret never goes on chain. It
-  signs `(chainId, escrow, giftId, claimer)`, and the escrow checks that
-  signature against the stored claim-key address. A claim seen in a bundler, a
-  mempool, or a failed attempt cannot be replayed to redirect the gift.
-- **Gasless by design.** The sender funds a bounded claim reserve. Convey's
-  claim paymaster sponsors the receiver operation, so the receiver supplies no
-  native gas.
-- **Private, policy-bound execution.** A server-side gateway validates the
-  exact target, selector, EntryPoint, paymaster, and inner UserOperationEvent
-  before forwarding through pinned OKBund and a private NodeFlare execution
-  RPC. No public bundler or gateway credential is exposed.
-- **Ownership after claiming.** The receiver can keep the tokenized exposure,
-  use the separate sponsored exit path for a live NVDAx-to-USDT0 cash-out, or
-  move a live balance from the smart account.
-- **Live asset data.** The UI reads certified registry state, token balances,
-  issuer valuation, executable quotes, and claim state instead of presenting
-  mock prices or balances.
-- **Recovery-aware account UX.** The receiver flow includes device-local PRF
-  enrollment, encrypted recovery material, same-device unlock, and explicit
-  recovery confirmation.
-
-## Live deployment proof
-
-This is a live X Layer mainnet deployment, not a mock product tour:
-
-| Proof | Status |
-|---|---|
-| Public product surface | [conveyapp.site](https://conveyapp.site) and [www.conveyapp.site](https://www.conveyapp.site) live over HTTPS |
-| Mainnet | X Layer, chain ID 196 |
-| Gift settlement | Registry, GiftEscrow, claim paymaster, and receiver account deployed and funded |
-| Sponsored claim | Gift ID 2 delivered the full 0.030965586663211895 NVDAx with no receiver gas |
-| Sponsored exit | Real gasless NVDAx-to-USDT0 cash-out completed through the exit paymaster |
-| Private execution | Pinned OKBund + NodeFlare on the supplied Lightsail VPS |
-| Production boundary | Authenticated gateway on loopback; relay credentials stay server-side |
-| Front-run-resistant escrow (v2) | Signature-bound `GiftEscrow` and its claim paymaster deployed, bound, funded, and serving the live site |
-| Abuse limits | Gateway refuses to start without a bearer token; per-IP, per-account, and daily exit-spend caps on sponsor signing |
-
-The live transaction hashes, contract addresses, receipts, and readbacks are
-in [docs/verification.md](docs/verification.md) and
-[docs/product-deployment.json](docs/product-deployment.json).
-
-### Honest proof boundary
-
-The production UI and receiver flow are implemented, but these proofs remain
-deliberately separate from the claim above: a first mainnet claim through the
-v2 signature-bound escrow, persistent physical-device enrollment/recovery,
-state-changing owner revocation on a safe disposable or multi-owner account,
-and a fresh browser-to-browser mainnet gift flow. Gift ID 2 was claimed
-through the retired v1 escrow. The
-deployed-edge Chromium virtual-authenticator PRF capability proof is recorded
-in [docs/verification.md](docs/verification.md).
-
-## What is deployed today
-
-- X Layer mainnet is the only supported deployment.
-- The receiver uses the deployed OKX-specific modular ERC-4337 account; it is
-  not described as ERC-7579.
-- The connected-wallet sender surface reads the live registry, balance,
-  allowance, and claim reserve, then creates real signature-bound gifts.
-- The receiver surface reads live GiftEscrow and issuer data, creates the
-  local account, exposes encrypted recovery material, and calls the live
-  gas-seed, estimate, and claim routes through same-origin proxies.
-- The claim gateway fails closed when event-aware EntryPoint preflight cannot
-  prove UserOperation success.
-- The read-only operations monitor watches both paymasters and the bundler
-  balance; top-ups require explicit confirmations.
-- DropEscrow and recurring-gift authorization are implemented and covered by
-  invariant tests, but intentionally remain undeployed and outside the
-  production UI.
-
-The authoritative continuation record is [HANDOFF.md](HANDOFF.md). The
-chronological implementation record is [PROGRESS.md](PROGRESS.md).
-
-## Product flow
+## How it works
 
 ```text
-Sender wallet
-    │  approve token + createGift(amount, claimKey, expiry, reserve)
-    ▼
-AssetRegistry ── validates certified/enabled assets
-    │
-    ▼
-GiftEscrow ── locks ERC-20 asset; claim needs the link key's signature
-    │           over (chainId, escrow, giftId, claimer)
-    │
-    │  receiver authorizes locally with a device credential
-    ▼
-Convey private gateway
-    │  target/selector policy + event-aware EntryPoint preflight
-    ▼
-Private OKBund ── NodeFlare execution RPC
-    ▼
-EntryPoint v0.7 ── validates paymaster and account
-    ▼
-OKX Smart Wallet ── calls exactly GiftEscrow.claim(...)
-    ▼
-GiftEscrow ── transfers the asset only to msg.sender
+ Sender (OKX Wallet)                                  Recipient (any phone)
+        │ createGift(xStock, amount, claimKey)                 │ opens link, passkey
+        ▼                                                      ▼
+ ┌──────────────┐   reserve OKB   ┌──────────────────┐   ┌─────────────────────┐
+ │  GiftEscrow  │ ──────────────▶ │ Claim paymaster  │◀──│ Convey gateway      │
+ │  holds xStock│                 │ sponsors gas     │   │ policy + preflight  │
+ └──────┬───────┘                 └──────────────────┘   └──────────┬──────────┘
+        │ claim(giftId, signature)                                  │ private
+        ▼                                                           ▼
+ OKX Smart Wallet  ◀────────── EntryPoint v0.7 ◀─────────────── OKBund
+ (recipient owns the xStock)
 ```
 
-The sender funds the claim allowance in native OKB when creating the gift. The
-claim paymaster reserves the maximum authorized cost before execution and
-reconciles actual gas cost in `postOp`. The gift token is never swapped for gas.
+1. **Send.** The sender picks an xStock in the app and confirms one escrow
+   transaction in OKX Wallet. It includes a 0.00002 OKB claim reserve.
+2. **Share.** The link carries a one-time claim key. Only that key's address
+   goes on chain.
+3. **Claim.** The recipient's passkey creates their OKX Smart Wallet. The
+   claim is a sponsored UserOperation, and the sender's reserve pays the gas.
+4. **Own.** The recipient can hold the xStock, cash out to USDT0 with a live
+   quote, or move it anywhere. The exits are gasless too.
 
-The bootstrap sponsor used to deploy and exercise the receiver account is a
-separate one-operation paymaster. It must not be reused for product claims.
+## Security design
 
-## Deployed X Layer components
+- **Claims can't be front-run.** The link secret never goes on chain. It signs
+  `(chainId, escrow, giftId, claimer)` and `GiftEscrow` checks that signature
+  against the stored claim-key address. A claim observed in a bundler, a
+  mempool or a failed attempt can't be replayed to redirect the gift. It is
+  covered by replay, wrong-key, malformed-signature, high-s and fuzz tests.
+- **Non-custodial.** The recipient's owner key is created and encrypted on
+  their device. Convey never receives it.
+- **Scoped sponsorship.** The paymaster signs only single-call claims to
+  `GiftEscrow` and draws on that gift's own reserve. The exit paymaster checks
+  the route and a fresh on-chain quote before signing.
+- **Fails closed.**
+  - The gateway won't start without a bearer token.
+  - Each UserOperation must pass event-aware EntryPoint preflight before it is
+    forwarded.
+  - Sponsor signing is limited per account and per IP, and exit sponsorship has
+    a daily spend cap.
+- **No mock data.** Prices, balances, quotes and claim state are read live.
+  Anything that can't be read is shown as unavailable, never estimated.
 
-| Component | Address | Purpose |
-|---|---|---|
-| EntryPoint v0.7 | `0x0000000071727de22e5e9d8baf0edac6f37da032` | ERC-4337 execution entry point |
-| OKX Smart Wallet factory | `0xdd3fea01cd550c9effc893f346690b9a649f35ef` | Receiver account deployment/address derivation |
-| OKX Smart Wallet implementation | `0xe40ccb2d94975c51bff0c004efdfd9b3a5796fa4` | Inspected modular account implementation |
-| Receiver account | `0x63B2A84d47cb07fb18EE72Ec386893506Fd963db` | Selected claim recipient account |
-| `AssetRegistry` | `0x156d160e004B7fb2021CFCA8fC6cF069c3b8b029` | Certified/enabled asset policy |
-| `ConveyClaimPaymasterV07` (v2) | `0x655025c861C1848BA5324863D85BFA32cCF69e5B` | Sender-funded claim reserve and sponsorship |
-| `GiftEscrow` (v2) | `0xffd2DACE75dbC3bC3f2e10C6c7b011Aa4EC043cD` | Signature-bound single-gift custody |
-| Retired v1 pair | `0xe6913061…36B6` / `0xaa396c81…4062` | Gift ID 2 proof; no open gifts; surplus deposit withdrawn |
-| USDT0 | `0x779ded0c9e1022225f8e0630b35a9b54be713736` | Acquisition funding token |
-| Uniswap SwapRouter02 | `0x4f0c28f5926afda16bf2506d5d9e57ea190f9bca` | Registered asset route |
+The contracts have an in-house review and 51 Foundry tests. There has been no
+third-party audit.
 
-The claim paymaster policy is configured with a `0.00002 OKB` minimum reserve
-and maximum claim cost. The v2 paymaster's EntryPoint deposit is `0.0001 OKB`,
-with a `1` wei stake and an `86,400` second unstake delay. Deployment and funding
-receipts are recorded in [`docs/product-deployment.json`](docs/product-deployment.json).
+## Onchain proof
 
-## Registered assets
-
-| Asset | Wrapper | Status |
-|---|---|---|
-| NVDAx | `0xa8ddb5cd96b5222afe198316e9a57caa642850d5` | Certified, enabled, executable cash-out route |
-| AAPLx | `0x943bf64d566c32a2bcd41ac92fb63c111cc9de8f` | Certified, enabled, executable cash-out route |
-| TSLAx | `0xc3fdbe3a68ee5de461d30415a8165cf9aefe1171` | Certified and giftable, hold-only until liquidity passes policy |
-
-Convey treats these as EVM wrapper contracts on X Layer. Solana Token-2022 is
-not part of this deployment. Wrapper conversion supplies underlying units;
-display valuation and cash-out require independent live data and executable
-routes.
-
-## Account and key model
-
-The receiver uses the deployed OKX account path at EntryPoint v0.7. Convey
-describes it accurately as an OKX-specific modular ERC-4337 account, not an
-ERC-7579 account. The account owner signs the OKX owner envelope locally; the
-gateway and sponsor service must never receive the owner private key.
-
-Operator roles are deliberately separate:
-
-- receiver smart-account owner;
-- product deployer/contract owner;
-- bootstrap paymaster signer;
-- claim paymaster signer; and
-- OKBund bundle-sender key.
-
-Private keys belong only in the ignored `.env` or an external secret manager.
-The existing Lightsail SSH key and VPS root environment are also secret
-material. Never print, paste, commit, or add them to documentation.
-
-The WebAuthn PRF vault, browser ceremony foundation, encrypted browser
-persistence, and recovery rewrap foundation are implemented and tested. The
-deployed-edge virtual-authenticator capability proof passed, but persistent
-production receiver UI behavior, credential migration, and state-changing
-on-chain owner revocation are not yet live-proven; a read-only owner-call
-simulation is recorded in the verification log. Losing the receiver owner key
-currently means losing control of that account unless the separately stored
-recovery material is available.
-
-## Claim relay
-
-The browser-safe SDK is `ConveyRelayerClient`. The server-side gateway uses
-`SelfHostedBundlerClient` and exposes:
-
-| Route | Behavior |
+| Component | Address |
 |---|---|
-| `GET /healthz` | Checks execution RPC, chain, EntryPoint, bundler capability, and paymaster funding |
-| `GET /v1/claims/gas-seed` | Returns live gas/fee fields from the configured successful claim seed; no calldata |
-| `POST /v1/claims/authorize` | Signs one claim-scoped paymaster authorization for an unsigned operation; never returns the sponsor key |
-| `POST /v1/claims/estimate` | Forwards a scoped gas-estimation request to the private bundler |
-| `POST /v1/claims` | Preflights and then submits one signed sponsored UserOperation |
-| `GET /v1/claims/:userOperationHash` | Returns pending, confirmed, or failed receipt/event status |
-| `POST /v1/exits/quote` | Returns a live verified-asset-to-USDT0 quote and expiry |
-| `POST /v1/exits/authorize` | Signs one exit-paymaster authorization for an unsigned operation |
-| `POST /v1/exits/estimate` | Forwards a scoped exit gas-estimation request |
-| `POST /v1/exits` | Preflights and submits one signed sponsored cash-out/withdrawal |
-| `GET /v1/exits/:userOperationHash` | Returns pending, confirmed, or failed receipt/event status |
+| `GiftEscrow` (v2, signature-bound) | [`0xffd2DACE75dbC3bC3f2e10C6c7b011Aa4EC043cD`](https://www.oklink.com/xlayer/address/0xffd2DACE75dbC3bC3f2e10C6c7b011Aa4EC043cD) |
+| `ConveyClaimPaymasterV07` (v2) | [`0x655025c861C1848BA5324863D85BFA32cCF69e5B`](https://www.oklink.com/xlayer/address/0x655025c861C1848BA5324863D85BFA32cCF69e5B) |
+| `ConveyExitPaymasterV07` | [`0xcfd241979d578e0b43f4c3f6b9b3fab83b41974c`](https://www.oklink.com/xlayer/address/0xcfd241979d578e0b43f4c3f6b9b3fab83b41974c) |
+| `AssetRegistry` | [`0x156d160e004B7fb2021CFCA8fC6cF069c3b8b029`](https://www.oklink.com/xlayer/address/0x156d160e004B7fb2021CFCA8fC6cF069c3b8b029) |
+| EntryPoint v0.7 | `0x0000000071727de22e5e9d8baf0edac6f37da032` |
+| OKX Smart Wallet factory | `0xdd3fea01cd550c9effc893f346690b9a649f35ef` |
 
-The claim route accepts only a signed, sponsored v0.7 operation that:
+| Milestone | Evidence |
+|---|---|
+| Sponsored ERC-4337 v0.7 operation through private OKBund | [`0xfdb3ef41…df09`](https://www.oklink.com/xlayer/tx/0xfdb3ef41083b02282a304c948194b1ec9dca42d14f5fec258b8a12c2e7b4df09) |
+| Gasless gift claim (Gift 2, 0.0309 NVDAx, v1 escrow) | [`docs/verification.md`](docs/verification.md) |
+| Gasless NVDAx → USDT0 cash-out through the exit paymaster | [`docs/verification.md`](docs/verification.md) |
+| v2 escrow deployment and migration | [`0x24175d02…0e69`](https://www.oklink.com/xlayer/tx/0x24175d022c6f34a01956d4c163c604366f4e9eb3b469c94b30dc8bbef9780e69) |
 
-1. uses the configured EntryPoint and Convey claim paymaster;
-2. contains exactly one zero-value OKX `executeUserOp` call;
-3. targets the configured `GiftEscrow`; and
-4. invokes only the configured claim selector.
+Every hash, receipt and readback is recorded in
+[`docs/verification.md`](docs/verification.md) and
+[`docs/product-deployment.json`](docs/product-deployment.json).
 
-There is no raw-transaction route, public-bundler fallback, or secret storage
-in the gateway. The gateway refuses to start without a bearer token of at least
-32 characters. Sponsor signing is limited per account per hour and globally,
-and exit sponsorship has a daily spend cap. The public same-origin proxy
-limits each client IP, keyed on the address Nginx appends to
-`X-Forwarded-For`. Idempotency retains only a short-lived request key and
-UserOperation hash. The live Gift ID `2` proof used a temporary localhost
-gateway over the private OKBund route. The persistent authenticated gateway is
-now deployed on the supplied VPS; the browser-facing HTTPS web edge is deployed
-separately at the URL in the checkpoint above.
+**Not yet proven on mainnet:**
+- a claim through the v2 escrow;
+- passkey enrollment and recovery on a physical device;
+- removing an owner from the smart account on-chain.
 
-### Event-aware preflight
+Drop (multi-claim gifts) and recurring gifts are implemented and tested, but
+deliberately not deployed.
 
-`src/relayer/preflight.ts` builds the exact v0.7 EntryPoint `handleOps` call and
-traces it through the private execution RPC. It decodes:
-
-- `UserOperationEvent`, including `success`, actual gas cost, and actual gas
-  used; and
-- `UserOperationRevertReason` when the inner operation fails.
-
-An outer `handleOps` call can complete while an inner UserOperation reports
-`success = false`; therefore a top-level `eth_call` result is not sufficient.
-The gateway runs this preflight immediately before `eth_sendUserOperation` and
-rejects failed or untraceable claims.
-
-The preflight beneficiary is configured by `RELAYER_PREFLIGHT_BENEFICIARY` and
-defaults to the zero address for the read-only simulation. It is not a claim
-recipient and does not become a transaction recipient.
-
-## OKBund and infrastructure
-
-OKBund is pinned to commit
-`77ac3770ba7dd4be949975b142623540e28f60e4` and was built with Java 21/Maven.
-The checked-in launcher requires:
+## Repository
 
 ```text
-CHAIN_ID=196
-ENTRYPOINT=<canonical v0.7 EntryPoint>
-BUNDLER_ENV=prod
-SAFE_MODE=true
-EIP1559=true
-```
-
-It binds to loopback by default and disables only OKBund's incompatible
-node-side fallback estimator. EntryPoint/EVM simulation remains enabled. The
-bundler's execution RPC must be a private tracing endpoint; the public X Layer
-RPC is not sufficient for safe bundling.
-
-The supplied Lightsail VPS is the intended operator host. Its current OKBund
-service listens on `127.0.0.1:3000/rpc`. See [`infra/okbund/README.md`](infra/okbund/README.md)
-for the pinned build, service, RPC, funding, and firewall runbook. See
-[`HANDOFF.md`](HANDOFF.md) for the host-specific continuation record. Do not
-ask for or provision another server before checking that handoff.
-
-## Repository layout
-
-```text
+app/                 Next.js app
+  page.tsx           landing page
+  app/page.tsx       send studio (OKX Wallet)
+  g/[secret]/        recipient claim screen
+  lib/okx-wallet.ts  OKX Wallet discovery, X Layer switching, mobile deep link
+  api/               same-origin relay proxy (rate-limited) and issuer price proxy
 contracts/
-  bootstrap/       one-operation account gate paymaster
-  core/            AssetRegistry, GiftEscrow, DropEscrow, and related contracts
-  recurring/       local OKX-specific recurring-gift hook policy
-  paymaster/       sender-funded ConveyClaimPaymasterV07
-docs/              architecture, design, deployment, and verification evidence
-infra/okbund/      pinned OKBund launcher and operator runbook
-infra/relayer/     persistent private gateway service and runbook
-script/            verification, deployment, funding, and operator commands
-src/relayer/       UserOperation codec, OKX builder, gateway, client, preflight
-test/              Node test suite for codecs, policy, and relay behavior
-HANDOFF.md         current live state and resume instructions
-PROGRESS.md        chronological implementation record
+  core/              AssetRegistry, GiftEscrow, DropEscrow
+  paymaster/         claim and exit paymasters (ERC-4337 v0.7)
+  bootstrap/         one-operation account bootstrap paymaster
+  recurring/         bounded recurring-gift hook (not deployed)
+src/
+  sender/            OKX Wallet sender SDK
+  receiver/          passkey vault, claim and exit builders
+  relayer/           gateway, OKX account builder, preflight, limits
+test/, test-solidity/  Node and Foundry suites
+infra/               OKBund, gateway and web service units
+docs/                design notes, verification record, operations
 ```
 
-## Local setup
-
-Install dependencies and create a private local environment file:
+## Run it
 
 ```sh
 pnpm install
-cp .env.example .env
-chmod 600 .env
+cp .env.example .env && chmod 600 .env   # fill in the addresses above
+pnpm dev                                  # http://localhost:3000
+pnpm test && forge test                   # 50 Node + 51 Foundry tests
 ```
 
-Populate only the values required for the command being run. The environment
-file contains placeholders for chain configuration, private execution and
-bundler endpoints, deployed contract addresses, paymaster policy, and operator
-keys. Do not commit `.env`.
-
-The minimum public network invariants are:
-
-```text
-XLAYER_CHAIN_ID=196
-ENTRYPOINT_ADDRESS=0x0000000071727de22e5e9d8baf0edac6f37da032
-OKX_SMART_WALLET_FACTORY=0xdd3fea01cd550c9effc893f346690b9a649f35ef
-OKX_SMART_WALLET_IMPLEMENTATION=0xe40ccb2d94975c51bff0c004efdfd9b3a5796fa4
-```
-
-Use a keyed NodeFlare endpoint through `NODEFLARE_API_KEY`, or set
-`BUNDLER_EXECUTION_RPC_URL` to another private X Layer execution RPC that
-passes both tracer and state-override capability checks. `BUNDLER_RPC_URL` is
-the private OKBund endpoint and must never be exposed to browser code.
-
-## Commands
-
-### Read-only checks
-
-```sh
-pnpm test
-pnpm verify
-pnpm verify:bundler-rpc
-pnpm account:inspect
-pnpm account:owner-check
-pnpm operator:addresses
-pnpm scripts:typecheck
-pnpm scripts:syntax
-pnpm bundler:check
-pnpm relayer:check
-pnpm ops:check
-CONVEY_TOPUP_TARGET=claim pnpm ops:topup
-```
-
-`pnpm verify` uses the documented pinned X Layer block and writes raw evidence
-under `docs/`. `pnpm verify:bundler-rpc` redacts credential-bearing RPC paths.
-The account and operator commands derive public addresses without printing
-private keys.
-
-`pnpm account:owner-check` is read-only and verifies the live OKX owner list and
-validator settings for the configured receiver.
-
-`pnpm ops:check` is the recommended recurring health check. `pnpm ops:topup`
-prints a live shortfall plan without writing by default; see
-[`docs/operations.md`](docs/operations.md) for the explicit confirmation
-required to fund a paymaster.
-
-### Build and contract tests
-
-```sh
-pnpm contracts:build
-pnpm contracts:test
-```
-
-Foundry is not installed in the Codespace used for this handoff. The supplied
-Lightsail host has Foundry 1.8.3 and has run the expanded Solidity suite
-successfully. Local Solidity tests use a controlled EntryPoint stub for some
-cases; they are not a third-party audit or a substitute for live mainnet
-verification.
-
-### Bootstrap account gate
-
-These commands can send mainnet transactions when run with a funded operator
-environment:
-
-```sh
-pnpm bootstrap:deploy
-pnpm bootstrap:fund
-pnpm bootstrap:build
-pnpm bootstrap:submit
-pnpm bootstrap:wait
-```
-
-The bootstrap path is one-use and separate from product claim sponsorship.
-Operation files are written under `/tmp` with mode `0600`, reject symlinks, and
-must never be committed.
-
-### Product deployment and registry
-
-```sh
-pnpm product:deploy
-pnpm product:fund
-pnpm product:register-assets
-```
-
-These commands can deploy, fund, bind, or register contracts on X Layer. Use
-only after reviewing the live configuration and intended transaction scope.
-
-### Drop and recurring-hook deployment preparation
-
-```sh
-pnpm drop:deploy
-pnpm recurring:deploy
-```
-
-Both commands validate the live X Layer chain, deployed dependencies, and
-source-matched Foundry artifacts, then print a dry-run plan. They send a
-transaction only when invoked with `--confirm` and the matching exact
-confirmation environment variable. The recurring-hook path is restricted to a
-disposable or already multi-owner OKX wallet; neither command has been used to
-deploy a new contract yet.
-
-### Gateway
-
-```sh
-pnpm relayer:serve
-```
-
-The default bind address is loopback. The persistent private service is deployed
-on the supplied VPS with authentication, a capacity check, and the private
-OKBund endpoint. The web app is available at
-[https://conveyapp.site](https://conveyapp.site);
-it uses a same-origin server proxy to reach the private gateway. No public
-gateway endpoint is exposed.
-
-## Live verification record
-
-### Account-abstraction gate
-
-The successful bootstrap operation deployed the selected receiver account:
-
-- UserOperation:
-  `0x1361ecee72221c81ee911f1446e3531e6086ffa9b2bee87bec22cd0ecc7f413c`
-- bundle transaction:
-  `0xfdb3ef41083b02282a304c948194b1ec9dca42d14f5fec258b8a12c2e7b4df09`
-- block: `71422410`
-- receipt: `success = true`
-
-This proves the selected account path and bootstrap sponsor gate. It does not
-prove product claim reserve accounting or receiver recovery.
-
-### Sender-funded asset setup
-
-The sender acquired `0.030965586663211895` NVDAx from `7` USDT0 through the
-verified X Layer route. The live approval, swap, escrow approval, and gift
-creation receipts are recorded in [`docs/verification.md`](docs/verification.md)
-and [`HANDOFF.md`](HANDOFF.md). Gift creation included the configured native
-claim reserve, and escrow held the exact asset amount under its accounting.
-
-The private relay and event-aware preflight are now proven by the successful
-Gift ID `2` claim. The receiver application is now connected to this path and
-deployed at the public HTTPS web edge. The virtual-authenticator PRF capability
-proof is recorded in [`docs/verification.md`](docs/verification.md), but a
-browser-to-browser mainnet claim is not yet recorded.
-
-## Security and operating rules
-
-- Never use mock prices, balances, sponsorship, claims, or transaction hashes
-  in verification records.
-- Generate a fresh claim key for every gift; never reuse claim keys. The
-  link secret signs a claimer-bound digest and is never sent on chain.
-- Never print or commit private keys, RPC credentials, SSH keys, or secret
-  claim files.
-- Keep receiver owner, deployer, paymaster signer, bundler, and SSH roles
-  separate.
-- Keep `BUNDLER_RPC_URL` and execution RPC credentials server-side.
-- Do not call the OKX account ERC-7579; the inspected implementation is
-  modular ERC-4337 v0.7 without ERC-7579 support.
-- Do not reuse the bootstrap paymaster for product claims.
-- Treat all deployment, funding, registration, gift creation, reclaim, and
-  claim commands as potentially state-changing; verify target, amount, nonce,
-  and live receipt before proceeding.
-- A successful outer EntryPoint transaction is not proof of a successful inner
-  UserOperation. Inspect `UserOperationEvent.success` and the revert event.
-
-## Resume point
-
-The next work follows the product order in [`PROGRESS.md`](PROGRESS.md): finish
-the browser receiver enrollment/recovery proof, record a direct gasless
-withdrawal, execute one browser-to-browser mainnet flow, and then integrate the
-locally tested Drop contract. The live claim and operator cash-out proofs are
-complete; the gateway remains private behind the deployed web app.
+Operator commands for deployment, funding, the gateway and monitoring are in
+[`docs/operations.md`](docs/operations.md). The live infrastructure state is
+in [`HANDOFF.md`](HANDOFF.md).
 
 ## Further documentation
 
-- [`HANDOFF.md`](HANDOFF.md) — current state, infrastructure, live hashes, and
-  exact resume order.
-- [`PROGRESS.md`](PROGRESS.md) — implementation history and remaining work.
-- [`docs/architecture.md`](docs/architecture.md) — contract and account model.
-- [`docs/claim-paymaster-design.md`](docs/claim-paymaster-design.md) — reserve,
-  validation, and `postOp` accounting.
-- [`docs/drop-design.md`](docs/drop-design.md) — local multi-claim escrow
-  invariant and deployment boundary.
-- [`docs/recurring-authorization.md`](docs/recurring-authorization.md) —
-  OKX-specific bounded owner/hook design and live-proof boundary.
-- [`docs/relayer.md`](docs/relayer.md) — gateway, SDK, and preflight boundary.
-- [`docs/sender-flow.md`](docs/sender-flow.md) — connected-wallet sender module
-  and live gift-creation boundary.
-- [`docs/aa-gate-design.md`](docs/aa-gate-design.md) — receiver and bootstrap
-  sponsorship design.
-- [`docs/verification.md`](docs/verification.md) — live evidence and verification
-  record.
-- [`docs/operations.md`](docs/operations.md) — monitoring and guarded top-up
-  runbook.
-- [`infra/okbund/README.md`](infra/okbund/README.md) — pinned OKBund and VPS
-  operating runbook.
+- [`docs/architecture.md`](docs/architecture.md): contract and account model
+- [`docs/claim-paymaster-design.md`](docs/claim-paymaster-design.md): reserve, validation and `postOp` accounting
+- [`docs/relayer.md`](docs/relayer.md): gateway, SDK and preflight
+- [`docs/sender-flow.md`](docs/sender-flow.md): sender module and gift creation
+- [`docs/receiver-flow.md`](docs/receiver-flow.md): passkey vault and claim flow
+- [`docs/drop-design.md`](docs/drop-design.md) · [`docs/recurring-authorization.md`](docs/recurring-authorization.md): designs that are not deployed
+- [`PROGRESS.md`](PROGRESS.md): implementation history

@@ -1,174 +1,138 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { formatUnits, isAddress, type Address, type EIP1193Provider } from "viem";
-import { ConnectedWalletSender, type SenderAsset } from "@/src/sender";
-import { useRouter } from "next/navigation";
+import { LiveTicker } from "./components/LiveTicker";
+import { Reveal } from "./components/Reveal";
+import { SiteHeader } from "./components/SiteHeader";
+import { XStockArt } from "./components/XStockArt";
+import { EXPLORER, XSTOCKS, formatUsd, useLiveQuotes, type XStock } from "./lib/xstocks";
 
-declare global {
-  interface Window {
-    ethereum?: EIP1193Provider;
-  }
-}
-
-function publicAddress(value: string | undefined, name: string): Address {
-  if (!value || !isAddress(value)) throw new Error(`${name} is not configured with a live address`);
-  return value as Address;
-}
-
-function configuredAssets(): Address[] {
-  return [
-    process.env.NEXT_PUBLIC_CONVEY_WNVDA_TOKEN_ADDRESS,
-    process.env.NEXT_PUBLIC_CONVEY_WAAPL_TOKEN_ADDRESS,
-    process.env.NEXT_PUBLIC_CONVEY_WTSLA_TOKEN_ADDRESS,
-  ].filter((value): value is string => typeof value === "string" && isAddress(value)) as Address[];
-}
+const CONTRACTS = [
+  ["GiftEscrow", process.env.NEXT_PUBLIC_CONVEY_CLAIM_ESCROW_ADDRESS, "Holds each xStock until a signature-bound claim."],
+  ["Claim paymaster", process.env.NEXT_PUBLIC_CONVEY_CLAIM_PAYMASTER_ADDRESS, "Sender-funded ERC-4337 v0.7 gas sponsorship."],
+  ["Asset registry", process.env.NEXT_PUBLIC_CONVEY_ASSET_REGISTRY_ADDRESS, "Certified X Layer xStocks and cash-out routes."],
+] as const;
 
 function shortAddress(value: string): string {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
 
-export default function HomePage() {
-  const router = useRouter();
-  const senderFlow = useRef<ConnectedWalletSender | undefined>(undefined);
-  const [link, setLink] = useState("");
-  const [error, setError] = useState("");
-  const [sender, setSender] = useState<Address>();
-  const [assetAddress, setAssetAddress] = useState<Address>();
-  const [asset, setAsset] = useState<SenderAsset>();
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [status, setStatus] = useState("");
-  const [createdLink, setCreatedLink] = useState("");
-  const [sending, setSending] = useState(false);
-  const assets = useMemo(configuredAssets, []);
-
-  function openGift(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    try {
-      const url = new URL(link.trim());
-      if (!/^\/g\/[0-9a-fA-F]{64}\/?$/u.test(url.pathname) || !/^\d+$/.test(url.searchParams.get("giftId") ?? "")) {
-        throw new Error("Paste a complete Convey gift link.");
-      }
-      router.push(`${url.pathname}${url.search}`);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Paste a complete Convey gift link.");
-    }
-  }
-
-  async function connectSender() {
-    setError("");
-    setStatus("Opening your connected wallet…");
-    try {
-      if (!window.ethereum) throw new Error("Install or unlock an existing EVM wallet to send a gift.");
-      const flow = new ConnectedWalletSender({
-        rpcUrl: process.env.NEXT_PUBLIC_XLAYER_RPC_URL ?? (() => { throw new Error("NEXT_PUBLIC_XLAYER_RPC_URL is not configured"); })(),
-        provider: window.ethereum,
-        deployment: {
-          registry: publicAddress(process.env.NEXT_PUBLIC_CONVEY_ASSET_REGISTRY_ADDRESS, "NEXT_PUBLIC_CONVEY_ASSET_REGISTRY_ADDRESS"),
-          escrow: publicAddress(process.env.NEXT_PUBLIC_CONVEY_CLAIM_ESCROW_ADDRESS, "NEXT_PUBLIC_CONVEY_CLAIM_ESCROW_ADDRESS"),
-          claimPaymaster: publicAddress(process.env.NEXT_PUBLIC_CONVEY_CLAIM_PAYMASTER_ADDRESS, "NEXT_PUBLIC_CONVEY_CLAIM_PAYMASTER_ADDRESS"),
-          claimBaseUrl: window.location.origin,
-        },
-      });
-      const address = await flow.connect();
-      senderFlow.current = flow;
-      setSender(address);
-      setAssetAddress(assets[0]);
-      setStatus("Connected. Reading certified assets from the live registry…");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The wallet could not connect.");
-      setStatus("");
-    }
-  }
-
-  useEffect(() => {
-    if (!senderFlow.current || !assetAddress) return;
-    let cancelled = false;
-    void senderFlow.current.readAsset(assetAddress).then((value) => {
-      if (!cancelled) {
-        setAsset(value);
-        setStatus("Live asset data is ready.");
-      }
-    }).catch((cause: unknown) => {
-      if (!cancelled) setError(cause instanceof Error ? cause.message : "The live asset could not be read.");
-    });
-    return () => { cancelled = true; };
-  }, [assetAddress]);
-
-  async function createGift(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!senderFlow.current || !asset) return;
-    setError("");
-    setCreatedLink("");
-    setSending(true);
-    setStatus("Preparing the live escrow transaction…");
-    try {
-      const gift = await senderFlow.current.createGift({ asset: asset.token, amount, note: note.trim() || undefined });
-      setCreatedLink(gift.claimLink);
-      setStatus(`Gift ${gift.giftId.toString()} is live on X Layer. Share this link.`);
-      setAmount("");
-      setNote("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The gift transaction did not complete.");
-      setStatus("");
-    } finally {
-      setSending(false);
-    }
-  }
+export default function LandingPage() {
+  const quotes = useLiveQuotes();
 
   return (
-    <main>
-      <div className="network-bar">X Layer mainnet · chain 196 · gasless receiver claim</div>
-      <div className="shell">
-        <nav className="nav"><a className="wordmark" href="/">convey.</a><div className="nav-actions"><span className="nav-note">a stock gift, in one link</span><span className="live-pill">live on X Layer</span></div></nav>
-        <section className="hero">
-          <div className="hero-copy">
-            <div className="eyebrow">Real assets, warmly delivered</div>
-            <h1>Send a stock<br /><span>like a feeling.</span></h1>
-            <p className="lede">A sender pays. A receiver opens a link. The asset arrives in a smart account they never had to set up.</p>
-            <form className="link-form gift-form" onSubmit={openGift}>
-              <input aria-label="Gift link" value={link} onChange={(event) => setLink(event.target.value)} placeholder="Paste a Convey gift link" inputMode="url" />
-              <button className="primary-button" type="submit">Open the gift ↗</button>
-            </form>
-            {error ? <p className="error" role="alert">{error}</p> : <p className="fine-print">No wallet. No OKB. No gas. The link is the gift.</p>}
-            <div className="mini-proof" aria-label="Convey benefits"><span>real ownership</span><span>gasless claim</span><span>X Layer native</span></div>
-          </div>
-          <div className="hero-art" aria-hidden="true">
-            <div className="art-orbit" />
-            <div className="art-card back"><div className="art-kicker">X Layer / 196</div></div>
-            <div className="art-card main"><div className="art-kicker">A gift for you</div><div className="asset-top"><div className="asset-id"><div className="asset-icon">NV</div><div><div className="asset-name">NVDAx</div><div className="asset-sub">tokenized exposure</div></div></div><div className="asset-status">ready</div></div><div className="art-name">Live issuer value</div><div className="art-value">Live</div><div className="art-delta">verified at claim time</div><div className="chart-line" /><div className="art-footer"><span className="claim-stamp">✦ gasless claim</span><span>onchain gift</span></div></div>
-            <div className="art-badge">No wallet needed</div>
-          </div>
-        </section>
+    <main className="page">
+      <LiveTicker />
+      <SiteHeader>
+        <a className="button button-light" href="/app">Launch app</a>
+      </SiteHeader>
 
-        <section className="proof-grid" aria-label="How Convey works">
-          <div className="proof-step"><div className="proof-number">01</div><h2>Choose the feeling</h2><p>Pick a certified tokenized asset and add a note that makes the gift yours.</p></div>
-          <div className="proof-step"><div className="proof-number">02</div><h2>Send one link</h2><p>The receiver opens a private link. No wallet setup or gas balance required.</p></div>
-          <div className="proof-step"><div className="proof-number">03</div><h2>They own it</h2><p>A sponsored claim puts the live asset in their own smart account.</p></div>
-        </section>
-        <section className="sender-panel" aria-labelledby="send-heading">
-          <div className="eyebrow">For the sender</div>
-          <h2 id="send-heading">Gift from the wallet you already use.</h2>
-          <p className="panel-copy">Connect an existing wallet, choose a certified asset, and fund a real claim. Convey never creates or holds the sender&apos;s key.</p>
-          {!sender ? <button className="primary-button" type="button" onClick={connectSender}>Connect wallet</button> : (
-            <>
-              <div className="sender-meta"><span>Connected {shortAddress(sender)}</span><span>{status}</span></div>
-              <div className="sender-asset-row">
-                <label>Asset<select value={assetAddress ?? ""} onChange={(event) => setAssetAddress(event.target.value as Address)}>{assets.map((value) => <option key={value} value={value}>{shortAddress(value)}</option>)}</select></label>
-                {asset ? <span className="live-balance">Live balance: {formatUnits(asset.balance, asset.decimals)} {asset.symbol}</span> : null}
-              </div>
-              {asset ? <form className="gift-form sender-form" onSubmit={createGift}>
-                <label>Amount<input value={amount} onChange={(event) => setAmount(event.target.value)} placeholder={`e.g. 0.01 ${asset.symbol}`} inputMode="decimal" required /></label>
-                <label>Note <span className="optional">optional</span><input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Happy birthday" /></label>
-                <button className="primary-button" type="submit" disabled={sending}>{sending ? "Sending…" : "Create real gift"}</button>
-              </form> : null}
-              {createdLink ? <div className="created-link"><span>Gift link</span><a href={createdLink}>{createdLink}</a></div> : null}
-            </>
-          )}
-        </section>
-      </div>
+      <section className="hero">
+        <div className="hero-copy">
+          <span className="eyebrow"><i className="pulse" />Live on X Layer mainnet</span>
+          <h1>Gift a share of NVIDIA.<br /><span className="gradient-text">In one link.</span></h1>
+          <p className="lede">
+            Send tokenized xStocks from OKX Wallet. Your recipient opens a link, taps their fingerprint, and owns the
+            asset in their own smart account. No wallet to install, no OKB to buy, no gas to pay.
+          </p>
+          <div className="hero-actions">
+            <a className="button" href="/app?connect=1">Connect OKX Wallet</a>
+            <a className="button button-ghost" href="/app#open">I received a gift</a>
+          </div>
+          <dl className="hero-stats">
+            <div><dt>0 OKB</dt><dd>receiver gas</dd></div>
+            <div><dt>1 link</dt><dd>to deliver</dd></div>
+            <div><dt>196</dt><dd>X Layer chain</dd></div>
+          </dl>
+        </div>
+        <HeroCards quotes={quotes} />
+      </section>
+
+      <Reveal className="stack">
+        <span className="stack-label">Built on the OKX stack</span>
+        <ul>
+          <li><b>X Layer</b>settlement</li>
+          <li><b>OKX Wallet</b>sender</li>
+          <li><b>xStocks</b>assets</li>
+          <li><b>OKX Smart Wallet</b>receiver</li>
+          <li><b>OKBund</b>ERC-4337 bundler</li>
+        </ul>
+      </Reveal>
+
+      <section className="section" id="how">
+        <Reveal><h2 className="section-title">From your wallet to theirs,<br />without the wallet setup.</h2></Reveal>
+        <div className="steps">
+          {[
+            ["01", "Pick an xStock", "Choose NVDAx, AAPLx or TSLAx from Convey's certified X Layer registry and fund the gift from OKX Wallet."],
+            ["02", "Share one link", "The link holds a one-time key. It never touches the chain, so a copied claim cannot be redirected."],
+            ["03", "They claim gasless", "A passkey creates their OKX Smart Wallet. Your small OKB reserve pays their gas through Convey's paymaster."],
+          ].map(([number, title, body], index) => (
+            <Reveal className="step" key={number} delay={index * 120}>
+              <span className="step-number">{number}</span>
+              <h3>{title}</h3>
+              <p>{body}</p>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      <section className="section" id="assets">
+        <Reveal><h2 className="section-title">Real xStocks. Live prices.</h2></Reveal>
+        <div className="xstock-grid">
+          {XSTOCKS.map((stock, index) => (
+            <Reveal className="xstock-option xstock-static" key={stock.ticker} delay={index * 100}>
+              <XStockArt stock={stock} />
+              <span className="xstock-name"><b>{stock.ticker}</b>{stock.company}</span>
+              <span className="xstock-price">{quotes[stock.ticker] !== undefined ? formatUsd(quotes[stock.ticker]!) : "—"}<small>issuer quote</small></span>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      <section className="section" id="proof">
+        <Reveal><h2 className="section-title">Onchain, not a demo.</h2></Reveal>
+        <div className="proof-grid">
+          {CONTRACTS.map(([name, address, body], index) => (
+            <Reveal className="proof-card" key={name} delay={index * 100}>
+              <h3>{name}</h3>
+              <p>{body}</p>
+              {address ? <a className="mono-link" href={`${EXPLORER}/address/${address}`} target="_blank" rel="noreferrer">{shortAddress(address)} ↗</a> : null}
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      <Reveal className="cta-band">
+        <h2>Someone deserves a share of the future.</h2>
+        <a className="button" href="/app?connect=1">Send your first xStock</a>
+      </Reveal>
+
+      <footer className="footer">
+        <span>convey. · xStock gifts on X Layer</span>
+        <span>xStocks are tokenized exposure, not shares held on your behalf. Not investment advice.</span>
+      </footer>
     </main>
+  );
+}
+
+function HeroCards({ quotes }: { quotes: Partial<Record<XStock["ticker"], number>> }) {
+  return (
+    <div className="hero-art" aria-hidden="true">
+      <div className="glow" />
+      <div className="orbit orbit-one" />
+      <div className="orbit orbit-two" />
+      {XSTOCKS.map((stock, index) => (
+        <div className={`gift-card gift-card-${index}`} key={stock.ticker}>
+          <div className="gift-card-top">
+            <XStockArt stock={stock} size={40} />
+            <span className="gift-card-name"><b>{stock.ticker}</b>{stock.company}</span>
+            <span className="ribbon">gift</span>
+          </div>
+          <div className="gift-card-price">{quotes[stock.ticker] !== undefined ? formatUsd(quotes[stock.ticker]!) : "live quote"}</div>
+          <svg className="spark" viewBox="0 0 200 48" preserveAspectRatio="none"><path d="M0 40 C30 36 40 18 70 24 S120 38 140 16 S180 10 200 4" /></svg>
+          <div className="gift-card-foot"><span>X Layer · 196</span><span>gasless claim</span></div>
+        </div>
+      ))}
+      <div className="toast"><span className="check">✓</span>Gift claimed · 0 gas paid</div>
+    </div>
   );
 }
