@@ -165,6 +165,7 @@ third-party audit.
 | Milestone | Evidence |
 |---|---|
 | Sponsored ERC-4337 v0.7 operation through private OKBund | [`0xfdb3ef41…df09`](https://www.oklink.com/xlayer/tx/0xfdb3ef41083b02282a304c948194b1ec9dca42d14f5fec258b8a12c2e7b4df09) |
+| **End-to-end browser claim through the v2 escrow**: a new recipient, a passkey, zero gas, 23 s to confirmation | [`0x47236b16…0283`](https://www.oklink.com/xlayer/tx/0x47236b167d21a6acf9f20f7c932baeb132904c6106c740eb021df63129a00283) |
 | Gasless gift claim (Gift 2, 0.0309 NVDAx, v1 escrow) | [`docs/verification.md`](docs/verification.md) |
 | Gasless NVDAx → USDT0 cash-out through the exit paymaster | [`docs/verification.md`](docs/verification.md) |
 | v2 escrow deployment and migration | [`0x24175d02…0e69`](https://www.oklink.com/xlayer/tx/0x24175d022c6f34a01956d4c163c604366f4e9eb3b469c94b30dc8bbef9780e69) |
@@ -175,7 +176,6 @@ Every hash, receipt and readback is recorded in
 [`docs/product-deployment.json`](docs/product-deployment.json).
 
 **Not yet proven on mainnet:**
-- a gasless claim through the v2 escrow (gifts 1 and 2 exist and are open);
 - passkey enrollment and recovery on a physical device;
 - removing an owner from the smart account on-chain.
 

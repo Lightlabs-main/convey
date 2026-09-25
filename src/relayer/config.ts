@@ -22,6 +22,10 @@ export interface SelfHostedRelayerConfig {
   bindAddress: string;
   port: number;
   authToken?: string;
+  /** Funded key that creates a first-time receiver's OKX Smart Wallet before its claim. */
+  accountDeployerPrivateKey?: Hex;
+  /** OKX Smart Wallet factory used for receiver accounts. */
+  smartWalletFactory: Address;
   /** Local development only: serve without a bearer token on a loopback bind. */
   allowUnauthenticated?: boolean;
   /** Per-account authorization requests allowed per hour. */
@@ -174,6 +178,8 @@ export function loadSelfHostedRelayerConfig(env: Record<string, string | undefin
     port: integerFromEnv(env, "RELAYER_SERVER_PORT", 8787, 1, 65_535),
     authToken: env.CONVEY_RELAYER_AUTH_TOKEN?.trim() || undefined,
     allowUnauthenticated: env.RELAYER_ALLOW_UNAUTHENTICATED?.trim() === "true",
+    accountDeployerPrivateKey: privateKeyFromEnv(env, "CONVEY_ACCOUNT_DEPLOYER_PRIVATE_KEY"),
+    smartWalletFactory: env.OKX_SMART_WALLET_FACTORY?.trim() ? addressFromEnv(env, "OKX_SMART_WALLET_FACTORY") : "0xdd3fea01cd550c9effc893f346690b9a649f35ef",
     authorizationsPerAccountPerHour: integerFromEnv(env, "RELAYER_AUTHORIZATIONS_PER_ACCOUNT_PER_HOUR", 12, 1, 1_000),
     exitDailyCapWei: env.RELAYER_EXIT_DAILY_CAP_WEI?.trim() ? positiveBigIntFromEnv(env, "RELAYER_EXIT_DAILY_CAP_WEI") : undefined,
     claimPaymasterSignerPrivateKey: privateKeyFromEnv(env, "CONVEY_CLAIM_PAYMASTER_SIGNER_PRIVATE_KEY"),

@@ -2,6 +2,53 @@
 
 Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core, persistent private gateway, and public HTTPS web edge are now deployed; persistent browser enrollment/recovery proof, owner-revocation proof, and browser mainnet proof remain open.
 
+## First end-to-end browser claim through the v2 escrow (mainnet) — 2026-09-25
+
+A brand-new recipient claimed Gift 2 (0.00035 wNVDAx, created by the
+recurring-hook agent) through the live site:
+- a phone-sized Chromium window on `conveyapp.site`;
+- a WebAuthn passkey from Chromium's virtual authenticator;
+- the production gateway, OKBund and the v2 claim paymaster.
+
+The recipient paid no gas. The recording is the demo video's claim scene.
+
+- Claim transaction: `0x47236b167d21a6acf9f20f7c932baeb132904c6106c740eb021df63129a00283`
+  (block 71589829); `GiftClaimed(2, 0xfa5D68Fb2b53aC34bbC23Af8D8e0c7579DffdcE5)`.
+- Readback: `giftState(2) = Claimed`; the recipient holds `350000000000000`
+  wNVDAx. It took 23 seconds from tapping "Claim this gift" to confirmation.
+- Gift 1 was claimed earlier by a script, through the same live gateway, for
+  a pre-created recipient: `0x7e6e4f08a52d1116747c0eaac496b2ed4debf17f8ada5ff98a3cde9fa5f21458`.
+
+Getting there exposed five production defects that blocked every browser claim
+by a new recipient. All five were fixed and deployed:
+
+1. **Detached `fetch`.** The relay and RPC clients called a detached
+   `window.fetch`, which browsers reject with "Illegal invocation". They now
+   call a bound `fetch`, and a regression test covers it.
+2. **Wrong gas for first-time recipients.** The claim's starting gas came
+   from a claim by an already-deployed account.
+   - Deployment then failed with AA26, and naive increases broke the
+     0.00002 OKB reserve cap.
+   - Claims now use the proven limits, falling back to limits measured by
+     tracing a first-time claim on a mainnet fork, always checked against the
+     cap.
+3. **Preflight misread events.** The gateway's preflight used a custom
+   JavaScript tracer that misdecoded `UserOperationEvent` data (reading
+   `success = false`) on NodeFlare. It now uses the node's built-in
+   `callTracer` with logs, ignoring logs from reverted frames.
+4. **OKBund rejects combined deploy-and-claim.** OKBund's validation
+   simulation rejected operations that both deploy the account and claim
+   (AA33).
+   - The gateway now creates a first-time recipient's OKX Smart Wallet with a
+     dedicated, small-balance key (`0x36B71bBa5CD63Aa1cF31feA4aCc20e2a1422D3a1`,
+     funded with 0.0002 OKB in
+     `0xf4e76a059f441fe222a32b7de93475c601496629e01124c34c2fbf72038815ef`).
+   - It does this only for an open gift, and only once per gift.
+5. **Nothing triggered bundling.** OKBund runs in manual bundling mode and the
+   gateway never asked it to bundle, so accepted claims and exits would wait
+   indefinitely. The gateway now calls `debug_bundler_sendBundleNow` after
+   every accepted operation.
+
 ## On-chain recurring gifts with ConveyRecurringGiftHook (mainnet) — 2026-09-25
 
 A disposable OKX Smart Wallet acted as the sender. A second, non-admin agent

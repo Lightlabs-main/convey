@@ -328,3 +328,37 @@ test("claim paymaster authorization excludes its self-referential signature", as
   assert.equal(signed.digest, digest);
   assert.equal(signed.signature, signature);
 });
+
+test("relay and RPC clients call fetch bound to the global object, as browsers require", async () => {
+  const { ConveyRelayerClient } = await import("../src/relayer/client.ts");
+  const { JsonRpcClient } = await import("../src/relayer/rpc.ts");
+  const original = globalThis.fetch;
+  let receiver: unknown;
+  globalThis.fetch = function (this: unknown) {
+    receiver = this;
+    return Promise.resolve(new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: "0xc4" }), { headers: { "content-type": "application/json" } }));
+  } as typeof fetch;
+  try {
+    await new JsonRpcClient("https://rpc.example").request("eth_chainId");
+    assert.equal(receiver, globalThis, "JsonRpcClient must not call a detached fetch");
+    receiver = undefined;
+    await new ConveyRelayerClient({ relayUrl: "https://relay.example", entryPoint }).health().catch(() => undefined);
+    assert.equal(receiver, globalThis, "ConveyRelayerClient must not call a detached fetch");
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("preflight reads events from the built-in call trace and ignores reverted frames", async () => {
+  const { logsFromCallTrace } = await import("../src/relayer/preflight.ts");
+  const kept = { topics: ["0x01"], data: "0x02" };
+  const dropped = { topics: ["0x03"], data: "0x04" };
+  const logs = logsFromCallTrace({
+    logs: [kept],
+    calls: [
+      { error: "execution reverted", logs: [dropped], calls: [{ logs: [dropped] }] },
+      { calls: [{ logs: [kept] }] },
+    ],
+  });
+  assert.deepEqual(logs, [kept, kept]);
+});

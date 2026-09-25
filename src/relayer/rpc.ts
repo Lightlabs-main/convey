@@ -68,7 +68,8 @@ export class JsonRpcClient {
   constructor(rawUrl: string, options: JsonRpcClientOptions = {}) {
     this.url = assertPrivateRpcUrl(rawUrl, "RPC URL");
     this.timeoutMs = boundedTimeout(options.timeoutMs);
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    // Bound so browsers accept it: a detached window.fetch throws "Illegal invocation".
+    this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
   }
 
   async request<T>(method: string, params: readonly unknown[] = []): Promise<T> {

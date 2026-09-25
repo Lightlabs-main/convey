@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { decodeAbiParameters, decodeFunctionData, encodeFunctionData, keccak256, stringToBytes } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { createPublicClient, createWalletClient, http } from "viem";
 import { DailySpendCap, FixedWindowLimiter } from "./limits.ts";
 import { checkRelayerHealth } from "./health.ts";
 import { assertClaimExecutionCalldata, decodeClaimExecutionCalldata } from "./claim-policy.ts";
@@ -277,6 +278,11 @@ function packedSeedFromTransaction(input: Hex, sender: Address, nonce: Hex): Rpc
   if (!match) throw new Error("bundle transaction did not contain the configured gas seed operation");
   return toRpcUserOperation(match as PackedUserOperation);
 }
+
+const SMART_WALLET_FACTORY_ABI = [
+  { type: "function", name: "getAddress", stateMutability: "view", inputs: [{ name: "owners", type: "tuple[]", components: [{ name: "keyHash", type: "bytes32" }, { name: "validator", type: "address" }] }, { name: "salt", type: "uint256" }], outputs: [{ type: "address" }] },
+  { type: "function", name: "createAccount", stateMutability: "payable", inputs: [{ name: "owners", type: "tuple[]", components: [{ name: "keyHash", type: "bytes32" }, { name: "validator", type: "address" }] }, { name: "salt", type: "uint256" }], outputs: [{ type: "address" }] },
+] as const;
 
 function json(response: ServerResponse, status: number, value: unknown): void {
   const body = JSON.stringify(value);
@@ -668,6 +674,60 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
     };
   }
 
+  /** Best effort: the operation is already accepted, and a later submission bundles it too. */
+  async function bundleNow(): Promise<void> {
+    try {
+      await bundler.sendBundleNow();
+    } catch {
+      // OKBund rejects the call while a bundle is in flight; the pending operation is kept.
+    }
+  }
+
+  const sponsoredAccountGifts = new Set<string>();
+
+  /**
+   * Creates a first-time receiver's OKX Smart Wallet for an open gift. OKBund's
+   * validation simulation rejects claims that also deploy the account (AA33),
+   * so the account is created first by a plain factory call. Only one account
+   * is created per gift, and only while that gift's claim reserve is open.
+   */
+  async function deployReceiverAccount(request: { owner: Address; salt: bigint; giftId: bigint }): Promise<{ account: Address; deployed: true; transactionHash?: Hex }> {
+    const key = config.accountDeployerPrivateKey;
+    if (!key) throw new HttpProblem(503, "account_deployment_unavailable");
+    const owners = [{ keyHash: keccak256(request.owner), validator: "0x0000000000000000000000000000000000000001" as Address }];
+    const account = decodeAbiParameters([{ type: "address" }], await execution.request<Hex>("eth_call", [{ to: config.smartWalletFactory, data: encodeFunctionData({ abi: SMART_WALLET_FACTORY_ABI, functionName: "getAddress", args: [owners, request.salt] }) }, "latest"]))[0];
+    const code = await execution.request<Hex>("eth_getCode", [account, "latest"]);
+    if (code && code !== "0x") return { account, deployed: true };
+    let reserve: { remaining: bigint; state: number };
+    try {
+      reserve = await readReserve(execution, config.paymaster, request.giftId);
+    } catch {
+      throw new HttpProblem(409, "gift_claim_reserve_unavailable");
+    }
+    if (reserve.state !== 0 || reserve.remaining === 0n) throw new HttpProblem(409, "gift_claim_reserve_unavailable");
+    const giftKey = request.giftId.toString();
+    if (sponsoredAccountGifts.has(giftKey)) throw new HttpProblem(409, "account_already_created_for_gift");
+    sponsoredAccountGifts.add(giftKey);
+    try {
+      const deployer = privateKeyToAccount(key);
+      const chain = { id: config.chainId, name: "X Layer", nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 }, rpcUrls: { default: { http: [config.executionRpcUrl] } } } as const;
+      const wallet = createWalletClient({ account: deployer, chain, transport: http(config.executionRpcUrl) });
+      const publicClient = createPublicClient({ chain, transport: http(config.executionRpcUrl) });
+      const transactionHash = await wallet.sendTransaction({
+        to: config.smartWalletFactory,
+        data: encodeFunctionData({ abi: SMART_WALLET_FACTORY_ABI, functionName: "createAccount", args: [owners, request.salt] }),
+        gasPrice: await publicClient.getGasPrice(),
+      });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: transactionHash, timeout: 60_000 });
+      if (receipt.status !== "success") throw new Error("account creation reverted");
+      return { account, deployed: true, transactionHash };
+    } catch (error) {
+      sponsoredAccountGifts.delete(giftKey);
+      if (error instanceof HttpProblem) throw error;
+      throw new HttpProblem(502, "account_deployment_failed");
+    }
+  }
+
   function takeAuthorization(kind: "claim" | "exit", account: string): void {
     if (!globalAuthorizations.take("all") || !accountAuthorizations.take(`${kind}:${account.toLowerCase()}`)) {
       throw new HttpProblem(429, "authorization_rate_limited");
@@ -855,6 +915,15 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
       json(response, 200, await readUserOperationStatus(bundler, execution, config.entryPoint, userOperationHash));
       return;
     }
+    if (request.method === "POST" && path === "/v1/accounts") {
+      const body = await readJson(request, config.maxBodyBytes);
+      if (!isObject(body) || typeof body.owner !== "string" || !isAddress(body.owner) || typeof body.salt !== "string" || !/^\d+$/u.test(body.salt) || typeof body.giftId !== "string" || !/^\d+$/u.test(body.giftId)) {
+        throw new HttpProblem(400, "invalid_account_request");
+      }
+      if (!globalAuthorizations.take("all") || !accountAuthorizations.take(`deploy:${body.giftId}`)) throw new HttpProblem(429, "authorization_rate_limited");
+      json(response, 200, await deployReceiverAccount({ owner: body.owner as Address, salt: BigInt(body.salt), giftId: BigInt(body.giftId) }));
+      return;
+    }
     if (request.method === "POST" && path === "/v1/claims/authorize") {
       const body = await readJson(request, config.maxBodyBytes);
       const claim = parseClaimAuthorizationRequest(body, config.entryPoint, config.paymaster);
@@ -901,6 +970,7 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
         throw new HttpProblem(409, "exit_simulation_failed");
       }
       const userOperationHash = await bundler.sendUserOperation(parsed.userOperation, parsed.entryPoint);
+      await bundleNow();
       if (parsed.idempotencyKey) submissions.set(`exit:${parsed.idempotencyKey}`, { userOperationHash, expiresAt: Date.now() + 15 * 60_000 });
       json(response, 202, { userOperationHash, status: "submitted" });
       return;
@@ -946,6 +1016,7 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
       throw new HttpProblem(409, "claim_simulation_failed");
     }
     const userOperationHash = await bundler.sendUserOperation(claim.userOperation, claim.entryPoint);
+    await bundleNow();
     if (claim.idempotencyKey) submissions.set(claim.idempotencyKey, { userOperationHash, expiresAt: Date.now() + 15 * 60_000 });
     json(response, 202, { userOperationHash, status: "submitted" });
   }

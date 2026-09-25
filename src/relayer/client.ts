@@ -87,11 +87,20 @@ export class ConveyRelayerClient {
     this.chainId = options.chainId;
     this.timeoutMs = timeoutValue(options.timeoutMs);
     this.authToken = options.authToken;
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    // Bound so browsers accept it: a detached window.fetch throws "Illegal invocation".
+    this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
   }
 
   async health(): Promise<unknown> {
     return this.request("GET", "/healthz");
+  }
+
+  /**
+   * Asks the gateway to create a first-time receiver's OKX Smart Wallet for an
+   * open gift, so the sponsored claim can run against a deployed account.
+   */
+  async deployAccount(owner: Address, salt: bigint, giftId: bigint): Promise<{ account: Address; deployed: boolean; transactionHash?: Hex }> {
+    return this.request("POST", "/v1/accounts", { owner, salt: salt.toString(), giftId: giftId.toString() }, 90_000);
   }
 
   async estimateClaim(userOperation: PackedUserOperation | RpcUserOperationV07): Promise<UserOperationGasEstimate> {
@@ -303,9 +312,9 @@ export class ConveyRelayerClient {
     throw new Error("exit relay timed out while waiting for a receipt");
   }
 
-  private async request(method: "GET" | "POST", path: string, body?: unknown): Promise<any> {
+  private async request(method: "GET" | "POST", path: string, body?: unknown, timeoutMs = this.timeoutMs): Promise<any> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const headers: Record<string, string> = { accept: "application/json" };
     if (body !== undefined) headers["content-type"] = "application/json";
     if (this.authToken) headers.authorization = `Bearer ${this.authToken}`;

@@ -96,3 +96,20 @@ test("receiver re-derives its deterministic account from the persisted owner", a
   assert.equal(method, "eth_call");
   assert.equal(account, expected);
 });
+
+test("claim gas uses measured limits inside the paymaster cost cap", async () => {
+  const { claimGas: firstClaimGas } = await import("../src/receiver/flow.ts");
+  const seed = {
+    gas: { callGasLimit: 400_000n, verificationGasLimit: 200_000n, preVerificationGas: 60_000n, maxFeePerGas: 21_000_000n, maxPriorityFeePerGas: 1n },
+    paymasterVerificationGasLimit: 200_000n,
+    paymasterPostOpGasLimit: 80_000n,
+  };
+  const cap = 20_000_000_000_000n; // 0.00002 OKB
+  assert.equal(firstClaimGas({ ...seed, gas: { ...seed.gas, maxFeePerGas: 20_000_001n } }, cap).gas.callGasLimit, 400_000n, "the proven seed is used when it fits");
+  const fitted = firstClaimGas(seed, cap);
+  const total = fitted.gas.callGasLimit + fitted.gas.verificationGasLimit + fitted.gas.preVerificationGas + fitted.paymasterVerificationGasLimit + fitted.paymasterPostOpGasLimit;
+  assert.ok(total * seed.gas.maxFeePerGas <= cap, "the authorized maximum cost stays within the cap");
+  assert.ok(fitted.gas.callGasLimit > 132_000n, "measured gift call gas with headroom");
+  assert.ok(fitted.paymasterVerificationGasLimit > 97_393n && fitted.paymasterPostOpGasLimit > 77_160n, "measured paymaster gas with headroom");
+  assert.throws(() => firstClaimGas({ ...seed, gas: { ...seed.gas, maxFeePerGas: 40_000_000n } }, cap), /fees are too high/);
+});

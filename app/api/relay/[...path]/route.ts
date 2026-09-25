@@ -10,6 +10,7 @@ function allowedPath(path: string): boolean {
     || path === "v1/claims/authorize"
     || path === "v1/claims/estimate"
     || path === "v1/claims/gas-seed"
+    || path === "v1/accounts"
     || (path.startsWith("v1/claims/") && CLAIM_HASH.test(path.slice("v1/claims/".length)))
     || path === "v1/exits"
     || path === "v1/exits/quote"
@@ -19,7 +20,7 @@ function allowedPath(path: string): boolean {
 }
 
 // Sponsor-signing and submission routes are the costly ones; reads stay cheap.
-const SPONSOR_WRITE_PATHS = new Set(["v1/claims", "v1/claims/authorize", "v1/exits", "v1/exits/authorize", "v1/exits/quote"]);
+const SPONSOR_WRITE_PATHS = new Set(["v1/accounts", "v1/claims", "v1/claims/authorize", "v1/exits", "v1/exits/authorize", "v1/exits/quote"]);
 const writesPerIp = new FixedWindowLimiter(30, 10 * 60 * 1000);
 const requestsPerIp = new FixedWindowLimiter(300, 10 * 60 * 1000);
 

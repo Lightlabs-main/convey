@@ -734,12 +734,74 @@ export function receiverClaimGasSeedFromLive(seed: ClaimGasSeed): ReceiverClaimG
  * reports a larger limit, the operation is rebuilt with those returned fields
  * and re-authorized. No gas number is invented by the receiver flow.
  */
+/**
+ * Claim limits measured by tracing a claim through the v2 escrow and paymaster
+ * on an X Layer mainnet fork (validation 8k, paymaster validation 97k, gift
+ * call 132k, postOp 77k), with headroom. The paymaster keeps the larger live
+ * seed value, because OKBund's validation run needs more than 130k (AA33).
+ */
+export const CLAIM_GAS = {
+  verificationGasLimit: 150_000n,
+  callGasLimit: 180_000n,
+  paymasterVerificationGasLimit: 130_000n,
+  paymasterPostOpGasLimit: 100_000n,
+} as const;
+
+/** Headroom over the live bundler estimate for the final signed operation. */
+const ESTIMATE_HEADROOM_PERCENT = 120n;
+
+function withHeadroom(value: bigint): bigint {
+  return (value * ESTIMATE_HEADROOM_PERCENT + 99n) / 100n;
+}
+
+function claimCost(value: ReceiverClaimGasSeed): bigint {
+  return (value.gas.verificationGasLimit + value.gas.callGasLimit + value.gas.preVerificationGas
+    + value.paymasterVerificationGasLimit + value.paymasterPostOpGasLimit) * value.gas.maxFeePerGas;
+}
+
+/**
+ * Picks claim limits under the paymaster's cost cap. The live seed's limits
+ * are the ones OKBund has accepted on mainnet, so they are used whenever they
+ * fit; the measured compact limits are the fallback when fees rise.
+ */
+export function claimGas(seed: ReceiverClaimGasSeed, maxClaimCost: bigint): ReceiverClaimGasSeed {
+  if (claimCost(seed) <= maxClaimCost) return seed;
+  const fitted: ReceiverClaimGasSeed = {
+    gas: { ...seed.gas, verificationGasLimit: CLAIM_GAS.verificationGasLimit, callGasLimit: CLAIM_GAS.callGasLimit },
+    paymasterVerificationGasLimit: maxBigint(seed.paymasterVerificationGasLimit, CLAIM_GAS.paymasterVerificationGasLimit),
+    paymasterPostOpGasLimit: CLAIM_GAS.paymasterPostOpGasLimit,
+  };
+  if (claimCost(fitted) > maxClaimCost) {
+    throw new Error("network fees are too high right now for this gift's sponsored claim; try again shortly");
+  }
+  return fitted;
+}
+
+const CLAIM_PAYMASTER_POLICY_ABI = [
+  { type: "function", name: "maxClaimCost", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+] as const;
+
 export async function prepareReceiverClaim(options: ReceiverClaimPreparationOptions): Promise<PreparedReceiverClaim> {
   const maxPasses = options.maxPasses ?? 3;
   if (!Number.isInteger(maxPasses) || maxPasses < 1 || maxPasses > 5) throw new Error("maxPasses must be between 1 and 5");
-  let gas = options.gasSeed.gas;
-  let paymasterVerificationGasLimit = options.gasSeed.paymasterVerificationGasLimit;
-  let paymasterPostOpGasLimit = options.gasSeed.paymasterPostOpGasLimit;
+  const claimer = await readReceiverAccountAddress(options.executionRpcUrl, options.factory, options.signer.address, options.salt, options.fetchImpl);
+  const client = createPublicClient({ transport: http(options.executionRpcUrl, { fetchFn: options.fetchImpl }) });
+  // OKBund cannot validate a claim that also deploys the account, so a
+  // first-time receiver's account is created by the gateway first.
+  const accountCode = await client.getCode({ address: claimer });
+  if (!accountCode || accountCode === "0x") {
+    await options.relay.deployAccount(options.signer.address, options.salt, options.claim.giftId);
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const code = await client.getCode({ address: claimer });
+      if (code && code !== "0x") break;
+      if (attempt === 19) throw new Error("receiver account was not created in time; try again");
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+  const start = claimGas(options.gasSeed, await client.readContract({ address: options.paymaster, abi: CLAIM_PAYMASTER_POLICY_ABI, functionName: "maxClaimCost" }));
+  let gas = start.gas;
+  let paymasterVerificationGasLimit = start.paymasterVerificationGasLimit;
+  let paymasterPostOpGasLimit = start.paymasterPostOpGasLimit;
 
   for (let pass = 0; pass < maxPasses; pass += 1) {
     const built = await buildReceiverClaim({
@@ -749,24 +811,19 @@ export async function prepareReceiverClaim(options: ReceiverClaimPreparationOpti
       paymasterPostOpGasLimit,
     });
     const estimate = await options.relay.estimateClaim(built.userOperation.userOperation);
+    // A successful estimate proves the current verification and paymaster limits suffice
+    // (the bundler's own figures are padded suggestions). Call gas comes from the estimate
+    // when the bundler can simulate it; for an account deployed by this claim it reports 0,
+    // and the budgeted value stands. The gateway's preflight still proves the inner call succeeds.
+    const estimatedCall = BigInt(estimate.callGasLimit ?? "0x0");
     const nextGas: OkxClaimGas = {
-      callGasLimit: maxBigint(gas.callGasLimit, positiveEstimateValue(estimate.callGasLimit, "callGasLimit")),
-      verificationGasLimit: maxBigint(gas.verificationGasLimit, positiveEstimateValue(estimate.verificationGasLimit, "verificationGasLimit")),
+      ...gas,
+      callGasLimit: estimatedCall > 0n ? withHeadroom(estimatedCall) : gas.callGasLimit,
       preVerificationGas: maxBigint(gas.preVerificationGas, positiveEstimateValue(estimate.preVerificationGas, "preVerificationGas")),
-      maxFeePerGas: gas.maxFeePerGas,
-      maxPriorityFeePerGas: gas.maxPriorityFeePerGas,
     };
-    const nextPaymasterVerificationGasLimit = estimate.paymasterVerificationGasLimit === undefined
-      ? paymasterVerificationGasLimit
-      : maxBigint(paymasterVerificationGasLimit, positiveEstimateValue(estimate.paymasterVerificationGasLimit, "paymasterVerificationGasLimit"));
-    const nextPaymasterPostOpGasLimit = estimate.paymasterPostOpGasLimit === undefined
-      ? paymasterPostOpGasLimit
-      : maxBigint(paymasterPostOpGasLimit, positiveEstimateValue(estimate.paymasterPostOpGasLimit, "paymasterPostOpGasLimit"));
-    const converged = nextGas.callGasLimit === gas.callGasLimit
-      && nextGas.verificationGasLimit === gas.verificationGasLimit
-      && nextGas.preVerificationGas === gas.preVerificationGas
-      && nextPaymasterVerificationGasLimit === paymasterVerificationGasLimit
-      && nextPaymasterPostOpGasLimit === paymasterPostOpGasLimit;
+    const nextPaymasterVerificationGasLimit = paymasterVerificationGasLimit;
+    const nextPaymasterPostOpGasLimit = paymasterPostOpGasLimit;
+    const converged = nextGas.callGasLimit === gas.callGasLimit && nextGas.preVerificationGas === gas.preVerificationGas;
     if (converged) {
       return {
         ...built,

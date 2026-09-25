@@ -41,7 +41,8 @@
     "withdraw:submit": "node --env-file=.env script/submit-withdrawal-operation.ts",
     "mcp": "node mcp/server.ts",
     "mcp:typecheck": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --strict --skipLibCheck --esModuleInterop --allowImportingTsExtensions --types node mcp/server.ts",
-    "recurring:prove": "node --env-file=.env script/prove-recurring-hook.ts"
+    "recurring:prove": "node --env-file=.env script/prove-recurring-hook.ts",
+    "relayer:typecheck": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --strict --skipLibCheck --allowImportingTsExtensions --types node src/relayer/server.ts"
   },
   "exports": {
     ".": "./src/index.ts",

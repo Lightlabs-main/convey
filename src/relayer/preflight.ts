@@ -72,30 +72,25 @@ export const USER_OPERATION_REVERT_REASON_TOPIC = keccak256(stringToBytes(
  * UserOperationRevertReason then provide the inner execution result that an
  * outer handleOps eth_call does not expose.
  */
-export const ENTRYPOINT_EVENT_TRACE_TRACER = `({
-  logs: [],
-  step: function(log) {
-    var op = log.op.toString();
-    if (op.indexOf("LOG") !== 0) return;
-    var count = parseInt(op.slice(3), 10);
-    var offset = Number(log.stack.peek(0));
-    var size = Number(log.stack.peek(1));
-    var topics = [];
-    var i;
-    for (i = 0; i < count; i++) topics.push("0x" + log.stack.peek(2 + i).toString(16).padStart(64, "0"));
-    var bytes = log.memory.slice(offset, offset + size);
-    var data = "0x";
-    for (i = 0; i < bytes.length; i++) {
-      var value = bytes[i];
-      if (typeof value === "string") value = parseInt(value, 16);
-      var encoded = value.toString(16);
-      data += encoded.length === 1 ? "0" + encoded : encoded.slice(-2);
-    }
-    this.logs.push({ topics: topics, data: data });
-  },
-  result: function() { return { logs: this.logs }; },
-  fault: function() {}
-})`;
+interface CallFrame {
+  error?: string;
+  logs?: { topics?: unknown; data?: unknown }[];
+  calls?: CallFrame[];
+}
+
+/**
+ * Collects event logs from the node's built-in callTracer (withLog), keeping
+ * only logs from frames that did not revert, because reverted frames' events
+ * never reach the chain. The built-in tracer replaces an earlier custom JS
+ * tracer whose memory decoding misread UserOperationEvent data on claims that
+ * deploy the receiver's account.
+ */
+export function logsFromCallTrace(frame: CallFrame): { topics: unknown; data: unknown }[] {
+  if (frame.error) return [];
+  const logs = (frame.logs ?? []).map((log) => ({ topics: log.topics, data: log.data }));
+  for (const call of frame.calls ?? []) logs.push(...logsFromCallTrace(call));
+  return logs;
+}
 
 export interface EntryPointSimulationResult {
   userOperationHash: Hex;
@@ -120,8 +115,9 @@ function logObjects(trace: unknown): readonly Record<string, unknown>[] {
   if (Array.isArray(trace)) {
     return trace.filter((value): value is Record<string, unknown> => !!value && typeof value === "object");
   }
-  if (trace && typeof trace === "object" && Array.isArray((trace as Record<string, unknown>).logs)) {
-    return (trace as Record<string, unknown>).logs.filter(
+  const logs = trace && typeof trace === "object" ? (trace as Record<string, unknown>).logs : undefined;
+  if (Array.isArray(logs)) {
+    return logs.filter(
       (value): value is Record<string, unknown> => !!value && typeof value === "object",
     );
   }
@@ -280,7 +276,10 @@ export async function preflightEntryPointUserOperation(options: EntryPointSimula
       data,
     },
     "latest",
-    { tracer: ENTRYPOINT_EVENT_TRACE_TRACER },
+    { tracer: "callTracer", tracerConfig: { withLog: true } },
   ]);
-  return assertSuccessfulEntryPointSimulation(parseEntryPointSimulationTrace(trace, userOperationHash));
+  const frame = trace as CallFrame;
+  if (!frame || typeof frame !== "object") throw new Error("EntryPoint trace did not return a call frame");
+  if (frame.error) throw new Error(`EntryPoint simulation reverted: ${frame.error}`);
+  return assertSuccessfulEntryPointSimulation(parseEntryPointSimulationTrace({ logs: logsFromCallTrace(frame) }, userOperationHash));
 }

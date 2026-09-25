@@ -32,6 +32,14 @@ export class SelfHostedBundlerClient {
     return this.rpc.request<UserOperationGasEstimate>("eth_estimateUserOperationGas", [userOperation, entryPoint]);
   }
 
+  /**
+   * Asks OKBund to bundle its mempool now. Convey's OKBund runs in manual
+   * bundling mode, so an accepted operation is only mined after this call.
+   */
+  async sendBundleNow(): Promise<void> {
+    await this.rpc.request<unknown>("debug_bundler_sendBundleNow", []);
+  }
+
   async sendUserOperation(userOperation: RpcUserOperationV07, entryPoint: Address): Promise<Hex> {
     assertRpcUserOperationV07(userOperation);
     if (userOperation.signature === "0x") throw new Error("cannot submit an unsigned UserOperation");

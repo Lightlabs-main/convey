@@ -2,6 +2,11 @@
 
 ## Current checkpoint — 2026-09-25
 
+- Completed the first end-to-end browser claim through the v2 escrow on
+  mainnet (Gift 2, `0x47236b16…0283`). Fixed five production defects that
+  blocked new recipients: detached `fetch`, first-claim gas, the preflight
+  tracer, OKBund's deploy-and-claim rejection (the gateway now creates the
+  account), and missing bundling. See `docs/verification.md`.
 - Proved on-chain recurring gifts on X Layer mainnet:
   - a disposable OKX Smart Wallet added a non-admin agent owner bound to
     `ConveyRecurringGiftHook`;
