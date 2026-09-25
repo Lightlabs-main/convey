@@ -3,7 +3,8 @@
 **Gift real stocks in one link, from you or your AI agent.** Convey gifts
 tokenized xStocks (NVDAx, AAPLx, TSLAx) on X Layer. People send from OKX
 Wallet. AI agents gift through Convey's MCP server, one-off or on a recurring
-schedule, after the user approves.
+schedule, after the user approves. Apps and services gift through the
+TypeScript **Convey SDK**.
 The recipient opens the link, confirms with a passkey, and owns the stock in
 their own OKX Smart Wallet. They don't need a wallet first, don't buy OKB, and
 don't pay gas.
@@ -40,6 +41,7 @@ settles to the recipient's own ERC-4337 account, not to a Convey balance.
 | **Recurring budget** | OKX Smart Wallet owner hooks | The agent is a restricted owner; `ConveyRecurringGiftHook` enforces asset, caps, total budget and expiry inside the sender's wallet |
 | **Bundler** | OKX OKBund (pinned) | Self-hosted, private; sponsored UserOperations only |
 | **AI agents** | Convey MCP server | Agents list xStocks, check gifts, and send or reclaim gifts under a per-gift cap with user confirmation |
+| **Developers** | Convey SDK (TypeScript) | Apps and services create, read and reclaim gifts and get claim links with their own wallet or key |
 
 ## How it works
 
@@ -124,6 +126,43 @@ flow and recurring plans (schedule, budget, and crash recovery) were exercised
 against the live v2 contracts on a mainnet fork. See
 [`mcp/README.md`](mcp/README.md).
 
+## For developers: Convey SDK
+
+The Convey SDK is what the web app and the MCP server use to send gifts. Apps,
+bots and backend services can use it directly with their own wallet: the SDK
+signs through any EIP-1193 provider, so keys stay in your process and Convey
+never holds them.
+
+```ts
+import { ConnectedWalletSender } from "convey/sender";
+
+const sender = new ConnectedWalletSender({
+  rpcUrl: "https://rpc.xlayer.tech",
+  provider: window.okxwallet, // or any EIP-1193 provider, e.g. one backed by a server key
+  deployment: {
+    registry: "0x156d160e004B7fb2021CFCA8fC6cF069c3b8b029",
+    escrow: "0xffd2DACE75dbC3bC3f2e10C6c7b011Aa4EC043cD",
+    claimPaymaster: "0x655025c861C1848BA5324863D85BFA32cCF69e5B",
+    claimBaseUrl: "https://conveyapp.site",
+  },
+});
+
+await sender.connect();
+const gift = await sender.createGift({ asset: "0xa8ddb5cd96b5222afe198316e9a57caa642850d5" /* wNVDAx */, amount: "0.01", note: "Happy birthday" });
+console.log(gift.claimLink); // send this link to the recipient
+```
+
+| Entry point | For |
+|---|---|
+| `convey/sender` | Create, read and reclaim gifts, build claim links (`ConnectedWalletSender`) |
+| `convey/receiver` | Passkey vault, enrollment, recovery and the gasless claim flow |
+| `convey/relayer` | Client for Convey's private claim gateway |
+
+The SDK isn't on npm yet; add it from this repository. For headless use with
+a server-held key, [`mcp/local-provider.ts`](mcp/local-provider.ts) shows a
+minimal EIP-1193 provider. See [`docs/relayer.md`](docs/relayer.md) for the
+gateway and claim side.
+
 ## Security design
 
 - **Claims can't be front-run.** The link secret never goes on chain. It signs
@@ -201,7 +240,7 @@ contracts/
   bootstrap/         one-operation account bootstrap paymaster
   recurring/         on-chain recurring-gift hook for agent owners
 src/
-  sender/            OKX Wallet sender SDK
+  sender/            Convey SDK: sender (gift, read, reclaim)
   receiver/          passkey vault, claim and exit builders
   relayer/           gateway, OKX account builder, preflight, limits
 test/, test-solidity/  Node and Foundry suites
