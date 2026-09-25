@@ -24,7 +24,7 @@ interface IOkxRecurringHook {
 ///      key with wallet self-calls. This hook does not implement ERC-7579.
 contract ConveyRecurringGiftHook is IOkxRecurringHook {
     bytes4 public constant CREATE_GIFT_SELECTOR =
-        bytes4(keccak256("createGift(address,uint256,bytes32,bytes32,uint64,bytes32)"));
+        bytes4(keccak256("createGift(address,uint256,address,bytes32,uint64,bytes32)"));
     uint256 private constant CREATE_GIFT_CALL_LENGTH = 4 + (6 * 32);
 
     address public immutable wallet;
@@ -107,17 +107,17 @@ contract ConveyRecurringGiftHook is IOkxRecurringHook {
         (
             address giftAsset,
             uint256 amount,
-            bytes32 secretHash,
+            address claimKey,
             bytes32 giftCodeHash,
             uint64 giftExpiry,
             bytes32 giftNoteHash
-        ) = abi.decode(call.data[4:], (address, uint256, bytes32, bytes32, uint64, bytes32));
+        ) = abi.decode(call.data[4:], (address, uint256, address, bytes32, uint64, bytes32));
 
         giftCodeHash;
         giftNoteHash;
         if (giftAsset != asset) revert InvalidAsset();
         if (amount == 0 || amount > maxGiftAmount) revert InvalidGiftAmount();
-        if (secretHash == bytes32(0)) revert InvalidGiftSecret();
+        if (claimKey == address(0)) revert InvalidGiftSecret();
         if (giftExpiry <= block.timestamp || giftExpiry >= expiresAt) revert InvalidGiftExpiry();
         if (amount > totalBudget - spent) revert BudgetExceeded();
 

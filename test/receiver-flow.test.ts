@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decodeFunctionData, encodeAbiParameters, stringToHex } from "viem";
-import { buildClaimCalldata, issuerApiSymbol, liveGasFromEstimate, parseClaimLink, readReceiverAccountAddress } from "../src/receiver/flow.ts";
+import { decodeFunctionData, encodeAbiParameters, recoverAddress, stringToHex } from "viem";
+import { privateKeyToAddress } from "viem/accounts";
+import { buildClaimCalldata, claimDigest, issuerApiSymbol, liveGasFromEstimate, parseClaimLink, readReceiverAccountAddress } from "../src/receiver/flow.ts";
 
 test("receiver maps wrapper symbols to the issuer API symbols", () => {
   assert.equal(issuerApiSymbol("wNVDAx"), "NVDAx");
@@ -18,9 +19,12 @@ test("receiver parses the bearer secret and non-secret gift lookup hint", () => 
   assert.throws(() => parseClaimLink("https://convey.example/g/not-a-secret?giftId=7"), /32-byte secret/);
 });
 
-test("receiver claim calldata targets the deployed escrow claim interface", () => {
+test("receiver claim calldata carries a claimer-bound signature, never the secret", async () => {
+  const secret = `0x${"cd".repeat(32)}` as const;
+  const escrow = "0x00000000000000000000000000000000000000e5";
+  const claimer = "0x00000000000000000000000000000000000000c1";
   const claim = parseClaimLink(`https://convey.example/g/${"cd".repeat(32)}?giftId=9`);
-  const calldata = buildClaimCalldata(claim, "4471");
+  const calldata = await buildClaimCalldata(claim, claimer, escrow, "4471");
   const decoded = decodeFunctionData({
     abi: [{
       type: "function",
@@ -28,7 +32,7 @@ test("receiver claim calldata targets the deployed escrow claim interface", () =
       stateMutability: "nonpayable",
       inputs: [
         { name: "giftId", type: "uint256" },
-        { name: "secret", type: "bytes" },
+        { name: "claimSignature", type: "bytes" },
         { name: "code", type: "bytes" },
       ],
       outputs: [],
@@ -37,8 +41,12 @@ test("receiver claim calldata targets the deployed escrow claim interface", () =
   });
   assert.equal(decoded.functionName, "claim");
   assert.equal(decoded.args?.[0], 9n);
-  assert.equal(decoded.args?.[1], `0x${"cd".repeat(32)}`);
   assert.equal(decoded.args?.[2], stringToHex("4471"));
+  assert.ok(!calldata.toLowerCase().includes("cd".repeat(32)), "calldata must not contain the link secret");
+  const signature = decoded.args?.[1] as `0x${string}`;
+  assert.equal(await recoverAddress({ hash: claimDigest(escrow, 9n, claimer), signature }), privateKeyToAddress(secret));
+  const otherClaimer = "0x00000000000000000000000000000000000000c2";
+  assert.notEqual(await recoverAddress({ hash: claimDigest(escrow, 9n, otherClaimer), signature }), privateKeyToAddress(secret));
 });
 
 test("receiver uses live bundler estimate fields without defaults", () => {

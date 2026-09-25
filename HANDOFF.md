@@ -51,7 +51,7 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
 - Pinned OKBund is installed and running as a persistent loopback-only service on the Lightsail VPS. Its dedicated bundler wallet is funded. The product contracts and registry entries are deployed on X Layer; public addresses, receipts, and policy are in `docs/product-deployment.json`. Gift ID `1` reached on-chain claim inclusion but failed internally and was reclaimed. Gift ID `2` was subsequently created and claimed successfully through Convey's private route; the evidence is recorded below.
 - The connected-wallet sender module is committed and exported as
   `convey/sender`; the Next.js home surface now connects an injected existing
-  wallet, reads live certified assets, and creates real hashlocked gifts.
+  wallet, reads live certified assets, and creates real signature-bound gifts.
   QR rendering remains separate.
 - The persistent gateway's server-only claim authorization route is deployed.
   Its signer matches the live paymaster verifier; a non-mutating request for
@@ -199,7 +199,7 @@ were excluded from this evidence. No private key or credential was printed.
 
 - Use the existing Lightsail instance; do not ask the user for another server.
 - Instance label: `Holybunnie`; Ubuntu; Stockholm region `eu-north-1a`; public IPv4 `13.62.181.128`; SSH user `ubuntu`; plan shown as 1 GB RAM, 2 vCPUs, 40 GB SSD. NodeFlare is the execution RPC, so this host does not need to run an X Layer node.
-- Its existing private SSH key is the ignored workspace file `LightsailDefaultKey-eu-north-1 (3).pem`. It is owner-readable only, parses as a 2048-bit RSA SSH key, and `.gitignore` excludes `*.pem`. Never print, copy into docs, or commit its contents.
+- Its existing private SSH key now lives outside the repository at `~/.ssh/convey-lightsail.pem` (moved from the workspace root on 2026-09-25). It is owner-readable only, parses as a 2048-bit RSA SSH key, and `.gitignore` excludes `*.pem`. Never print, copy into docs, or commit its contents.
 - The existing key is usable from this workspace; ordinary sandboxed SSH is blocked, so use the approved SSH escalation path. The VPS runs Ubuntu 24.04.4, has 2 GB swap, and already hosts other services; do not restart or overwrite them.
 - Pinned OKBund `77ac3770ba7dd4be949975b142623540e28f60e4` passed `mvn verify` on the VPS with Java 21/Maven. Jar SHA-256: `7aa098ee3629a83c7d08a8672deb2747205c418fbef59d104158b61b4ace7c60`.
 - `convey-okbund.service` is enabled and active. It binds only to `127.0.0.1:3000/rpc`; live RPC returned chain `0xc4` and the canonical v0.7 EntryPoint. A later workspace `pnpm bundler:check` through a temporary SSH tunnel passed for chain 196 and EntryPoint v0.7, superseding an earlier generic connection failure. The persistent `convey-relayer.service` is now enabled and active on `127.0.0.1:8800`; its authenticated live health evidence is in [`docs/verification.md`](docs/verification.md).

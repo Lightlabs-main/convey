@@ -1,13 +1,16 @@
 import {
   createPublicClient,
   defineChain,
+  encodeAbiParameters,
   encodeFunctionData,
   http,
   isAddress,
+  keccak256,
   stringToHex,
   type Address,
   type Hex,
 } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { buildOkxClaimUserOperation, buildOkxExitUserOperation, okxOwnerKeyHash, OKX_ECDSA_VALIDATOR, type BuiltOkxClaimUserOperation, type BuiltOkxExitUserOperation, type OkxClaimGas, type OkxEcdsaMessageSigner } from "../relayer/okx.ts";
 import { buildCashOutCalls, buildWithdrawalCall, type ExitCall } from "../relayer/exit-policy.ts";
 import { exitPaymasterActionHash } from "../relayer/exit-paymaster.ts";
@@ -50,7 +53,7 @@ const ESCROW_ABI = [
           { name: "sender", type: "address" },
           { name: "asset", type: "address" },
           { name: "amount", type: "uint256" },
-          { name: "secretHash", type: "bytes32" },
+          { name: "claimKey", type: "address" },
           { name: "codeHash", type: "bytes32" },
           { name: "expiry", type: "uint64" },
           { name: "noteHash", type: "bytes32" },
@@ -65,7 +68,7 @@ const ESCROW_ABI = [
     stateMutability: "nonpayable",
     inputs: [
       { name: "giftId", type: "uint256" },
-      { name: "secret", type: "bytes" },
+      { name: "claimSignature", type: "bytes" },
       { name: "code", type: "bytes" },
     ],
     outputs: [],
@@ -144,7 +147,7 @@ export interface ReceiverGiftPreview {
   certified: boolean;
   enabled: boolean;
   riskTag: string;
-  secretHash: Hex;
+  claimKey: Address;
   codeRequired: boolean;
   expiry: bigint;
   noteHash: Hex;
@@ -368,13 +371,29 @@ export function parseClaimLink(value: string): ParsedClaimLink {
   return { giftId, secret: `0x${match[1].toLowerCase()}` as Hex };
 }
 
-export function buildClaimCalldata(claim: ParsedClaimLink, code?: string): Hex {
+const CLAIM_TYPEHASH = keccak256(stringToHex("ConveyClaim(uint256 chainId,address escrow,uint256 giftId,address claimer)"));
+
+/** Mirrors GiftEscrow.claimDigest: binds one gift to one claiming account. */
+export function claimDigest(escrow: Address, giftId: bigint, claimer: Address): Hex {
+  return keccak256(encodeAbiParameters(
+    [{ type: "bytes32" }, { type: "uint256" }, { type: "address" }, { type: "uint256" }, { type: "address" }],
+    [CLAIM_TYPEHASH, BigInt(XLAYER_CHAIN_ID), escrow, giftId, claimer],
+  ));
+}
+
+/**
+ * The link secret never goes on chain. It signs the claimer-bound digest, so a
+ * claim seen by the bundler or in a failed attempt cannot be redirected.
+ */
+export async function buildClaimCalldata(claim: ParsedClaimLink, claimer: Address, escrow: Address, code?: string): Promise<Hex> {
   positiveGiftId(claim.giftId);
   if (!/^0x[0-9a-fA-F]{64}$/u.test(claim.secret)) throw new Error("claim secret must contain exactly 32 bytes");
+  if (!isAddress(claimer) || !isAddress(escrow)) throw new Error("claimer and escrow must be EVM addresses");
+  const claimSignature = await privateKeyToAccount(claim.secret).sign({ hash: claimDigest(escrow, claim.giftId, claimer) });
   return encodeFunctionData({
     abi: ESCROW_ABI,
     functionName: "claim",
-    args: [claim.giftId, claim.secret, code === undefined ? ZERO_BYTES : stringToHex(code)],
+    args: [claim.giftId, claimSignature, code === undefined ? ZERO_BYTES : stringToHex(code)],
   });
 }
 
@@ -428,7 +447,7 @@ export async function readGiftPreview(
     certified: tupleValue(assetTuple, "certified", 8) as boolean,
     enabled: tupleValue(assetTuple, "enabled", 9) as boolean,
     riskTag: tupleValue(assetTuple, "riskTag", 10) as string,
-    secretHash: tupleValue(tuple, "secretHash", 3) as Hex,
+    claimKey: addressValue(tupleValue(tuple, "claimKey", 3), "claim key"),
     codeRequired: (tupleValue(tuple, "codeHash", 4) as Hex).toLowerCase() !== `0x${"00".repeat(32)}`,
     expiry,
     noteHash: tupleValue(tuple, "noteHash", 6) as Hex,
@@ -609,7 +628,8 @@ function requireEstimateValue(value: string | undefined, name: string): bigint {
  */
 export async function buildReceiverClaim(options: ReceiverClaimBuildOptions): Promise<BuiltReceiverClaim> {
   const entryPoint = options.entryPoint ?? XLAYER_ENTRYPOINT_V07;
-  const claimData = buildClaimCalldata(options.claim, options.code);
+  const claimer = await readReceiverAccountAddress(options.executionRpcUrl, options.factory, options.signer.address, options.salt, options.fetchImpl);
+  const claimData = await buildClaimCalldata(options.claim, claimer, options.escrow, options.code);
   const provisional = await buildOkxClaimUserOperation({
     executionRpcUrl: options.executionRpcUrl,
     entryPoint,
@@ -653,6 +673,7 @@ export async function buildReceiverClaim(options: ReceiverClaimBuildOptions): Pr
     timeoutMs: options.timeoutMs,
     fetchImpl: options.fetchImpl,
   });
+  if (final.account.toLowerCase() !== claimer.toLowerCase()) throw new Error("claim signature is bound to a different receiver account");
   return {
     account: final.account,
     deployed: final.deployed,

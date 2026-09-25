@@ -15,6 +15,7 @@ import {
   type EIP1193Provider,
   type Hex,
 } from "viem";
+import { privateKeyToAddress } from "viem/accounts";
 
 const XLAYER_CHAIN_ID = 196;
 const ZERO_BYTES32 = `0x${"0".repeat(64)}` as Hex;
@@ -116,7 +117,7 @@ const ESCROW_ABI = [
     inputs: [
       { name: "asset", type: "address" },
       { name: "amount", type: "uint256" },
-      { name: "secretHash", type: "bytes32" },
+      { name: "claimKey", type: "address" },
       { name: "codeHash", type: "bytes32" },
       { name: "expiry", type: "uint64" },
       { name: "noteHash", type: "bytes32" },
@@ -136,7 +137,7 @@ const ESCROW_ABI = [
           { name: "sender", type: "address" },
           { name: "asset", type: "address" },
           { name: "amount", type: "uint256" },
-          { name: "secretHash", type: "bytes32" },
+          { name: "claimKey", type: "address" },
           { name: "codeHash", type: "bytes32" },
           { name: "expiry", type: "uint64" },
           { name: "noteHash", type: "bytes32" },
@@ -161,7 +162,7 @@ const ESCROW_ABI = [
       { name: "sender", type: "address", indexed: true },
       { name: "asset", type: "address", indexed: true },
       { name: "amount", type: "uint256", indexed: false },
-      { name: "secretHash", type: "bytes32", indexed: false },
+      { name: "claimKey", type: "address", indexed: false },
       { name: "codeHash", type: "bytes32", indexed: false },
       { name: "expiry", type: "uint64", indexed: false },
       { name: "noteHash", type: "bytes32", indexed: false },
@@ -211,7 +212,7 @@ export interface CreatedGift {
   asset: SenderAsset;
   amount: bigint;
   secret: Hex;
-  secretHash: Hex;
+  claimKey: Address;
   codeHash: Hex;
   noteHash: Hex;
   expiry: bigint;
@@ -225,7 +226,7 @@ export interface SenderGift {
   sender: Address;
   asset: Address;
   amount: bigint;
-  secretHash: Hex;
+  claimKey: Address;
   codeHash: Hex;
   expiry: bigint;
   noteHash: Hex;
@@ -440,7 +441,7 @@ export class ConnectedWalletSender {
       sender: requiredAddress(tupleValue(tuple, "sender", 0), "sender"),
       asset: requiredAddress(tupleValue(tuple, "asset", 1), "asset"),
       amount: requiredBigint(tupleValue(tuple, "amount", 2), "amount"),
-      secretHash: tupleValue(tuple, "secretHash", 3) as Hex,
+      claimKey: requiredAddress(tupleValue(tuple, "claimKey", 3), "claim key"),
       codeHash: tupleValue(tuple, "codeHash", 4) as Hex,
       expiry: requiredBigint(tupleValue(tuple, "expiry", 5), "expiry"),
       noteHash: tupleValue(tuple, "noteHash", 6) as Hex,
@@ -462,7 +463,8 @@ export class ConnectedWalletSender {
       if (expiry <= block.timestamp) throw new Error("expiry must be in the future on X Layer");
     }
     const secret = randomSecret();
-    const secretHash = keccak256(secret);
+    // The link secret is a one-time key; only its address goes on chain.
+    const claimKey = privateKeyToAddress(secret);
     const codeBytes = options.code === undefined ? "0x" : stringToHex(options.code);
     const codeHash = codeBytes === "0x" ? ZERO_BYTES32 : keccak256(codeBytes);
     const noteHash = hashText(options.note);
@@ -480,7 +482,7 @@ export class ConnectedWalletSender {
       address: this.deployment.escrow,
       abi: ESCROW_ABI,
       functionName: "createGift",
-      args: [asset.token, amount, secretHash, codeHash, expiry, noteHash],
+      args: [asset.token, amount, claimKey, codeHash, expiry, noteHash],
       value: reserve,
     });
     const receipt = await this.publicClient.waitForTransactionReceipt({ hash: createTransaction });
@@ -494,7 +496,7 @@ export class ConnectedWalletSender {
       asset,
       amount,
       secret,
-      secretHash,
+      claimKey,
       codeHash,
       noteHash,
       expiry,
@@ -545,7 +547,7 @@ export function createConnectedWalletSender(options: SenderFlowOptions): Connect
 export function encodeCreateGiftCall(options: {
   asset: Address;
   amount: bigint;
-  secretHash: Hex;
+  claimKey: Address;
   codeHash: Hex;
   expiry: bigint;
   noteHash: Hex;
@@ -553,6 +555,6 @@ export function encodeCreateGiftCall(options: {
   return encodeFunctionData({
     abi: ESCROW_ABI,
     functionName: "createGift",
-    args: [options.asset, options.amount, options.secretHash, options.codeHash, options.expiry, options.noteHash],
+    args: [options.asset, options.amount, options.claimKey, options.codeHash, options.expiry, options.noteHash],
   });
 }

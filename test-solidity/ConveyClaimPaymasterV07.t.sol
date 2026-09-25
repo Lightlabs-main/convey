@@ -62,14 +62,14 @@ contract MockClaimEscrow {
             address sender,
             address asset,
             uint256 amount,
-            bytes32 secretHash,
+            address claimKey,
             bytes32 codeHash,
             uint64 expiry,
             bytes32 noteHash,
             uint8 stateOut
         )
     {
-        return (address(0xA11CE), address(0xB0B), 1, bytes32(0), bytes32(0), 0, bytes32(0), state);
+        return (address(0xA11CE), address(0xB0B), 1, address(0), bytes32(0), 0, bytes32(0), state);
     }
 }
 

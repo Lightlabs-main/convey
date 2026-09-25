@@ -2,6 +2,13 @@
 
 ## Current checkpoint — 2026-09-25
 
+- Replaced the front-runnable secret-reveal claim with a signature-bound claim
+  key (GiftEscrow v2) and redeployed the claim paymaster pair on mainnet after
+  confirming zero open v1 gifts; the v1 surplus deposit funded the migration.
+  Hardened the gateway: fail-closed bearer auth, per-account/global sponsor
+  signing limits, a daily exit-spend cap, and a per-IP limit on the public
+  relay proxy. Both are live on the VPS. Evidence is in
+  `docs/verification.md`. The first v2 mainnet claim is still to be recorded.
 - Implemented the scoped gasless exit path: live Uniswap V3 quote plumbing, withdrawal/cash-out policy, separate v0.7 exit paymaster contract, relay endpoints, receiver actions, and tests. The existing claim paymaster remains claim-only.
 - The Namecheap DNS records for `conveyapp.site` and `www.conveyapp.site`
   now point to the supplied VPS. Let's Encrypt covers both names, Nginx

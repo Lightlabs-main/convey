@@ -76,8 +76,10 @@ if (minimumReserve < maxClaimCost) {
 const existingRegistry = optionalAddress("CONVEY_ASSET_REGISTRY_ADDRESS");
 const existingPaymaster = optionalAddress("CONVEY_CLAIM_PAYMASTER_ADDRESS");
 const existingEscrow = optionalAddress("CONVEY_CLAIM_ESCROW_ADDRESS");
-if ((existingRegistry && !existingPaymaster) || (!existingRegistry && existingPaymaster)) {
-  throw new Error("CONVEY_ASSET_REGISTRY_ADDRESS and CONVEY_CLAIM_PAYMASTER_ADDRESS must be configured together when resuming");
+// A registry alone may be reused: a new claim paymaster and escrow pair can be
+// deployed against it (the paymaster binds its escrow exactly once).
+if (!existingRegistry && existingPaymaster) {
+  throw new Error("CONVEY_CLAIM_PAYMASTER_ADDRESS requires CONVEY_ASSET_REGISTRY_ADDRESS when resuming");
 }
 if (existingEscrow && (!existingRegistry || !existingPaymaster)) {
   throw new Error("CONVEY_CLAIM_ESCROW_ADDRESS requires the registry and claim paymaster addresses");

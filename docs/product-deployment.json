@@ -26,14 +26,24 @@
       "depositTransaction": "0x87d2c599accfa72116cdae203b226f09795778f71ef8d57ba4e43128d9231663",
       "depositBlockNumber": 71427845,
       "stakeTransaction": "0x3979673a21872848f9fe570bf7b4a3880f662d61a75d8a978cead8a1a824bd4a",
-      "stakeBlockNumber": 71427847
+      "stakeBlockNumber": 71427847,
+      "retired": {
+        "reason": "replaced by v2 signature-bound escrow pair",
+        "surplusWithdrawalTransaction": "0x592e8e62554b0fe666ab28e1f0e162860c1ceff7b0b1cddd903c11e774662dca",
+        "surplusWithdrawnWei": "197696031949403",
+        "blockNumber": 71578040
+      }
     },
     "giftEscrow": {
       "address": "0xaa396c814d38cf9e707c6bbc0635f1ee7d584062",
       "deploymentTransaction": "0x82e383ebff2bd146e07c38efdaafba475c328b00575a046794c56f9b333c24f3",
       "blockNumber": 71427817,
       "gasUsed": "1068118",
-      "effectiveGasPriceWei": "20000001"
+      "effectiveGasPriceWei": "20000001",
+      "retired": {
+        "reason": "secret-in-calldata claims were front-runnable; replaced by v2",
+        "openGiftsAtRetirement": 0
+      }
     },
     "exitPaymaster": {
       "address": "0xcfd241979d578e0b43f4c3f6b9b3fab83b41974c",
@@ -64,6 +74,30 @@
         "receiver": "0x63B2A84d47cb07fb18EE72Ec386893506Fd963db",
         "finalEntryPointDepositWei": "73206079000000"
       }
+    },
+    "claimPaymasterV2": {
+      "address": "0x655025c861C1848BA5324863D85BFA32cCF69e5B",
+      "deploymentTransaction": "0xf679c4b8e8cfb1bec1a602ed36ef14e386746fd171c9abcd2489023c4d0ebd85",
+      "blockNumber": 71578066,
+      "escrowBindingTransaction": "0xdc704d64f9d826163131a7125cf0486a0d1035418c05bae9d73d07bded344dd7",
+      "escrowBindingBlockNumber": 71578069,
+      "depositTransaction": "0x57deb7720bc12504c6baa6a0f404c4b3deff140ac30dfcbf21ac3b379479dddf",
+      "depositBlockNumber": 71578155,
+      "entryPointDepositWei": "100000000000000",
+      "stakeTransaction": "0xb3723547664b793d7aa6c779f9ce1c267ac5c9a5c57b489a5f69e40ec2898a72",
+      "stakeWei": "1",
+      "unstakeDelaySec": 86400,
+      "minimumReserveWei": "20000000000000",
+      "maxClaimCostWei": "20000000000000"
+    },
+    "giftEscrowV2": {
+      "address": "0xffd2DACE75dbC3bC3f2e10C6c7b011Aa4EC043cD",
+      "deploymentTransaction": "0x24175d022c6f34a01956d4c163c604366f4e9eb3b469c94b30dc8bbef9780e69",
+      "blockNumber": 71578067,
+      "registry": "0x156d160e004B7fb2021CFCA8fC6cF069c3b8b029",
+      "claimPaymaster": "0x655025c861C1848BA5324863D85BFA32cCF69e5B",
+      "claimSelector": "0x08aa325f",
+      "claimTypehash": "0x62d4a7084bfa22a326b2bf48afd5994a9e5740b4a66274e8edbcb31668ae472e"
     }
   },
   "registeredAssets": [

@@ -35,3 +35,14 @@ jobs:
         run: pnpm scripts:syntax
       - name: Production build
         run: pnpm build
+
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+      - name: Set up Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+      - name: Contract tests
+        run: forge test -vv

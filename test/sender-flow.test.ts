@@ -21,7 +21,7 @@ test("sender createGift calldata encodes the deployed escrow interface", () => {
   const call = encodeCreateGiftCall({
     asset: "0x0000000000000000000000000000000000000001",
     amount: 5n,
-    secretHash: `0x${"11".repeat(32)}`,
+    claimKey: "0x00000000000000000000000000000000000000c1",
     codeHash: `0x${"22".repeat(32)}`,
     expiry: 0n,
     noteHash: `0x${"33".repeat(32)}`,
@@ -34,7 +34,7 @@ test("sender createGift calldata encodes the deployed escrow interface", () => {
       inputs: [
         { name: "asset", type: "address" },
         { name: "amount", type: "uint256" },
-        { name: "secretHash", type: "bytes32" },
+        { name: "claimKey", type: "address" },
         { name: "codeHash", type: "bytes32" },
         { name: "expiry", type: "uint64" },
         { name: "noteHash", type: "bytes32" },
@@ -45,5 +45,6 @@ test("sender createGift calldata encodes the deployed escrow interface", () => {
   });
   assert.equal(decoded.functionName, "createGift");
   assert.equal(decoded.args?.[1], 5n);
+  assert.equal(decoded.args?.[2], "0x00000000000000000000000000000000000000C1");
   assert.equal(decoded.args?.[3], `0x${"22".repeat(32)}`);
 });

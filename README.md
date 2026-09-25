@@ -29,12 +29,16 @@ link; the recipient gets an ownable asset.
 
 Convey connects a consumer-grade gift experience to real mainnet settlement:
 
-- **One-link delivery.** The sender creates a hashlocked gift and shares a
-  private link. The recipient does not need a pre-existing wallet or browser
+- **One-link delivery.** The sender creates a gift locked to a one-time claim
+  key and shares a private link. The recipient does not need a pre-existing wallet or browser
   extension.
 - **Non-custodial recipient ownership.** The receiver's device creates and
   unlocks the local owner key; the asset lands in the selected OKX Smart
   Wallet account at ERC-4337 EntryPoint v0.7.
+- **Front-run-resistant claims.** The link secret never goes on chain. It
+  signs `(chainId, escrow, giftId, claimer)`, and the escrow checks that
+  signature against the stored claim-key address. A claim seen in a bundler, a
+  mempool, or a failed attempt cannot be replayed to redirect the gift.
 - **Gasless by design.** The sender funds a bounded claim reserve. Convey's
   claim paymaster sponsors the receiver operation, so the receiver supplies no
   native gas.
@@ -65,6 +69,8 @@ This is a live X Layer mainnet deployment, not a mock product tour:
 | Sponsored exit | Real gasless NVDAx-to-USDT0 cash-out completed through the exit paymaster |
 | Private execution | Pinned OKBund + NodeFlare on the supplied Lightsail VPS |
 | Production boundary | Authenticated gateway on loopback; relay credentials stay server-side |
+| Front-run-resistant escrow (v2) | Signature-bound `GiftEscrow` and its claim paymaster deployed, bound, funded, and serving the live site |
+| Abuse limits | Gateway refuses to start without a bearer token; per-IP, per-account, and daily exit-spend caps on sponsor signing |
 
 The live transaction hashes, contract addresses, receipts, and readbacks are
 in [docs/verification.md](docs/verification.md) and
@@ -72,10 +78,12 @@ in [docs/verification.md](docs/verification.md) and
 
 ### Honest proof boundary
 
-The production UI and receiver flow are implemented, but three proofs remain
-deliberately separate from the claim above: persistent physical-device
-enrollment/recovery, state-changing owner revocation on a safe disposable or
-multi-owner account, and a fresh browser-to-browser mainnet gift flow. The
+The production UI and receiver flow are implemented, but these proofs remain
+deliberately separate from the claim above: a first mainnet claim through the
+v2 signature-bound escrow, persistent physical-device enrollment/recovery,
+state-changing owner revocation on a safe disposable or multi-owner account,
+and a fresh browser-to-browser mainnet gift flow. Gift ID 2 was claimed
+through the retired v1 escrow. The
 deployed-edge Chromium virtual-authenticator PRF capability proof is recorded
 in [docs/verification.md](docs/verification.md).
 
@@ -85,7 +93,7 @@ in [docs/verification.md](docs/verification.md).
 - The receiver uses the deployed OKX-specific modular ERC-4337 account; it is
   not described as ERC-7579.
 - The connected-wallet sender surface reads the live registry, balance,
-  allowance, and claim reserve, then creates real hashlocked gifts.
+  allowance, and claim reserve, then creates real signature-bound gifts.
 - The receiver surface reads live GiftEscrow and issuer data, creates the
   local account, exposes encrypted recovery material, and calls the live
   gas-seed, estimate, and claim routes through same-origin proxies.
@@ -104,12 +112,13 @@ chronological implementation record is [PROGRESS.md](PROGRESS.md).
 
 ```text
 Sender wallet
-    │  approve token + createGift(amount, secretHash, expiry, reserve)
+    │  approve token + createGift(amount, claimKey, expiry, reserve)
     ▼
 AssetRegistry ── validates certified/enabled assets
     │
     ▼
-GiftEscrow ── locks ERC-20 asset and hashlocked claim state
+GiftEscrow ── locks ERC-20 asset; claim needs the link key's signature
+    │           over (chainId, escrow, giftId, claimer)
     │
     │  receiver authorizes locally with a device credential
     ▼
@@ -141,14 +150,15 @@ separate one-operation paymaster. It must not be reused for product claims.
 | OKX Smart Wallet implementation | `0xe40ccb2d94975c51bff0c004efdfd9b3a5796fa4` | Inspected modular account implementation |
 | Receiver account | `0x63B2A84d47cb07fb18EE72Ec386893506Fd963db` | Selected claim recipient account |
 | `AssetRegistry` | `0x156d160e004B7fb2021CFCA8fC6cF069c3b8b029` | Certified/enabled asset policy |
-| `ConveyClaimPaymasterV07` | `0xe6913061bc2021B0dfdeECB867F7a9F5F77236B6` | Sender-funded claim reserve and sponsorship |
-| `GiftEscrow` | `0xaa396c814d38cf9e707c6bbc0635f1ee7d584062` | Hashlocked single-gift custody |
+| `ConveyClaimPaymasterV07` (v2) | `0x655025c861C1848BA5324863D85BFA32cCF69e5B` | Sender-funded claim reserve and sponsorship |
+| `GiftEscrow` (v2) | `0xffd2DACE75dbC3bC3f2e10C6c7b011Aa4EC043cD` | Signature-bound single-gift custody |
+| Retired v1 pair | `0xe6913061…36B6` / `0xaa396c81…4062` | Gift ID 2 proof; no open gifts; surplus deposit withdrawn |
 | USDT0 | `0x779ded0c9e1022225f8e0630b35a9b54be713736` | Acquisition funding token |
 | Uniswap SwapRouter02 | `0x4f0c28f5926afda16bf2506d5d9e57ea190f9bca` | Registered asset route |
 
 The claim paymaster policy is configured with a `0.00002 OKB` minimum reserve
-and maximum claim cost. Its initial EntryPoint deposit was `0.0002 OKB`, with a
-`1` wei stake and an `86,400` second unstake delay. Deployment and funding
+and maximum claim cost. The v2 paymaster's EntryPoint deposit is `0.0001 OKB`,
+with a `1` wei stake and an `86,400` second unstake delay. Deployment and funding
 receipts are recorded in [`docs/product-deployment.json`](docs/product-deployment.json).
 
 ## Registered assets
@@ -219,7 +229,11 @@ The claim route accepts only a signed, sponsored v0.7 operation that:
 4. invokes only the configured claim selector.
 
 There is no raw-transaction route, public-bundler fallback, or secret storage
-in the gateway. Idempotency retains only a short-lived request key and
+in the gateway. The gateway refuses to start without a bearer token of at least
+32 characters. Sponsor signing is limited per account per hour and globally,
+and exit sponsorship has a daily spend cap. The public same-origin proxy
+limits each client IP, keyed on the address Nginx appends to
+`X-Forwarded-For`. Idempotency retains only a short-lived request key and
 UserOperation hash. The live Gift ID `2` proof used a temporary localhost
 gateway over the private OKBund route. The persistent authenticated gateway is
 now deployed on the supplied VPS; the browser-facing HTTPS web edge is deployed
@@ -449,7 +463,8 @@ browser-to-browser mainnet claim is not yet recorded.
 
 - Never use mock prices, balances, sponsorship, claims, or transaction hashes
   in verification records.
-- Generate a fresh claim secret for every gift; never reuse claim secrets.
+- Generate a fresh claim key for every gift; never reuse claim keys. The
+  link secret signs a claimer-bound digest and is never sent on chain.
 - Never print or commit private keys, RPC credentials, SSH keys, or secret
   claim files.
 - Keep receiver owner, deployer, paymaster signer, bundler, and SSH roles

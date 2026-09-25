@@ -22,8 +22,16 @@ export interface SelfHostedRelayerConfig {
   bindAddress: string;
   port: number;
   authToken?: string;
+  /** Local development only: serve without a bearer token on a loopback bind. */
+  allowUnauthenticated?: boolean;
+  /** Per-account authorization requests allowed per hour. */
+  authorizationsPerAccountPerHour: number;
+  /** Total exit gas the sponsor may sign for per UTC day; unset means 25 x maxExitCost. */
+  exitDailyCapWei?: bigint;
   claimPaymasterSignerPrivateKey?: Hex;
   claimGasSeedUserOperationHash?: Hex;
+  /** Escrow the gas seed claim targeted, when it predates the current escrow. Gas limits only; never used to sign. */
+  claimGasSeedEscrow?: Address;
   exitPaymaster?: Address;
   exitPaymasterSignerPrivateKey?: Hex;
   exitAssetRegistry?: Address;
@@ -165,8 +173,12 @@ export function loadSelfHostedRelayerConfig(env: Record<string, string | undefin
     bindAddress: env.RELAYER_SERVER_BIND?.trim() || "127.0.0.1",
     port: integerFromEnv(env, "RELAYER_SERVER_PORT", 8787, 1, 65_535),
     authToken: env.CONVEY_RELAYER_AUTH_TOKEN?.trim() || undefined,
+    allowUnauthenticated: env.RELAYER_ALLOW_UNAUTHENTICATED?.trim() === "true",
+    authorizationsPerAccountPerHour: integerFromEnv(env, "RELAYER_AUTHORIZATIONS_PER_ACCOUNT_PER_HOUR", 12, 1, 1_000),
+    exitDailyCapWei: env.RELAYER_EXIT_DAILY_CAP_WEI?.trim() ? positiveBigIntFromEnv(env, "RELAYER_EXIT_DAILY_CAP_WEI") : undefined,
     claimPaymasterSignerPrivateKey: privateKeyFromEnv(env, "CONVEY_CLAIM_PAYMASTER_SIGNER_PRIVATE_KEY"),
     claimGasSeedUserOperationHash: userOperationHashFromEnv(env, "CONVEY_CLAIM_GAS_SEED_USER_OPERATION_HASH"),
+    claimGasSeedEscrow: env.CONVEY_CLAIM_GAS_SEED_ESCROW_ADDRESS?.trim() ? addressFromEnv(env, "CONVEY_CLAIM_GAS_SEED_ESCROW_ADDRESS") : undefined,
     exitPaymaster,
     exitPaymasterSignerPrivateKey: exitSigner,
     exitAssetRegistry,

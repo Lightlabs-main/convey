@@ -2,6 +2,49 @@
 
 Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core, persistent private gateway, and public HTTPS web edge are now deployed; persistent browser enrollment/recovery proof, owner-revocation proof, and browser mainnet proof remain open.
 
+## Signature-bound escrow v2 migration — 2026-09-25
+
+The v1 `GiftEscrow.claim` accepted the raw link secret, so any observer of a
+claim (bundler, mempool, or failed attempt) could replay it from another
+account. v2 stores only the one-time claim key's address and requires that
+key's low-s ECDSA signature over
+`keccak256(abi.encode(CLAIM_TYPEHASH, chainId, escrow, giftId, claimer))`, where
+`claimer` is `msg.sender`. The claim selector `0x08aa325f` is unchanged, so the
+paymaster calldata policy is unchanged; the paymaster was redeployed only
+because it binds one escrow exactly once.
+
+Pre-migration readback of the v1 pair: `nextGiftId = 3`, Gift 1 reclaimed,
+Gift 2 claimed, `openReserveTotal = inFlightTotal = pendingRefundTotal = 0`.
+
+| Step | Transaction | Block |
+|---|---|---|
+| v1 paymaster `withdrawSurplus` of `197696031949403` wei to the deployer | `0x592e8e62554b0fe666ab28e1f0e162860c1ceff7b0b1cddd903c11e774662dca` | 71578040 |
+| Deploy `ConveyClaimPaymasterV07` v2 at `0x655025c861C1848BA5324863D85BFA32cCF69e5B` | `0xf679c4b8e8cfb1bec1a602ed36ef14e386746fd171c9abcd2489023c4d0ebd85` | 71578066 |
+| Deploy `GiftEscrow` v2 at `0xffd2DACE75dbC3bC3f2e10C6c7b011Aa4EC043cD` | `0x24175d022c6f34a01956d4c163c604366f4e9eb3b469c94b30dc8bbef9780e69` | 71578067 |
+| `setEscrow(v2 escrow)` | `0xdc704d64f9d826163131a7125cf0486a0d1035418c05bae9d73d07bded344dd7` | 71578069 |
+| EntryPoint deposit `0.0001 OKB` | `0x57deb7720bc12504c6baa6a0f404c4b3deff140ac30dfcbf21ac3b379479dddf` | 71578155 |
+| Stake `1` wei, `86,400` s delay | `0xb3723547664b793d7aa6c779f9ce1c267ac5c9a5c57b489a5f69e40ec2898a72` | — |
+
+Readback: paymaster `escrow()` is the v2 escrow and its owner is the deployer;
+escrow `registry()` is the existing `AssetRegistry` and `claimPaymaster()` is
+the v2 paymaster; `CLAIM_TYPEHASH` is
+`0x62d4a7084bfa22a326b2bf48afd5994a9e5740b4a66274e8edbcb31668ae472e`.
+
+The VPS gateway and web edge were switched to v2 and restarted, with prior
+code and environment kept as `*.previous-20260925T1444*` backups. The
+authenticated `/healthz` returned `healthy: true` for the v2 paymaster
+(deposit `100000000000000`, staked). `/v1/claims/gas-seed` resolved from the v1
+Gift 2 seed via `CONVEY_CLAIM_GAS_SEED_ESCROW_ADDRESS`; the seed supplies
+starting gas limits only. An unauthenticated gateway request returned `401`.
+The live browser bundle references only the v2 escrow. Thirty malformed POSTs
+to `/api/relay/v1/claims/authorize` returned `400`, and the 31st onward
+returned `429`.
+
+Foundry: 51 tests passed locally (Foundry 1.x, solc 0.8.23), including
+front-run replay, gift-ID binding, wrong-key, malformed and high-s signature
+rejection, and a 256-run claimer-binding fuzz. Node: 50 tests passed. No v2
+claim has yet been executed on mainnet.
+
 ## Latest pinned-block verification rerun — 2026-09-25
 
 `pnpm verify` passed at `2026-09-25T12:39:21.894Z`. All on-chain reads remain

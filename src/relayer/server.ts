@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { decodeAbiParameters, decodeFunctionData, encodeFunctionData, keccak256, stringToBytes } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { DailySpendCap, FixedWindowLimiter } from "./limits.ts";
 import { checkRelayerHealth } from "./health.ts";
 import { assertClaimExecutionCalldata, decodeClaimExecutionCalldata } from "./claim-policy.ts";
 import { encodeClaimPaymasterData, signClaimPaymasterAuthorization } from "./claim-paymaster.ts";
@@ -285,8 +286,20 @@ function json(response: ServerResponse, status: number, value: unknown): void {
   response.end(body);
 }
 
-function authorized(request: IncomingMessage, token: string | undefined): boolean {
-  if (!token) return true;
+const LOOPBACK_BINDS = new Set(["127.0.0.1", "::1", "localhost"]);
+
+/** Refuses to serve sponsor signatures without a bearer token unless explicitly in local development. */
+export function assertRelayerAuthConfigured(config: Pick<SelfHostedRelayerConfig, "authToken" | "allowUnauthenticated" | "bindAddress">): void {
+  if (config.authToken) {
+    if (config.authToken.length < 32) throw new Error("CONVEY_RELAYER_AUTH_TOKEN must be at least 32 characters");
+    return;
+  }
+  if (config.allowUnauthenticated && LOOPBACK_BINDS.has(config.bindAddress)) return;
+  throw new Error("CONVEY_RELAYER_AUTH_TOKEN is required; set RELAYER_ALLOW_UNAUTHENTICATED=true only for loopback development");
+}
+
+function authorized(request: IncomingMessage, token: string | undefined, allowUnauthenticated: boolean): boolean {
+  if (!token) return allowUnauthenticated;
   const header = request.headers.authorization;
   if (!header?.startsWith("Bearer ")) return false;
   const supplied = Buffer.from(header.slice(7));
@@ -471,6 +484,10 @@ function pathOf(request: IncomingMessage): string {
 }
 
 export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
+  assertRelayerAuthConfigured(config);
+  const accountAuthorizations = new FixedWindowLimiter(config.authorizationsPerAccountPerHour, 60 * 60 * 1000);
+  const globalAuthorizations = new FixedWindowLimiter(600, 60 * 60 * 1000);
+  let exitDailyCap: DailySpendCap | undefined;
   const bundler = new SelfHostedBundlerClient(config.bundlerRpcUrl, config.requestTimeoutMs);
   const execution = new JsonRpcClient(config.executionRpcUrl, { timeoutMs: config.requestTimeoutMs });
   const submissions = new Map<string, { userOperationHash: Hex; expiresAt: number }>();
@@ -613,7 +630,7 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
         throw new Error("gas seed belongs to a different EntryPoint");
       }
       assertSponsoredUserOperation(seed);
-      assertClaimExecutionCalldata(seed.callData, config.claimEscrow, config.claimFunctionSelector);
+      assertClaimExecutionCalldata(seed.callData, config.claimGasSeedEscrow ?? config.claimEscrow, config.claimFunctionSelector);
     } catch {
       throw new HttpProblem(503, "claim_gas_seed_unavailable");
     }
@@ -651,7 +668,14 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
     };
   }
 
+  function takeAuthorization(kind: "claim" | "exit", account: string): void {
+    if (!globalAuthorizations.take("all") || !accountAuthorizations.take(`${kind}:${account.toLowerCase()}`)) {
+      throw new HttpProblem(429, "authorization_rate_limited");
+    }
+  }
+
   async function authorizeClaim(request: ClaimAuthorizationRequest): Promise<ClaimPaymasterAuthorizationResponse> {
+    takeAuthorization("claim", request.userOperation.sender);
     const privateKey = config.claimPaymasterSignerPrivateKey;
     if (!privateKey) throw new HttpProblem(503, "claim_sponsor_unavailable");
     const sponsor = privateKeyToAccount(privateKey);
@@ -731,6 +755,7 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
 
   async function authorizeExit(request: ExitAuthorizationRequest): Promise<ExitPaymasterAuthorizationResponse> {
     const exit = requireExitConfig();
+    takeAuthorization("exit", request.userOperation.sender);
     const sponsor = privateKeyToAccount(exit.signerKey);
     const liveSigner = await readPaymasterValue(execution, exit.paymaster, "verifyingSigner");
     if (typeof liveSigner !== "string" || liveSigner.toLowerCase() !== sponsor.address.toLowerCase()) throw new HttpProblem(503, "exit_sponsor_misconfigured");
@@ -752,7 +777,15 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
       throw new HttpProblem(400, "exit_gas_fields_invalid");
     }
     if (maxCost > maxExitCost) throw new HttpProblem(409, "exit_cost_exceeds_policy");
-    const sponsorNonce = await nextExitSponsorNonce(exit.paymaster);
+    exitDailyCap ??= new DailySpendCap(config.exitDailyCapWei ?? maxExitCost * 25n);
+    if (!exitDailyCap.reserve(maxCost)) throw new HttpProblem(429, "exit_daily_sponsorship_exhausted");
+    let sponsorNonce: bigint;
+    try {
+      sponsorNonce = await nextExitSponsorNonce(exit.paymaster);
+    } catch (error) {
+      exitDailyCap.release(maxCost);
+      throw error;
+    }
     try {
       const validAfter = await readBlockTimestamp(execution);
       const validUntil = validAfter + 300n;
@@ -784,12 +817,13 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
       };
     } catch (error) {
       reservedExitSponsorNonces.delete(sponsorNonce.toString());
+      exitDailyCap.release(maxCost);
       throw error;
     }
   }
 
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
-    if (!authorized(request, config.authToken)) {
+    if (!authorized(request, config.authToken, config.allowUnauthenticated === true)) {
       json(response, 401, { error: "unauthorized" });
       return;
     }

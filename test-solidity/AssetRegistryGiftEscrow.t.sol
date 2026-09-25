@@ -11,6 +11,8 @@ import {GiftEscrow, IClaimGasPaymaster} from "../contracts/core/GiftEscrow.sol";
 
 interface VmGiftEscrow {
     function expectRevert(bytes4 revertData) external;
+    function addr(uint256 privateKey) external pure returns (address);
+    function sign(uint256 privateKey, bytes32 digest) external pure returns (uint8 v, bytes32 r, bytes32 s);
     function deal(address account, uint256 newBalance) external;
     function prank(address sender) external;
     function warp(uint256 timestamp) external;
@@ -98,6 +100,7 @@ contract AssetRegistryGiftEscrowTest {
     address private constant OTHER = address(0xCAFE);
     address private constant VALUATION_REF = address(0x1111);
     address private constant CASH_OUT_ROUTE = address(0x2222);
+    uint256 private constant CLAIM_KEY = 0xC0FFEE;
 
     AssetRegistry private registry;
     GiftEscrow private escrow;
@@ -167,16 +170,16 @@ contract AssetRegistryGiftEscrowTest {
         new GiftEscrow(AssetRegistry(address(0)), claimPaymaster);
     }
 
-    function testCreateClaimPaysOnlyTheAccountThatSuppliesTheSecret() public {
-        bytes memory secret = bytes("claim-secret");
+    function testCreateClaimPaysOnlyTheAccountBoundByTheClaimSignature() public {
         uint256 amount = 100 ether;
-        uint256 giftId = _createGift(secret, bytes(""), 0);
+        uint256 giftId = _createGift(bytes(""), 0);
 
         require(asset.balanceOf(address(escrow)) == amount, "escrow was not funded");
         require(asset.balanceOf(SENDER) == 900 ether, "sender balance changed unexpectedly");
 
+        bytes memory signature = _claimSignature(CLAIM_KEY, giftId, CLAIMER);
         vm.prank(CLAIMER);
-        escrow.claim(giftId, secret, bytes(""));
+        escrow.claim(giftId, signature, bytes(""));
 
         GiftEscrow.Gift memory gift = escrow.getGift(giftId);
         require(uint8(gift.state) == uint8(GiftEscrow.GiftState.Claimed), "gift was not claimed");
@@ -185,43 +188,94 @@ contract AssetRegistryGiftEscrowTest {
         require(asset.balanceOf(address(escrow)) == 0, "escrow retained claimed funds");
     }
 
-    function testWrongSecretDoesNotChangeGiftStateOrBalances() public {
-        bytes memory secret = bytes("claim-secret");
-        uint256 giftId = _createGift(secret, bytes(""), 0);
+    function testObservedClaimSignatureCannotBeFrontRunByAnotherAccount() public {
+        uint256 giftId = _createGift(bytes(""), 0);
+        bytes memory observed = _claimSignature(CLAIM_KEY, giftId, CLAIMER);
 
-        vm.expectRevert(GiftEscrow.InvalidSecret.selector);
+        vm.expectRevert(GiftEscrow.InvalidClaimSignature.selector);
+        vm.prank(OTHER);
+        escrow.claim(giftId, observed, bytes(""));
+
+        require(asset.balanceOf(OTHER) == 0, "front-runner received funds");
+        require(asset.balanceOf(address(escrow)) == 100 ether, "front-run moved funds");
+    }
+
+    function testClaimSignatureIsBoundToGiftId() public {
+        uint256 firstGift = _createGift(bytes(""), 0);
+        uint256 secondGift = _createGift(bytes(""), 0);
+
+        bytes memory firstSignature = _claimSignature(CLAIM_KEY, firstGift, CLAIMER);
+        vm.expectRevert(GiftEscrow.InvalidClaimSignature.selector);
         vm.prank(CLAIMER);
-        escrow.claim(giftId, bytes("wrong-secret"), bytes(""));
+        escrow.claim(secondGift, firstSignature, bytes(""));
+    }
+
+    function testWrongKeyOrMalformedSignatureDoesNotChangeGiftStateOrBalances() public {
+        uint256 giftId = _createGift(bytes(""), 0);
+
+        bytes memory wrongKeySignature = _claimSignature(0xBAD, giftId, CLAIMER);
+        vm.expectRevert(GiftEscrow.InvalidClaimSignature.selector);
+        vm.prank(CLAIMER);
+        escrow.claim(giftId, wrongKeySignature, bytes(""));
+
+        vm.expectRevert(GiftEscrow.InvalidClaimSignature.selector);
+        vm.prank(CLAIMER);
+        escrow.claim(giftId, bytes("short"), bytes(""));
+
+        vm.expectRevert(GiftEscrow.InvalidClaimSignature.selector);
+        vm.prank(CLAIMER);
+        escrow.claim(giftId, bytes(""), bytes(""));
 
         GiftEscrow.Gift memory gift = escrow.getGift(giftId);
-        require(uint8(gift.state) == uint8(GiftEscrow.GiftState.Open), "wrong secret changed state");
-        require(asset.balanceOf(address(escrow)) == 100 ether, "wrong secret moved funds");
+        require(uint8(gift.state) == uint8(GiftEscrow.GiftState.Open), "bad signature changed state");
+        require(asset.balanceOf(address(escrow)) == 100 ether, "bad signature moved funds");
+    }
+
+    function testHighSSignatureIsRejected() public {
+        uint256 giftId = _createGift(bytes(""), 0);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(CLAIM_KEY, escrow.claimDigest(giftId, CLAIMER));
+        uint256 n = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141;
+        bytes memory malleated = abi.encodePacked(r, bytes32(n - uint256(s)), v == 27 ? uint8(28) : uint8(27));
+
+        vm.expectRevert(GiftEscrow.InvalidClaimSignature.selector);
+        vm.prank(CLAIMER);
+        escrow.claim(giftId, malleated, bytes(""));
+    }
+
+    function testFuzzOnlyTheBoundClaimerCanUseASignature(address claimer, address caller) public {
+        if (claimer == caller || caller == address(0) || caller == address(escrow)) return;
+        uint256 giftId = _createGift(bytes(""), 0);
+        bytes memory signature = _claimSignature(CLAIM_KEY, giftId, claimer);
+
+        vm.expectRevert(GiftEscrow.InvalidClaimSignature.selector);
+        vm.prank(caller);
+        escrow.claim(giftId, signature, bytes(""));
     }
 
     function testCodeHashIsRequiredWhenConfigured() public {
-        bytes memory secret = bytes("claim-secret");
         bytes memory code = bytes("4471");
-        uint256 giftId = _createGift(secret, code, 0);
+        uint256 giftId = _createGift(code, 0);
+        bytes memory signature = _claimSignature(CLAIM_KEY, giftId, CLAIMER);
 
         vm.expectRevert(GiftEscrow.InvalidCode.selector);
         vm.prank(CLAIMER);
-        escrow.claim(giftId, secret, bytes(""));
+        escrow.claim(giftId, signature, bytes(""));
 
         vm.prank(CLAIMER);
-        escrow.claim(giftId, secret, code);
+        escrow.claim(giftId, signature, code);
         require(asset.balanceOf(CLAIMER) == 100 ether, "coded claim did not pay claimer");
     }
 
     function testClaimCanOnlyHappenOnceAndReclaimCannotFollowClaim() public {
-        bytes memory secret = bytes("claim-secret");
-        uint256 giftId = _createGift(secret, bytes(""), 0);
+        uint256 giftId = _createGift(bytes(""), 0);
+        bytes memory signature = _claimSignature(CLAIM_KEY, giftId, CLAIMER);
 
         vm.prank(CLAIMER);
-        escrow.claim(giftId, secret, bytes(""));
+        escrow.claim(giftId, signature, bytes(""));
 
         vm.expectRevert(GiftEscrow.GiftNotOpen.selector);
         vm.prank(CLAIMER);
-        escrow.claim(giftId, secret, bytes(""));
+        escrow.claim(giftId, signature, bytes(""));
 
         vm.expectRevert(GiftEscrow.GiftNotOpen.selector);
         vm.prank(SENDER);
@@ -229,8 +283,7 @@ contract AssetRegistryGiftEscrowTest {
     }
 
     function testSenderCanReclaimAnOpenGiftBeforeExpiry() public {
-        bytes memory secret = bytes("claim-secret");
-        uint256 giftId = _createGift(secret, bytes(""), uint64(block.timestamp + 1 days));
+        uint256 giftId = _createGift(bytes(""), uint64(block.timestamp + 1 days));
 
         vm.prank(SENDER);
         escrow.reclaim(giftId);
@@ -242,7 +295,7 @@ contract AssetRegistryGiftEscrowTest {
     }
 
     function testOnlySenderCanReclaim() public {
-        uint256 giftId = _createGift(bytes("claim-secret"), bytes(""), 0);
+        uint256 giftId = _createGift(bytes(""), 0);
 
         vm.expectRevert(GiftEscrow.NotSender.selector);
         vm.prank(OTHER);
@@ -252,14 +305,14 @@ contract AssetRegistryGiftEscrowTest {
     }
 
     function testExpiredGiftRejectsClaimButAllowsSenderRefund() public {
-        bytes memory secret = bytes("claim-secret");
         uint256 expiry = block.timestamp + 1 days;
-        uint256 giftId = _createGift(secret, bytes(""), uint64(expiry));
+        uint256 giftId = _createGift(bytes(""), uint64(expiry));
+        bytes memory signature = _claimSignature(CLAIM_KEY, giftId, CLAIMER);
 
         vm.warp(expiry);
         vm.expectRevert(GiftEscrow.GiftExpired.selector);
         vm.prank(CLAIMER);
-        escrow.claim(giftId, secret, bytes(""));
+        escrow.claim(giftId, signature, bytes(""));
 
         vm.prank(SENDER);
         escrow.reclaim(giftId);
@@ -267,40 +320,42 @@ contract AssetRegistryGiftEscrowTest {
     }
 
     function testCreateRejectsInvalidInputs() public {
+        address claimKey = vm.addr(CLAIM_KEY);
         vm.expectRevert(GiftEscrow.InvalidAmount.selector);
         vm.prank(SENDER);
-        escrow.createGift(address(asset), 0, keccak256(bytes("secret")), bytes32(0), 0, bytes32(0));
+        escrow.createGift(address(asset), 0, claimKey, bytes32(0), 0, bytes32(0));
 
-        vm.expectRevert(GiftEscrow.InvalidSecretHash.selector);
+        vm.expectRevert(GiftEscrow.InvalidClaimKey.selector);
         vm.prank(SENDER);
-        escrow.createGift(address(asset), 100 ether, bytes32(0), bytes32(0), 0, bytes32(0));
+        escrow.createGift(address(asset), 100 ether, address(0), bytes32(0), 0, bytes32(0));
 
         vm.expectRevert(GiftEscrow.InvalidExpiry.selector);
         vm.prank(SENDER);
         escrow.createGift(
-            address(asset),
-            100 ether,
-            keccak256(bytes("secret")),
-            bytes32(0),
-            uint64(block.timestamp),
-            bytes32(0)
+            address(asset), 100 ether, claimKey, bytes32(0), uint64(block.timestamp), bytes32(0)
         );
 
         registry.setEnabled(address(asset), false);
         vm.expectRevert(GiftEscrow.AssetNotGiftable.selector);
         vm.prank(SENDER);
-        escrow.createGift(address(asset), 100 ether, keccak256(bytes("secret")), bytes32(0), 0, bytes32(0));
+        escrow.createGift(address(asset), 100 ether, claimKey, bytes32(0), 0, bytes32(0));
     }
 
-    function _createGift(bytes memory secret, bytes memory code, uint64 expiry)
-        private
-        returns (uint256 giftId)
-    {
+    function _createGift(bytes memory code, uint64 expiry) private returns (uint256 giftId) {
         bytes32 codeHash = code.length == 0 ? bytes32(0) : keccak256(code);
         vm.prank(SENDER);
         giftId = escrow.createGift{value: 1 ether}(
-            address(asset), 100 ether, keccak256(secret), codeHash, expiry, bytes32(0)
+            address(asset), 100 ether, vm.addr(CLAIM_KEY), codeHash, expiry, bytes32(0)
         );
+    }
+
+    function _claimSignature(uint256 key, uint256 giftId, address claimer)
+        private
+        view
+        returns (bytes memory)
+    {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(key, escrow.claimDigest(giftId, claimer));
+        return abi.encodePacked(r, s, v);
     }
 
     function _assetEntry(address token, bool certified, bool enabled)

@@ -11,13 +11,15 @@ The receiver never connects to this path.
 2. `readAsset(token)` reads the registry entry, token metadata, sender balance,
    and escrow allowance from live contracts. The registry must report the asset
    as certified and enabled.
-3. `createGift()` generates the bearer secret in the browser, hashes only the
-   secret/code/note for the contract, reads the claim paymaster's live minimum
+3. `createGift()` generates a one-time secp256k1 claim key in the browser,
+   sends only its address plus the code/note hashes to the contract, reads the claim paymaster's live minimum
    reserve, and performs exact approval before calling `GiftEscrow.createGift`.
 4. The successful receipt is required to contain exactly one `GiftCreated`
    event. The returned `claimLink` contains the bearer secret and the
-   non-secret `giftId` lookup hint; the secret is never stored in Convey's
-   database or sent to the gateway before the receiver signs a claim.
+   non-secret `giftId` lookup hint; the secret is never stored by Convey and
+   never goes on chain. At claim time the receiver uses it to sign
+   `GiftEscrow.claimDigest(giftId, claimer)`, which binds the claim to the
+   receiver's smart-account address.
 5. `readGift()` provides sender status and `reclaimGift()` uses the escrow's
    sender-only refund path.
 

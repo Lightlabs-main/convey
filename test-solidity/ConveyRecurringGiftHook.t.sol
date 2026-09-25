@@ -68,10 +68,10 @@ contract ConveyRecurringGiftHookTest {
 
         calls[0] = _giftCall(1 ether, MAX_RESERVE, uint64(block.timestamp + 1 days));
         calls[0].data = abi.encodeWithSignature(
-            "createGift(address,uint256,bytes32,bytes32,uint64,bytes32)",
+            "createGift(address,uint256,address,bytes32,uint64,bytes32)",
             address(0xBEEF),
             1 ether,
-            keccak256(bytes("secret")),
+            address(0xC1A1),
             bytes32(0),
             uint64(block.timestamp + 1 days),
             bytes32(0)
@@ -151,10 +151,10 @@ contract ConveyRecurringGiftHookTest {
             target: ESCROW,
             value: nativeReserve,
             data: abi.encodeWithSignature(
-                "createGift(address,uint256,bytes32,bytes32,uint64,bytes32)",
+                "createGift(address,uint256,address,bytes32,uint64,bytes32)",
                 ASSET,
                 amount,
-                keccak256(bytes("secret")),
+                address(0xC1A1),
                 bytes32(0),
                 giftExpiry,
                 bytes32(0)

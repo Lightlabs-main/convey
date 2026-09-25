@@ -16,8 +16,11 @@ interface IClaimGasPaymaster {
 }
 
 /// @notice A single bearer gift backed by a certified registry asset.
-/// @dev The claimer is always msg.sender. There is no arbitrary recipient
-///      parameter that a relayer or copied link can redirect.
+/// @dev The claimer is always msg.sender. The link secret is a one-time
+///      secp256k1 key; the escrow stores only its address. A claim must carry
+///      that key's signature over (chainId, escrow, giftId, claimer), so a
+///      claim observed in a mempool, bundler, or failed attempt cannot be
+///      replayed by anyone else to redirect the gift.
 contract GiftEscrow {
     enum GiftState {
         Open,
@@ -29,7 +32,7 @@ contract GiftEscrow {
         address sender;
         address asset;
         uint256 amount;
-        bytes32 secretHash;
+        address claimKey;
         bytes32 codeHash;
         uint64 expiry;
         bytes32 noteHash;
@@ -38,13 +41,13 @@ contract GiftEscrow {
 
     error AssetNotGiftable();
     error InvalidAmount();
-    error InvalidSecretHash();
+    error InvalidClaimKey();
     error InvalidExpiry();
     error UnknownGift();
     error GiftNotOpen();
     error NotSender();
     error GiftExpired();
-    error InvalidSecret();
+    error InvalidClaimSignature();
     error InvalidCode();
     error InvalidRegistry();
     error InvalidClaimPaymaster();
@@ -58,13 +61,18 @@ contract GiftEscrow {
         address indexed sender,
         address indexed asset,
         uint256 amount,
-        bytes32 secretHash,
+        address claimKey,
         bytes32 codeHash,
         uint64 expiry,
         bytes32 noteHash
     );
     event GiftClaimed(uint256 indexed giftId, address indexed claimer, uint256 amount);
     event GiftReclaimed(uint256 indexed giftId, address indexed sender, uint256 amount);
+
+    bytes32 public constant CLAIM_TYPEHASH =
+        keccak256("ConveyClaim(uint256 chainId,address escrow,uint256 giftId,address claimer)");
+    uint256 private constant SECP256K1_HALF_ORDER =
+        0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
 
     AssetRegistry public immutable registry;
     IClaimGasPaymaster public immutable claimPaymaster;
@@ -89,14 +97,14 @@ contract GiftEscrow {
     function createGift(
         address asset,
         uint256 amount,
-        bytes32 secretHash,
+        address claimKey,
         bytes32 codeHash,
         uint64 expiry,
         bytes32 noteHash
     ) external payable nonReentrant returns (uint256 giftId) {
         if (!registry.isGiftable(asset)) revert AssetNotGiftable();
         if (amount == 0) revert InvalidAmount();
-        if (secretHash == bytes32(0)) revert InvalidSecretHash();
+        if (claimKey == address(0)) revert InvalidClaimKey();
         if (expiry != 0 && expiry <= block.timestamp) revert InvalidExpiry();
         if (msg.value == 0) revert InvalidClaimGasReserve();
 
@@ -109,22 +117,24 @@ contract GiftEscrow {
             sender: msg.sender,
             asset: asset,
             amount: amount,
-            secretHash: secretHash,
+            claimKey: claimKey,
             codeHash: codeHash,
             expiry: expiry,
             noteHash: noteHash,
             state: GiftState.Open
         });
-        emit GiftCreated(giftId, msg.sender, asset, amount, secretHash, codeHash, expiry, noteHash);
+        emit GiftCreated(giftId, msg.sender, asset, amount, claimKey, codeHash, expiry, noteHash);
     }
 
-    function claim(uint256 giftId, bytes calldata secret, bytes calldata code)
+    function claim(uint256 giftId, bytes calldata claimSignature, bytes calldata code)
         external
         nonReentrant
     {
         Gift storage gift = _openGift(giftId);
         if (gift.expiry != 0 && block.timestamp >= gift.expiry) revert GiftExpired();
-        if (secret.length == 0 || keccak256(secret) != gift.secretHash) revert InvalidSecret();
+        if (_recoverClaimSigner(claimDigest(giftId, msg.sender), claimSignature) != gift.claimKey) {
+            revert InvalidClaimSignature();
+        }
         if (gift.codeHash == bytes32(0)) {
             if (code.length != 0) revert InvalidCode();
         } else if (code.length == 0 || keccak256(code) != gift.codeHash) {
@@ -147,6 +157,11 @@ contract GiftEscrow {
         emit GiftReclaimed(giftId, msg.sender, gift.amount);
     }
 
+    /// @notice Digest the one-time claim key signs to bind a gift to a claimer.
+    function claimDigest(uint256 giftId, address claimer) public view returns (bytes32) {
+        return keccak256(abi.encode(CLAIM_TYPEHASH, block.chainid, address(this), giftId, claimer));
+    }
+
     function getGift(uint256 giftId) external view returns (Gift memory) {
         Gift memory gift = _gifts[giftId];
         if (gift.sender == address(0)) revert UnknownGift();
@@ -163,6 +178,20 @@ contract GiftEscrow {
         gift = _gifts[giftId];
         if (gift.sender == address(0)) revert UnknownGift();
         if (gift.state != GiftState.Open) revert GiftNotOpen();
+    }
+
+    function _recoverClaimSigner(bytes32 digest, bytes calldata signature)
+        private
+        pure
+        returns (address signer)
+    {
+        if (signature.length != 65) return address(0);
+        bytes32 r = bytes32(signature[0:32]);
+        bytes32 s = bytes32(signature[32:64]);
+        uint8 v = uint8(signature[64]);
+        if (v < 27) v += 27;
+        if ((v != 27 && v != 28) || uint256(s) > SECP256K1_HALF_ORDER) return address(0);
+        signer = ecrecover(digest, v, r, s);
     }
 
     function _pullExact(address asset, address from, uint256 amount) private {
