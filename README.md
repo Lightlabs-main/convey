@@ -15,7 +15,7 @@ This is proven on X Layer mainnet.
 
 **Live:** [conveyapp.site](https://conveyapp.site) · **App:** [conveyapp.site/app](https://conveyapp.site/app) · **Chain:** X Layer mainnet (196)
 
-**Demo video (3 min):** [`demo/convey-demo.mp4`](demo/convey-demo.mp4) · captions [`demo/convey-demo.srt`](demo/convey-demo.srt). It shows the problem, then the solution, then a real end-to-end mainnet claim.
+**▶ Demo video (3 min):** [watch on X](https://x.com/convey_site/status/2103559739745398950). It covers the problem, the solution, and a real end-to-end gasless claim on X Layer mainnet.
 
 ---
 
@@ -219,8 +219,8 @@ pnpm mcp                                  # MCP server on stdio
 ```
 
 Operator commands for deployment, funding, the gateway and monitoring are in
-[`docs/operations.md`](docs/operations.md). The live infrastructure state is
-in [`HANDOFF.md`](HANDOFF.md).
+[`docs/operations.md`](docs/operations.md). Live evidence is in
+[`docs/verification.md`](docs/verification.md).
 
 ## Further documentation
 
@@ -232,7 +232,6 @@ in [`HANDOFF.md`](HANDOFF.md).
 - [`docs/recurring-authorization.md`](docs/recurring-authorization.md): on-chain recurring gifts (proven on mainnet)
 - [`docs/drop-design.md`](docs/drop-design.md): multi-claim Drop (not deployed)
 - [`mcp/README.md`](mcp/README.md): MCP server for agents
-- [`PROGRESS.md`](PROGRESS.md): implementation history
 
 ## License
 
