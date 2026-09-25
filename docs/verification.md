@@ -1,6 +1,13 @@
 # X Layer mainnet verification
 
-Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core, persistent private gateway, and public HTTPS web edge are now deployed; persistent browser enrollment/recovery proof, owner-revocation proof, and browser mainnet proof remain open.
+Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core, persistent private gateway, and public HTTPS web edge are deployed.
+
+**Current state (2026-09-25):**
+- a new recipient's browser claim through the v2 escrow is proven on mainnet (Gift 2, `0x47236b16…0283`);
+- on-chain owner revocation and the recurring-gift hook are proven on mainnet;
+- only enrollment and recovery on a physical device remain open.
+
+This file is a dated log, so earlier entries that say a proof "remains open" describe the state on that date and are superseded by later entries.
 
 ## First end-to-end browser claim through the v2 escrow (mainnet) — 2026-09-25
 

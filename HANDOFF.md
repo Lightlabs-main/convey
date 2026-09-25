@@ -2,9 +2,9 @@
 
 ## Decision to resume
 
-The product is **Convey**. The previous name is retired; `AGENTS.md` records this as persistent project memory. The account-abstraction transaction gate has now passed through Convey's private OKBund on X Layer, using NodeFlare as OKBund's execution RPC. Particle is no longer a sponsor dependency. The product registry, escrow, claim paymaster, and launch asset entries are deployed and funded; the receiver vault and claim-flow library plus persistent private gateway are implemented. The public web edge is deployed; a Chromium virtual-authenticator PRF capability proof passed, while persistent browser enrollment/recovery, owner-revocation, and browser mainnet proof remain open.
+The product is **Convey**. The previous name is retired; `AGENTS.md` records this as persistent project memory. The account-abstraction transaction gate has now passed through Convey's private OKBund on X Layer, using NodeFlare as OKBund's execution RPC. Particle is no longer a sponsor dependency. The product registry, escrow, claim paymaster, and launch asset entries are deployed and funded; the receiver vault and claim-flow library plus persistent private gateway are implemented. The public web edge is deployed; a Chromium virtual-authenticator PRF capability proof passed, while a new recipient's browser claim through the v2 escrow, on-chain owner revocation, and the recurring-gift hook are now proven on mainnet; only physical-device enrollment/recovery remains open.
 
-The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 EntryPoint v0.7. Its inspected implementation does **not** implement ERC-7579. A proposed per-receiver ECDSA key vault is recorded in `docs/aa-gate-design.md`; its passkey storage, recovery, and revocation paths still need implementation-specific proof. The first sponsor path is an operator-controlled v0.7 paymaster with a dedicated signer and funded EntryPoint deposit/stake. This paymaster is an infrastructure prerequisite to the verification gate; the sender-funded product gas model has one successful live Gift ID `2` proof, while general browser/recovery integration remains open.
+The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 EntryPoint v0.7. Its inspected implementation does **not** implement ERC-7579. A proposed per-receiver ECDSA key vault is recorded in `docs/aa-gate-design.md`; its passkey storage, recovery, and revocation paths still need implementation-specific proof. The first sponsor path is an operator-controlled v0.7 paymaster with a dedicated signer and funded EntryPoint deposit/stake. This paymaster is an infrastructure prerequisite to the verification gate; the sender-funded product gas model has successful live claims on both escrows, including a new recipient's browser claim through the v2 escrow; only physical-device enrollment/recovery remains open.
 
 ## Verified baseline
 
@@ -44,7 +44,7 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
 - The project builder reviewed the bootstrap contract, tests, deployment and funding scripts, operation encoding, and the official OKX/EntryPoint v0.7 call and prefund paths. Findings were corrected and covered by local tests. This is an in-house source review, not a third-party audit or live sponsorship proof.
 - A read-only VPS check at `2026-09-23T16:16:45Z` confirmed the OKBund service and chain/EntryPoint RPC responses. It found no Convey gateway service or container at that historical point. The host had 260 MiB available with 458 MiB swap in use; see [`docs/verification.md`](docs/verification.md). No services or chain state were changed.
 - Local bootstrap source review pinned the deploy/build scripts to the verified OKX factory and implementation and added a live implementation-to-EntryPoint check. The operation file writer rejects symlinks and enforces mode `0600`; submit and wait commands now validate that file before use. Submission waits for an ERC-4337 receipt and reports UserOperation status, transaction status, transaction hash, and block number. `pnpm bootstrap:wait` checks inclusion without resubmitting.
-- [`docs/aa-gate-design.md`](docs/aa-gate-design.md) records the receiver signer shape, the in-house source review, and the implemented bootstrap policy. The encrypted vault core is implemented; browser passkey/recovery and state-changing owner-revocation proof remain open. The live read-only owner-call simulation and sponsorship evidence are recorded in [`docs/verification.md`](docs/verification.md).
+- [`docs/aa-gate-design.md`](docs/aa-gate-design.md) records the receiver signer shape, the in-house source review, and the implemented bootstrap policy. The encrypted vault core is implemented; a state-changing owner revocation is now proven on mainnet (the recurring-hook proof); passkey enrollment/recovery on a physical device remains open. The live read-only owner-call simulation and sponsorship evidence are recorded in [`docs/verification.md`](docs/verification.md).
 - Coinbase VerifyingPaymaster was reviewed as a v0.7 reference but not selected unchanged: its generic policy does not enforce Convey's exact operation target, its listed deployments are Base deployments, and the Cantina review's exact source revision has not been matched. See [`docs/aa-provider-research.md`](docs/aa-provider-research.md).
 - The operator provisioned distinct `SMART_ACCOUNT_OWNER_PRIVATE_KEY`, `DEPLOYER_PRIVATE_KEY`, and `BOOTSTRAP_PAYMASTER_SIGNER_PRIVATE_KEY` values in the ignored local `.env`. Their public role addresses are distinct; no private values were printed. The receiver account `0x63B2A84d47cb07fb18EE72Ec386893506Fd963db` is now deployed on chain 196 by the sponsored operation. The deployed paymaster is `0x6647cef848fc54b0c821f91a88d83227f65e36b9`; its deployment and sponsorship transactions are recorded in `docs/verification.md`. Sponsor nonce `0`, paymaster verification gas limit `200000`, and max-cost cap `0.01 OKB` are configured. The receiver's EntryPoint nonce is now `1`; the paymaster authorization is consumed. `BUNDLER_PRIVATE_KEY` remains only in the VPS root-owned service environment, and its public wallet retains `0.000781673979083699 OKB`.
 - The ignored local `.env` was found with mode `0666` and changed to owner-only mode `0600` without reading or printing its contents. Keep operator keys in this file or a secret manager, never in chat.
@@ -61,15 +61,16 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
   path: PRF enrollment/unlock/recovery, live Gift preview, link parsing, claim
   calldata, live gas seed/estimation, and private two-pass paymaster
   authorization are implemented and locally tested. The virtual-authenticator
-  PRF capability check is recorded below; persistent production browser
-  enrollment/recovery and state-changing on-chain owner-management/revocation
-  proof remain open. The public HTTPS web edge is deployed separately.
+  PRF capability check is recorded below. On-chain owner revocation is proven
+  (the recurring-hook proof's admin mined `removeOwner` for the agent owner).
+  Enrollment and recovery on a physical device remain open.
 - The Next.js receiver surface is implemented and production-built. It reads
   live escrow/registry state and issuer valuation, shows the recovery key once
   with an encrypted recovery bundle and explicit save confirmation, performs the live seed/estimate/claim path,
-  and proxies only allowlisted relay and issuer-valuation paths server-side. It has not been
-  presented as a completed browser claim: persistent production browser
-  enrollment/recovery and browser mainnet proof remain open.
+  and proxies only allowlisted relay and issuer-valuation paths server-side. A
+  brand-new recipient completed a gasless browser claim through it on mainnet
+  (Gift 2, `0x47236b16…0283`) using a WebAuthn virtual authenticator. Physical
+  device enrollment/recovery remains open.
 - The corrected exit paymaster is now deployed at
   `0xcfd241979d578e0b43f4c3f6b9b3fab83b41974c` and funded/staked through the
   canonical EntryPoint v0.7. Deployment, deposit, and stake receipts are in
@@ -96,8 +97,9 @@ The selected on-chain account remains the verified OKX Smart Wallet at ERC-4337 
   receiver has one active admin owner, the built-in ECDSA validator, no hook,
   zero expiration, and the canonical v0.7 EntryPoint. Its `eth_call` simulation
   of `owner EOA -> execute -> removeOwner` succeeded and the post-call state was
-  unchanged. No revocation mutation was attempted; a disposable/multi-owner
-  state-changing proof remains open.
+  unchanged. No revocation was attempted on this receiver. A state-changing
+  revocation was later proven on a disposable sender wallet (the recurring-hook
+  proof).
 - Corrected the guarded withdrawal script's owner check to compare the configured
   owner EOA with the verified receiver owner rather than the smart-account
   address. Its timestamped dry-run at `2026-09-25T09:53:46.773Z` read the full
@@ -214,22 +216,22 @@ were excluded from this evidence. No private key or credential was printed.
 
 ## Resume in this order
 
-1. Run the production WebAuthn enrollment/recovery ceremonies with persistent
-   client storage or a physical authenticator, then prove the inspected OKX
-   owner-revocation path on a disposable or multi-owner account.
-2. Exercise the deployed receiver UI with that persistent browser state; the
-   virtual-authenticator PRF capability proof is recorded above, but the full
-   browser-to-receiver flow is not yet claimed.
+Done since the last checkpoint: a browser claim by a new recipient through the
+v2 escrow on mainnet, on-chain owner revocation, and the recurring-hook proof
+with a mined revocation. All are recorded in `docs/verification.md`.
+
+1. Record one sender run from a real OKX Wallet on mainnet, followed by the
+   recipient's claim (the sender UI is proven on a mainnet fork, and the sender
+   SDK and agent on mainnet).
+2. Run WebAuthn enrollment and recovery on a physical device with persistent
+   storage.
 3. Submit and record one explicit live-quoted gasless withdrawal; the separate
    operator cash-out proof is complete and recorded above.
-4. Execute and record one complete browser-to-browser X Layer mainnet flow.
-5. Keep the installed monitoring timer healthy and fund the paymaster refill
-   shortfalls only after reviewing the guarded live plan.
-6. Run and review the guarded Drop dry-run, then integrate and explicitly
+4. Keep the monitoring timer healthy, and top up the claim paymaster and the
+   account-deployer key (`0x36B71bBa…D3a1`) after reviewing the guarded plan.
+5. Run and review the guarded Drop dry-run, then integrate and explicitly
    deploy the locally tested Drop contract after deciding its anti-bot/access
    and gas policy.
-7. Exercise the local recurring-hook policy against a disposable or multi-owner
-   OKX wallet, including mined admin revocation and post-revocation failure.
 8. Finish any remaining SDK, CI, README, and production-review polish. The
    connected-wallet sender module is already implemented and exported as
    `convey/sender`.
@@ -388,5 +390,5 @@ the accepted operation was included with its supported
 `debug_bundler_sendBundleNow` RPC. The claim proof used an ephemeral localhost
 gateway before the persistent service was installed. The persistent private
 gateway is now active on the supplied VPS, and the public web edge is deployed
-separately; no public gateway endpoint is exposed and no browser mainnet claim
-is recorded yet.
+separately; no public gateway endpoint is exposed. A browser mainnet claim by a
+new recipient was later recorded (Gift 2 on the v2 escrow).

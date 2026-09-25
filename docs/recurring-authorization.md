@@ -67,8 +67,9 @@ against the current chain timestamp, and validates a source-matched Foundry
 artifact. It is dry-run by default and sends only with both `--confirm` and
 `CONVEY_RECURRING_HOOK_CONFIRM=I_UNDERSTAND_MAINNET_WRITE`. The configured
 wallet is intentionally explicit and must be disposable or already multi-owner;
-the script does not attach a hook or change owner state. No live hook has been
-deployed.
+the script does not attach a hook or change owner state. The end-to-end
+mainnet proof (hook deployment, owner authorization, gifts, rejections and
+revocation) uses `pnpm recurring:prove` (`script/prove-recurring-hook.ts`).
 
 This policy does not claim that an owner key represents a person, device, or
 human-level recurrence guarantee. It also does not make Drop claims gasless;

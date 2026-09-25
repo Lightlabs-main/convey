@@ -1,8 +1,9 @@
 # Receiver key enrollment and recovery
 
-Status: encrypted vault and receiver-flow integration implemented; the public
-HTTPS web edge is deployed. A live read-only owner-revocation simulation passes;
-the real browser ceremony and state-changing owner-management proof remain open.
+Status: the encrypted vault and receiver flow are implemented and live. A
+browser claim with a WebAuthn passkey (virtual authenticator) is proven on
+mainnet, and a state-changing owner revocation was mined on a disposable wallet.
+The ceremony on a physical device remains open.
 
 Convey's deployed OKX Smart Wallet uses its built-in ECDSA validator. Each
 receiver therefore needs a dedicated secp256k1 owner key. Convey must never

@@ -255,8 +255,9 @@ claim reserve, and escrow held the exact asset amount under its accounting.
 The private relay and event-aware preflight are now proven by the successful
 Gift ID `2` claim. The receiver application is now connected to this path and
 deployed at the public HTTPS web edge. The virtual-authenticator PRF capability
-proof is recorded in [`docs/verification.md`](docs/verification.md), but a
-browser-to-browser mainnet claim is not yet recorded.
+proof is recorded in [`docs/verification.md`](docs/verification.md). A browser
+mainnet claim by a new recipient through the v2 escrow is also recorded there
+(Gift 2).
 
 
 ## Security and operating rules

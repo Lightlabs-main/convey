@@ -53,8 +53,8 @@
 - A deployed-edge Chromium virtual-authenticator WebAuthn PRF capability proof
   passed at `2026-09-25T11:10:27.355Z`: enrollment reported PRF enabled, repeated
   assertions returned stable 32-byte output, and user verification succeeded.
-  Persistent browser storage/recovery, physical-device behavior, owner revocation,
-  and browser-to-browser mainnet proof remain open.
+  Browser mainnet claim and owner revocation were proven later the same day;
+  see the current checkpoint above.
 - Implemented the minimal `DropEscrow` contract and four invariant tests, plus
   an immutable OKX-specific recurring-gift hook policy and five invariant tests.
   Added source-matched, dry-run-by-default deployment commands for both paths;
@@ -62,9 +62,8 @@
   dry-run revalidated chain `196`, the live registry, and the source-matched
   `3846`-byte artifact at `2026-09-25T12:35:52.882Z`; with no confirmations it
   returned `writeEnabled = false` and produced no deployment transaction. The
-  recurring dry-run remains intentionally unconfigured until a disposable or
-  multi-owner wallet is supplied. Drop and the recurring hook are not deployed
-  or integrated with the UI/gateway.
+  recurring hook was later deployed and proven on mainnet with a disposable
+  sender wallet. Drop remains undeployed.
 - Added CI coverage for the guarded deployment scripts through dedicated strict
   typecheck and Node syntax commands.
 - Fresh read-only checks at `2026-09-25T10:54:29.174Z` kept the operations
@@ -206,8 +205,7 @@
   gateway plus OKBund's supported manual bundle RPC.
 - Added the persistent private gateway service definition. It is scoped to
   loopback port `8800`, authenticates requests, uses the existing NodeFlare and
-  OKBund path. The public HTTPS web edge is now deployed separately; browser
-  PRF and mainnet proof remain open.
+  OKBund path. The public HTTPS web edge is now deployed separately.
 - Added the connected-wallet sender module. It requires a standard EIP-1193
   provider, reads the live registry/token/paymaster state, performs exact
   approval, creates a real hashlocked gift, returns the receipt-derived Gift ID
@@ -261,27 +259,20 @@
   once with an encrypted recovery bundle and explicit save confirmation, calls
   the live claim route, and keeps relay credentials server-side. The production
   build is deployed behind the
-  public HTTPS web edge; persistent production browser enrollment/recovery and
-  the browser mainnet claim remain open.
+  public HTTPS web edge. The browser mainnet claim is now proven (Gift 2).
 
 ## Next
 
-- Exercise the production receiver UI with persistent browser storage or a
-  physical authenticator, complete recovery, and prove the inspected OKX
-  owner-revocation path on a disposable or multi-owner account. The isolated
-  virtual-authenticator capability proof is recorded in `docs/verification.md`;
-  the library path and local tests are in place.
+- Record one sender run from a real OKX Wallet on mainnet, followed by the
+  recipient's claim.
+- Run passkey enrollment and recovery on a physical device.
 - Submit and record the direct gasless withdrawal route after explicit
   destination/amount approval; the operator cash-out proof is complete and is a
   separate path.
-- Execute one complete browser-to-browser mainnet flow through the persistent
-  private gateway, recording every receipt.
-- Keep the installed gateway/paymaster monitoring timer healthy and review
-  refill shortfalls before integrating Drop.
+- Keep the monitoring timer healthy; top up the claim paymaster and the
+  account-deployer key after review.
 - Review the guarded `pnpm drop:deploy` dry-run, decide its anti-bot/access and
-  gas policy, then integrate and explicitly deploy Drop; run the disposable-
-  wallet recurring-hook proof with mined revocation and finish the production
-  review.
+  gas policy, then integrate and explicitly deploy Drop.
 
 ## Blocked
 
@@ -292,10 +283,10 @@
 - A later workspace `pnpm bundler:check` through the temporary SSH tunnel passed for chain 196 and EntryPoint v0.7. An earlier generic connection failure is superseded; the persistent gateway health check is now recorded in `docs/verification.md`.
 - The relay SDK and gateway are implemented. The persistent gateway health check
   passed against live X Layer/OKBund, and the public web edge is deployed at
-  `https://convey.13-62-181-128.sslip.io`; persistent production browser
-  enrollment/recovery and browser mainnet proof are still required.
-- The account-standard decision is settled on the deployed OKX modular ERC-4337 v0.7 account; it is not labeled ERC-7579. The encrypted receiver signer vault and read-only owner-call simulation are implemented and tested; the browser ceremony and state-changing owner revocation proof remain open.
-- Product escrow and claim-reserve code are deployed and funded. The private claim route now has a successful sender-funded Gift ID `2` claim; browser receiver integration remains open.
+  `https://conveyapp.site`. The browser mainnet claim is proven; physical
+  device enrollment/recovery is still open.
+- The account-standard decision is settled on the deployed OKX modular ERC-4337 v0.7 account; it is not labeled ERC-7579. The encrypted receiver signer vault is implemented and tested. The browser claim ceremony (virtual authenticator) and a state-changing owner revocation are proven on mainnet; a physical-device ceremony remains open.
+- Product escrow and claim-reserve code are deployed and funded. The private claim route has successful claims on both escrows, including a browser claim by a new recipient through the v2 escrow.
 - Implemented the minimal `DropEscrow` contract and four invariant tests. It
   pre-funds every slot, enforces one claim per account address, and returns
   only unclaimed slots after expiry. It is not deployed or integrated with the

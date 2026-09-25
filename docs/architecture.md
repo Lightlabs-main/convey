@@ -4,9 +4,10 @@ Status: selected architecture; OKBund build and NodeFlare runtime checks pass.
 The account-abstraction transaction proof and one sender-funded product claim
 passed on X Layer mainnet. The registry, single-gift escrow, claim paymaster,
 persistent private gateway, and browser-facing edge are deployed. The minimal
-multi-claim Drop escrow is implemented and locally tested but is not deployed;
-persistent production browser enrollment/recovery, direct withdrawal proof,
-Drop integration, and recurring authorization remain ahead.
+multi-claim Drop escrow is implemented and locally tested but is not deployed.
+A browser claim by a new recipient and the on-chain recurring authorization are
+proven on mainnet. Physical-device enrollment/recovery, a direct withdrawal
+proof, and Drop integration remain ahead.
 
 ## Accounts and claim routing
 
@@ -30,8 +31,8 @@ Drop integration, and recurring authorization remain ahead.
 - **Recurring gift authorization:** use a narrowly scoped, expiring OKX wallet
   owner/hook only after the exact permissions and revocation behavior pass
   live integration tests. The local [`ConveyRecurringGiftHook`](../contracts/recurring/ConveyRecurringGiftHook.sol)
-  records the bounded policy; it is not deployed. Do not imply ERC-7579 module
-  portability.
+  records the bounded policy and is proven on mainnet with a disposable
+  wallet. Do not imply ERC-7579 module portability.
 - The escrow receives the claim from the account itself (`msg.sender`) and
   transfers only to that account. It has no arbitrary recipient parameter.
   The relay accepts only the configured escrow's claim selector and never

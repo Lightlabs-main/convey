@@ -56,11 +56,16 @@ The local vault is not treated as proof that a gift was claimed; the live gift
 state remains authoritative. A closed gift opened in a browser with no local
 vault exposes no unlock, recovery, or claim controls.
 
-The public HTTPS web edge is deployed at
-`https://convey.13-62-181-128.sslip.io`. An isolated Chromium
-virtual-authenticator PRF capability proof is recorded in
-[`docs/verification.md`](verification.md); persistent production browser
-enrollment/recovery and a browser-to-browser mainnet claim are not recorded yet.
+The public HTTPS web edge is deployed at `https://conveyapp.site`. A new
+recipient completed a gasless browser claim on mainnet through it (Gift 2,
+`0x47236b16…0283`), using Chromium's WebAuthn virtual authenticator. The
+evidence is in [`docs/verification.md`](verification.md). Enrollment and
+recovery on a physical device are not recorded yet.
+
+For a first-time receiver, the claim flow asks the gateway to create the OKX
+Smart Wallet (`POST /v1/accounts`) before the sponsored claim, because OKBund's
+validation simulation rejects an operation that both deploys the account and
+claims.
 The deployed receiver now fetches issuer valuation through its allowlisted
 same-origin proxy; the closed-Gift browser smoke and its zero-error result are
 recorded in the verification log.

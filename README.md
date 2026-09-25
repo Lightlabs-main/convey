@@ -229,7 +229,8 @@ in [`HANDOFF.md`](HANDOFF.md).
 - [`docs/relayer.md`](docs/relayer.md): gateway, SDK and preflight
 - [`docs/sender-flow.md`](docs/sender-flow.md): sender module and gift creation
 - [`docs/receiver-flow.md`](docs/receiver-flow.md): passkey vault and claim flow
-- [`docs/drop-design.md`](docs/drop-design.md) · [`docs/recurring-authorization.md`](docs/recurring-authorization.md): designs that are not deployed
+- [`docs/recurring-authorization.md`](docs/recurring-authorization.md): on-chain recurring gifts (proven on mainnet)
+- [`docs/drop-design.md`](docs/drop-design.md): multi-claim Drop (not deployed)
 - [`mcp/README.md`](mcp/README.md): MCP server for agents
 - [`PROGRESS.md`](PROGRESS.md): implementation history
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { LiveActivity } from "./components/LiveActivity";
 import { LiveTicker } from "./components/LiveTicker";
 import { Reveal } from "./components/Reveal";
 import { SiteHeader } from "./components/SiteHeader";
@@ -142,6 +143,15 @@ export default function LandingPage() {
           <div className="chat-line tool"><code>send_gift</code> · <code>confirm: true</code> → gift created on X Layer</div>
           <div className="chat-line agent">Done. Here&apos;s Maya&apos;s link: <span className="chat-link">conveyapp.site/g/…</span></div>
         </Reveal>
+      </section>
+
+      <section className="section" id="activity">
+        <Reveal>
+          <span className="eyebrow"><i className="pulse" />Live on X Layer</span>
+          <h2 className="section-title">Real gifts. <span className="gradient-text">Real claims.</span></h2>
+          <p className="section-copy">Every gift sent through Convey settles on X Layer. Here is what has happened so far, straight from the chain.</p>
+        </Reveal>
+        <Reveal delay={120}><LiveActivity /></Reveal>
       </section>
 
       <section className="section" id="assets">

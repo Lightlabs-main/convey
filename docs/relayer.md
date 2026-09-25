@@ -128,8 +128,14 @@ claim paymasters have passed their recorded live checks, and Gift ID `2` was
 claimed successfully through the private route. The durable gateway is now
 active on the supplied VPS at loopback `127.0.0.1:8800`; the browser-facing
 HTTPS edge is deployed at the URL in the receiver documentation. The separate
-exit gateway path has also completed one operator gasless cash-out; persistent
-production browser enrollment/recovery and browser-to-browser proof remain open.
+exit gateway path has also completed one operator gasless cash-out. A new
+recipient's browser claim through the v2 escrow is proven on mainnet.
+
+After accepting a claim or exit, the gateway calls OKBund's
+`debug_bundler_sendBundleNow`, because this OKBund runs in manual bundling
+mode. `POST /v1/accounts` creates a first-time receiver's OKX Smart Wallet
+for an open gift (once per gift) with a dedicated small-balance key. The
+preflight reads events with the node's built-in `callTracer`.
 No fake endpoint is committed to make a health check appear green.
 
 ## Operator bundler gate

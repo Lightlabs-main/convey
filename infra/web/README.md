@@ -14,3 +14,14 @@ The current supplied-host deployment is
 [https://www.conveyapp.site](https://www.conveyapp.site) also configured.
 Nginx owns TLS and proxies to `127.0.0.1:3001`; the private relay remains on
 `127.0.0.1:8800`.
+
+## Live activity cache
+
+`/api/activity` builds the homepage's live activity from GiftEscrow events. The
+public RPC serves at most 100 blocks per log query and rate-limits bursts, so
+the first scan after a restart takes about 30–40 seconds. After that, only new
+blocks are scanned. Warm it after every deploy:
+
+```sh
+curl -s https://conveyapp.site/api/activity > /dev/null
+```
