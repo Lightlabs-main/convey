@@ -1,39 +1,50 @@
 # Convey
 
-Convey is a private X Layer mainnet application for gifting tokenized
-real-world assets, beginning with xStocks. A sender funds a gift and sends a
-link; the receiver arrives without a prior wallet, gas, or account and makes a
-gasless claim into an ERC-4337 smart account. The claim is submitted through a
-private Convey gateway and operator-controlled OKBund bundler.
+## Give a stock, not a wallet tutorial
 
-The product is currently in live verification, not production release. The
-account-abstraction bootstrap gate and one sender-funded product claim passed
-on X Layer; the product contracts are deployed and funded. The persistent
-private gateway and production-built web application are deployed on the
-supplied VPS. A real browser PRF ceremony and browser-to-browser mainnet claim
-are still unproven.
+Convey is the link-native gifting layer for tokenized real-world assets,
+starting with xStocks. A sender chooses an asset, locks it into a gift, and
+shares one link. The recipient opens it, secures a smart account with a
+device-local passkey, and claims the asset without a pre-existing wallet, OKB,
+browser extension, or gas balance.
+
+The result feels like a normal gift link, but the ownership is real and
+non-custodial: the asset settles into the recipient's ERC-4337 smart account,
+not a Convey account. Convey never takes custody of the recipient's key.
+
+## Why Convey
+
+Tokenized assets make ownership programmable, but receiving them still feels
+like operating infrastructure. Wallet installation, seed phrases, chain
+switching, gas, and unfamiliar addresses are a terrible first experience for a
+gift.
+
+Convey removes that friction at the exact moment it matters. Senders get a
+simple shareable gift; recipients get an asset they can actually own. The
+onchain settlement, escrow, account creation, sponsorship, and recovery model
+stay underneath the experience.
+
+## Product proof
+
+Convey is a live X Layer mainnet build, not a mock flow:
+
+- Real registry, escrow, paymaster, and smart-account infrastructure is
+  deployed on chain `196`.
+- A sender-funded gift was claimed through the private sponsored path, with
+  the full NVDAx asset delivered to the receiver account and no native gas
+  supplied by the receiver.
+- The same account completed a gasless NVDAx-to-USDT0 cash-out through the
+  deployed exit paymaster.
+- The production web application and private gateway are running on the
+  supplied VPS.
+
+The remaining proof is deliberately explicit: a real browser PRF/recovery
+ceremony and a browser-to-browser mainnet gift flow still need to be completed.
 
 The authoritative continuation record is [`HANDOFF.md`](HANDOFF.md). Detailed
 architecture, deployment, and live evidence are in [`docs/architecture.md`](docs/architecture.md),
 [`docs/product-deployment.json`](docs/product-deployment.json), and
 [`docs/verification.md`](docs/verification.md).
-
-## The product: send a stock gift without requiring a wallet
-
-Someone sends you a stock gift link. You tap **Claim**. The claim is gasless:
-no wallet download, no browser extension, no network switch, no OKB, and no
-pre-funded account.
-
-Convey creates or uses your receiver smart account, wraps the claim in an
-ERC-4337 UserOperation, and routes it through a private sponsored path. The
-sender-funded claim reserve and Convey paymaster pay the gas. Your asset
-arrives in a smart account you control—not in a custodial Convey balance.
-
-“No wallet” means no pre-existing or funded crypto wallet is required. The
-receiver still needs the claim link and a device-local credential to authorize
-the account; Convey never receives the private key. The first receiver screen
-must make that distinction clear without asking the receiver to understand
-wallets or gas.
 
 ## Current checkpoint
 
