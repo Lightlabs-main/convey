@@ -1,10 +1,23 @@
 # Progress
 
-## Current checkpoint — 2026-09-24
+## Current checkpoint — 2026-09-25
 
 - Implemented the scoped gasless exit path: live Uniswap V3 quote plumbing, withdrawal/cash-out policy, separate v0.7 exit paymaster contract, relay endpoints, receiver actions, and tests. The existing claim paymaster remains claim-only.
-- A mainnet exit-paymaster address was returned as `0xaace45b99bfe9e3f380a221d4b6ea4e273447df0`, and live bytecode plus `verifyingSigner()` were read successfully. The deploy script's post-deploy readback hit a transient empty RPC response, so the deployment transaction hash is not recorded; the paymaster is not funded or wired into the VPS/web deployment yet.
-- Browser WebAuthn PRF proof, browser-to-browser mainnet proof, and a real gasless exit remain open. The latest exit frontend code is committed locally but has not been redeployed to the public site.
+- Corrected the X Layer SwapRouter02 `exactInput` ABI to the deployed four-field
+  shape, added quote-expiry enforcement, and made exit deployment refuse a stale
+  Foundry artifact. Exit authorization now also rechecks the configured route
+  and a fresh QuoterV2 minimum. The corrected source compiled and the full
+  Foundry suite passed on the supplied VPS (38 tests).
+- The corrected exit paymaster is deployed at
+  `0xcfd241979d578e0b43f4c3f6b9b3fab83b41974c` (transaction
+  `0x35eb1f85dc8af1d9092f4ac20d506ce79e520e372302e1d13a7976d03b0186d1`,
+  block `71533700`), funded with a `0.0001 OKB` EntryPoint deposit and `1 wei`
+  stake, and wired into the private gateway. A real gasless exit completed
+  through OKBund in bundle transaction
+  `0x8bbe7a11e439e8c9d18ce698871d2220231a51f124d58e3c80605a087e9099b0`
+  (UserOperation `0xd37eba9f81db81b41bc81863a3e06ecffc7285e321b363a4aecabac650816b8f`,
+  block `71534842`). The corrected web bundle is live.
+- Browser WebAuthn PRF proof and browser-to-browser mainnet proof remain open.
 
 ## Done
 
@@ -142,7 +155,8 @@
 - Exercise the real browser WebAuthn PRF ceremony and persistent storage, then
   prove the inspected OKX owner-revocation path. The library path and local
   tests are in place; see `docs/receiver-flow.md`.
-- Implement live-quoted gasless cash-out and gasless withdrawal.
+- Implement and verify live-quoted gasless withdrawal (distinct from the
+  completed cash-out).
 - Execute one complete browser-to-browser mainnet flow through the persistent
   private gateway, recording every receipt.
 - Add gateway/paymaster monitoring and a documented top-up operation before

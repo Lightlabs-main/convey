@@ -1,6 +1,6 @@
 {
   "chainId": 196,
-  "observedAt": "2026-09-23",
+  "observedAt": "2026-09-25",
   "deployer": "0x5fA8199ad34373A063c96D24a1BF5b4a105D3399",
   "contracts": {
     "assetRegistry": {
@@ -34,6 +34,36 @@
       "blockNumber": 71427817,
       "gasUsed": "1068118",
       "effectiveGasPriceWei": "20000001"
+    },
+    "exitPaymaster": {
+      "address": "0xcfd241979d578e0b43f4c3f6b9b3fab83b41974c",
+      "deploymentTransaction": "0x35eb1f85dc8af1d9092f4ac20d506ce79e520e372302e1d13a7976d03b0186d1",
+      "blockNumber": 71533700,
+      "gasUsed": "2300846",
+      "effectiveGasPriceWei": "20000001",
+      "maxExitCostWei": "50000000000000",
+      "entryPointDepositWei": "100000000000000",
+      "stakeWei": "1",
+      "unstakeDelaySec": 86400,
+      "depositTransaction": "0xbf11746f8d6797e6375dba84c647b511e61cef7ef5284231e89e2a09374988bc",
+      "depositBlockNumber": 71533753,
+      "stakeTransaction": "0x5df7855385e4d202f62ae70f5f203a5d7bf63c197e81d32222371eb3b3b03e23",
+      "stakeBlockNumber": 71533755,
+      "exitUserOperation": {
+        "status": "included_success",
+        "userOperationHash": "0xd37eba9f81db81b41bc81863a3e06ecffc7285e321b363a4aecabac650816b8f",
+        "transactionHash": "0x8bbe7a11e439e8c9d18ce698871d2220231a51f124d58e3c80605a087e9099b0",
+        "blockNumber": 71534842,
+        "success": true,
+        "actualGasUsed": "487219",
+        "actualGasCostWei": "10231599000000",
+        "assetIn": "0xa8ddb5cd96b5222afe198316e9a57caa642850d5",
+        "amountIn": "30965586663211895",
+        "assetOut": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+        "amountOut": "6932357",
+        "receiver": "0x63B2A84d47cb07fb18EE72Ec386893506Fd963db",
+        "finalEntryPointDepositWei": "73206079000000"
+      }
     }
   },
   "registeredAssets": [

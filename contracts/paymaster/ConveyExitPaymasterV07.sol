@@ -31,7 +31,7 @@ contract ConveyExitPaymasterV07 {
     bytes4 public constant OKX_EXECUTE_USER_OP_SELECTOR = 0x8dd7712f;
     bytes4 public constant ERC20_APPROVE_SELECTOR = 0x095ea7b3;
     bytes4 public constant ERC20_TRANSFER_SELECTOR = 0xa9059cbb;
-    bytes4 public constant UNISWAP_EXACT_INPUT_SELECTOR = 0xc04b8d59;
+    bytes4 public constant UNISWAP_EXACT_INPUT_SELECTOR = 0xb858183f;
 
     uint8 private constant OP_SUCCEEDED = 0;
     uint8 private constant SIG_VALIDATION_FAILED = 1;
@@ -261,9 +261,9 @@ contract ConveyExitPaymasterV07 {
         if (!_isGiftable(inputToken)) revert InvalidExitOperation();
 
         if (calls[1].target != router || calls[1].value != 0) revert InvalidExitOperation();
-        (bytes memory path, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum) =
+        (bytes memory path, address recipient, uint256 amountIn, uint256 amountOutMinimum) =
             _decodeExactInput(calls[1].data);
-        if (recipient != sender || amountIn != amount || amountOutMinimum == 0 || deadline < block.timestamp || deadline > block.timestamp + 300) {
+        if (recipient != sender || amountIn != amount || amountOutMinimum == 0) {
             revert InvalidExitOperation();
         }
         _validatePath(path, inputToken);
@@ -328,7 +328,7 @@ contract ConveyExitPaymasterV07 {
     function _decodeExactInput(bytes memory data)
         private
         pure
-        returns (bytes memory path, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum)
+        returns (bytes memory path, address recipient, uint256 amountIn, uint256 amountOutMinimum)
     {
         if (data.length < 4) revert InvalidExitOperation();
         bytes memory encoded = new bytes(data.length - 4);
@@ -338,7 +338,11 @@ contract ConveyExitPaymasterV07 {
             selector := mload(add(data, 0x20))
         }
         if (selector != UNISWAP_EXACT_INPUT_SELECTOR) revert InvalidExitOperation();
-        (path, recipient, deadline, amountIn, amountOutMinimum) = abi.decode(encoded, (bytes, address, uint256, uint256, uint256));
+        ExitExactInput memory params = abi.decode(encoded, (ExitExactInput));
+        path = params.path;
+        recipient = params.recipient;
+        amountIn = params.amountIn;
+        amountOutMinimum = params.amountOutMinimum;
     }
 
     function _decodePaymasterData(bytes calldata paymasterAndData)
@@ -438,4 +442,11 @@ struct ExitCall {
     address target;
     uint256 value;
     bytes data;
+}
+
+struct ExitExactInput {
+    bytes path;
+    address recipient;
+    uint256 amountIn;
+    uint256 amountOutMinimum;
 }

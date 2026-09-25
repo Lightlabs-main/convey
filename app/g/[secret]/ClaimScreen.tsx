@@ -230,8 +230,14 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
     }
   }
 
-  function exitAddress(name: "NEXT_PUBLIC_CONVEY_EXIT_PAYMASTER_ADDRESS" | "NEXT_PUBLIC_CONVEY_EXIT_ROUTER_ADDRESS" | "NEXT_PUBLIC_CONVEY_EXIT_USDT0_ADDRESS"): Address {
-    const value = process.env[name];
+  const exitAddresses = {
+    NEXT_PUBLIC_CONVEY_EXIT_PAYMASTER_ADDRESS: process.env.NEXT_PUBLIC_CONVEY_EXIT_PAYMASTER_ADDRESS,
+    NEXT_PUBLIC_CONVEY_EXIT_ROUTER_ADDRESS: process.env.NEXT_PUBLIC_CONVEY_EXIT_ROUTER_ADDRESS,
+    NEXT_PUBLIC_CONVEY_EXIT_USDT0_ADDRESS: process.env.NEXT_PUBLIC_CONVEY_EXIT_USDT0_ADDRESS,
+  } as const;
+
+  function exitAddress(name: keyof typeof exitAddresses): Address {
+    const value = exitAddresses[name];
     if (!value || !isAddress(value)) throw new Error(`${name} is not configured with a live address`);
     return value as Address;
   }

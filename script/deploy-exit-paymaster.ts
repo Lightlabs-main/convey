@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { createPublicClient, createWalletClient, http, type Address, type Hex } from "viem";
+import { createPublicClient, createWalletClient, http, keccak256, stringToBytes, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 const CHAIN_ID = 196;
@@ -30,10 +30,24 @@ function amount(name: string): bigint {
   return value;
 }
 
-async function artifact(): Promise<{ abi: readonly unknown[]; bytecode: { object: Hex } }> {
+async function artifact(): Promise<{ abi: readonly unknown[]; bytecode: { object: Hex }; rawMetadata?: string; sources?: Record<string, { keccak256?: string }> }> {
   const path = new URL("../out/ConveyExitPaymasterV07.sol/ConveyExitPaymasterV07.json", import.meta.url);
-  const value = JSON.parse(await readFile(fileURLToPath(path), "utf8")) as { abi: readonly unknown[]; bytecode: { object: Hex } };
+  const value = JSON.parse(await readFile(fileURLToPath(path), "utf8")) as { abi: readonly unknown[]; bytecode: { object: Hex }; rawMetadata?: string; sources?: Record<string, { keccak256?: string }> };
   if (!value.bytecode.object || value.bytecode.object === "0x") throw new Error("exit paymaster artifact has no bytecode; run forge build first");
+  const sourcePath = new URL("../contracts/paymaster/ConveyExitPaymasterV07.sol", import.meta.url);
+  const sourceHash = keccak256(stringToBytes(await readFile(fileURLToPath(sourcePath), "utf8")));
+  let metadataSources = value.sources;
+  if (!metadataSources && value.rawMetadata) {
+    try {
+      metadataSources = (JSON.parse(value.rawMetadata) as { sources?: Record<string, { keccak256?: string }> }).sources;
+    } catch {
+      throw new Error("exit paymaster artifact metadata is malformed; run forge build again");
+    }
+  }
+  const artifactHash = metadataSources?.["contracts/paymaster/ConveyExitPaymasterV07.sol"]?.keccak256;
+  if (artifactHash?.toLowerCase() !== sourceHash.toLowerCase()) {
+    throw new Error("exit paymaster artifact is stale; run forge build before deployment");
+  }
   return value;
 }
 

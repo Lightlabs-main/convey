@@ -58,5 +58,6 @@ configured public X Layer RPC, fetches the issuer value for wrapped xStocks,
 and never invents a balance or USD amount. After local key enrollment and
 explicit recovery-key confirmation it builds, live-estimates, and submits the
 gasless claim through the same-origin `/api/relay/*` proxy. The relay URL and
-bearer token are server-only environment variables. Cash-out and withdrawal
-remain intentionally unavailable until their live routes are implemented.
+bearer token are server-only environment variables. The live-quoted cash-out
+route is implemented and has one operator UserOperation proof; gasless
+withdrawal still needs implementation and live verification.

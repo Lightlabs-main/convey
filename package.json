@@ -26,7 +26,9 @@
     "product:fund": "node --env-file=.env script/fund-product-paymaster.ts",
     "product:register-assets": "node --env-file=.env script/register-launch-assets.ts",
     "exit:deploy": "node --env-file=.env script/deploy-exit-paymaster.ts",
-    "exit:fund": "node --env-file=.env script/fund-exit-paymaster.ts"
+    "exit:fund": "node --env-file=.env script/fund-exit-paymaster.ts",
+    "exit:preflight": "node --env-file=.env script/debug-exit-preflight.ts",
+    "exit:submit": "node --env-file=.env script/submit-exit-operation.ts"
   },
   "exports": {
     ".": "./src/index.ts",

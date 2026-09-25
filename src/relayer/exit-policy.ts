@@ -33,7 +33,6 @@ const ROUTER_ABI = [{
   inputs: [{ name: "params", type: "tuple", components: [
     { name: "path", type: "bytes" },
     { name: "recipient", type: "address" },
-    { name: "deadline", type: "uint256" },
     { name: "amountIn", type: "uint256" },
     { name: "amountOutMinimum", type: "uint256" },
   ] }],
@@ -48,6 +47,14 @@ export interface ExitCall {
   target: Address;
   value: bigint;
   data: Hex;
+}
+
+export interface ExitCashOutDetails {
+  inputToken: Address;
+  path: Hex;
+  recipient: Address;
+  amountIn: bigint;
+  amountOutMinimum: bigint;
 }
 
 export function encodeOkxExitExecution(calls: readonly ExitCall[]): Hex {
@@ -79,7 +86,7 @@ export function buildCashOutCalls(options: {
   assertAddress(options.recipient, "cash-out recipient");
   assertHex(options.path, "cash-out path");
   if (options.amountIn <= 0n || options.amountOutMinimum <= 0n) throw new Error("cash-out amounts must be greater than zero");
-  if (options.deadline <= 0n) throw new Error("cash-out deadline must be greater than zero");
+  if (options.deadline <= BigInt(Math.floor(Date.now() / 1000))) throw new Error("cash-out quote has expired");
   return [
     {
       target: options.inputToken,
@@ -95,7 +102,6 @@ export function buildCashOutCalls(options: {
         args: [{
           path: options.path,
           recipient: options.recipient,
-          deadline: options.deadline,
           amountIn: options.amountIn,
           amountOutMinimum: options.amountOutMinimum,
         }],
@@ -147,14 +153,29 @@ export function assertExitExecutionCalldata(
   const [spender, amount] = decodeApprove(approval.data);
   const inputToken = approval.target;
   if (!allowed.has(inputToken.toLowerCase()) || spender.toLowerCase() !== router.toLowerCase() || amount === 0n) throw new Error("cash-out approval is not allowed");
-  const [path, recipient, deadline, amountIn, amountOutMinimum] = decodeExactInput(swap.data);
+  const [path, recipient, amountIn, amountOutMinimum] = decodeExactInput(swap.data);
   if (swap.target.toLowerCase() !== router.toLowerCase() || recipient.toLowerCase() !== sender.toLowerCase() || amountIn !== amount || amountOutMinimum === 0n) {
     throw new Error("cash-out swap parameters are not allowed");
   }
-  if (deadline < BigInt(Math.floor(Date.now() / 1000)) || deadline > BigInt(Math.floor(Date.now() / 1000) + 300)) throw new Error("cash-out deadline is not live");
   validatePath(path, inputToken, usdt0);
   const [resetSpender, resetAmount] = decodeApprove(reset.data);
   if (reset.target.toLowerCase() !== inputToken.toLowerCase() || resetSpender.toLowerCase() !== router.toLowerCase() || resetAmount !== 0n) throw new Error("cash-out approval reset is not allowed");
+}
+
+/**
+ * Extract the swap shape after assertExitExecutionCalldata has accepted it.
+ * Withdrawal operations intentionally return undefined.
+ */
+export function decodeExitCashOutCalldata(callData: Hex): ExitCashOutDetails | undefined {
+  try {
+    const calls = callsFromCalldata(callData);
+    if (calls.length !== 3) return undefined;
+    const [approval, swap] = calls;
+    const [path, recipient, amountIn, amountOutMinimum] = decodeExactInput(swap.data);
+    return { inputToken: approval.target, path, recipient, amountIn, amountOutMinimum };
+  } catch {
+    return undefined;
+  }
 }
 
 function decodeApprove(data: Hex): [Address, bigint] {
@@ -169,12 +190,11 @@ function decodeTransfer(data: Hex): [Address, bigint] {
   return [recipient, amount];
 }
 
-function decodeExactInput(data: Hex): [Hex, Address, bigint, bigint, bigint] {
-  if (data.slice(0, 10).toLowerCase() !== "0xc04b8d59") throw new Error("invalid exactInput call");
+function decodeExactInput(data: Hex): [Hex, Address, bigint, bigint] {
+  if (data.slice(0, 10).toLowerCase() !== "0xb858183f") throw new Error("invalid exactInput call");
   const [params] = decodeAbiParameters([{ type: "tuple", components: [
     { name: "path", type: "bytes" },
     { name: "recipient", type: "address" },
-    { name: "deadline", type: "uint256" },
     { name: "amountIn", type: "uint256" },
     { name: "amountOutMinimum", type: "uint256" },
   ] }], `0x${data.slice(10)}` as Hex);
@@ -184,12 +204,11 @@ function decodeExactInput(data: Hex): [Hex, Address, bigint, bigint, bigint] {
     : [
       (params as Record<string, unknown>).path,
       (params as Record<string, unknown>).recipient,
-      (params as Record<string, unknown>).deadline,
       (params as Record<string, unknown>).amountIn,
       (params as Record<string, unknown>).amountOutMinimum,
     ];
-  if (typeof tuple[0] !== "string" || typeof tuple[1] !== "string" || typeof tuple[2] !== "bigint" || typeof tuple[3] !== "bigint" || typeof tuple[4] !== "bigint") throw new Error("invalid exactInput arguments");
-  return [tuple[0] as Hex, tuple[1] as Address, tuple[2], tuple[3], tuple[4]];
+  if (typeof tuple[0] !== "string" || typeof tuple[1] !== "string" || typeof tuple[2] !== "bigint" || typeof tuple[3] !== "bigint") throw new Error("invalid exactInput arguments");
+  return [tuple[0] as Hex, tuple[1] as Address, tuple[2], tuple[3]];
 }
 
 function validatePath(path: Hex, inputToken: Address, usdt0: Address): void {

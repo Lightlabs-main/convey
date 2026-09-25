@@ -607,6 +607,18 @@ function positiveEstimateValue(value: string | undefined, name: string): bigint 
   return result;
 }
 
+/**
+ * OKBund currently returns callGasLimit=0 for an already-deployed account
+ * after a successful v0.7 EntryPoint simulation of this exit shape. Retain
+ * the caller's live observed seed in that narrow case; never invent a gas
+ * limit or apply this fallback to verification/pre-verification gas.
+ */
+function exitCallGasFromEstimate(value: string | undefined, seed: bigint): bigint {
+  const result = requireEstimateValue(value, "callGasLimit");
+  if (result === 0n) return positiveEstimateValue(`0x${seed.toString(16)}`, "seed callGasLimit");
+  return result;
+}
+
 function maxBigint(left: bigint, right: bigint): bigint {
   return left > right ? left : right;
 }
@@ -756,7 +768,7 @@ export async function prepareReceiverExit(options: ReceiverExitPreparationOption
     const built = await buildReceiverExit({ ...options, gas, paymasterVerificationGasLimit, paymasterPostOpGasLimit });
     const estimate = await options.relay.estimateExit(built.userOperation.userOperation);
     const nextGas: OkxClaimGas = {
-      callGasLimit: maxBigint(gas.callGasLimit, positiveEstimateValue(estimate.callGasLimit, "callGasLimit")),
+      callGasLimit: maxBigint(gas.callGasLimit, exitCallGasFromEstimate(estimate.callGasLimit, gas.callGasLimit)),
       verificationGasLimit: maxBigint(gas.verificationGasLimit, positiveEstimateValue(estimate.verificationGasLimit, "verificationGasLimit")),
       preVerificationGas: maxBigint(gas.preVerificationGas, positiveEstimateValue(estimate.preVerificationGas, "preVerificationGas")),
       maxFeePerGas: gas.maxFeePerGas,

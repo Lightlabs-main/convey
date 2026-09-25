@@ -50,8 +50,10 @@ and its exposed secret is retired.
 The gateway uses `SelfHostedBundlerClient` for the private JSON-RPC methods
 `eth_supportedEntryPoints`, `eth_estimateUserOperationGas`,
 `eth_sendUserOperation`, `eth_getUserOperationByHash`, and
-`eth_getUserOperationReceipt`. It has no method for `eth_sendRawTransaction`
-and has no public-bundler fallback.
+`eth_getUserOperationReceipt`. If OKBund does not return a receipt, status
+routes fall back to the canonical EntryPoint's indexed `UserOperationEvent`
+within a bounded recent block window. It has no method for
+`eth_sendRawTransaction` and has no public-bundler fallback.
 
 Before a live claim is submitted, the operator can run
 `preflightEntryPointUserOperation` from `src/relayer/preflight.ts` against the
@@ -66,14 +68,17 @@ The gateway runs this same preflight on `/v1/claims` immediately before
 `eth_sendUserOperation`. A failed simulation is rejected and is never placed in
 the private bundler; an unavailable tracing RPC also fails closed.
 
-## Claim security
+## Route security
 
-The gateway is claim-only. It accepts a sponsored, signed v0.7 UserOperation,
-requires the configured Convey paymaster, and requires a single zero-value
-`executeUserOp` call to the configured escrow and claim selector. It never
-stores or logs the request body. Idempotency stores only a short-lived request
-key and UserOperation hash; the claim secret remains inside the signed calldata
-and is not persisted by the gateway.
+The claim routes accept a sponsored, signed v0.7 UserOperation, require the
+configured Convey claim paymaster, and require a single zero-value
+`executeUserOp` call to the configured escrow and claim selector. The exit
+routes use the separate exit paymaster and allow only the configured receiver,
+verified asset route, SwapRouter02, USDT0, and exact-input approval/swap/reset
+sequence (or a single withdrawal call). Neither path stores or logs the request
+body. Idempotency stores only a short-lived request key and UserOperation hash;
+the claim secret remains inside signed calldata and is not persisted by the
+gateway.
 
 The bundler's execution RPC is intentionally separate from the public claim
 gateway. The current operator path uses the keyed NodeFlare X Layer endpoint,
@@ -115,7 +120,9 @@ it is intentionally not saved in the local `.env`. The deployed bootstrap and
 claim paymasters have passed their recorded live checks, and Gift ID `2` was
 claimed successfully through the private route. The durable gateway is now
 active on the supplied VPS at loopback `127.0.0.1:8800`; the browser-facing
-HTTPS edge is the remaining deployment step. No fake endpoint is committed to
+HTTPS edge is deployed at the URL in the receiver documentation. The separate
+exit gateway path has also completed one operator gasless cash-out; browser
+PRF and browser-to-browser proof remain open. No fake endpoint is committed to
 make a health check appear green.
 
 ## Operator bundler gate

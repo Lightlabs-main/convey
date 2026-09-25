@@ -37,7 +37,7 @@ wallets or gas.
 
 ## Current checkpoint
 
-As of 2026-09-24:
+As of 2026-09-25:
 
 - X Layer mainnet, chain ID `196`, is the only supported deployment.
 - The selected receiver is the deployed OKX Smart Wallet at ERC-4337 EntryPoint
@@ -50,6 +50,10 @@ As of 2026-09-24:
 - The persistent claim gateway is enabled on that VPS, bound only to
   `127.0.0.1:8800`, authenticated, and forwarding to loopback OKBund. No public
   gateway endpoint is exposed.
+- The separate exit paymaster is deployed and funded/staked at
+  `0xcfd241979d578e0b43f4c3f6b9b3fab83b41974c`. The private gateway and web
+  bundle are wired to it. A real gasless exit completed through OKBund; the
+  UserOperation and bundle transaction are recorded in `docs/verification.md`.
 - The production-built web application is live at
   [`https://convey.13-62-181-128.sslip.io`](https://convey.13-62-181-128.sslip.io).
   Nginx terminates TLS and forwards only to the loopback Next.js service;
@@ -180,9 +184,14 @@ The browser-safe SDK is `ConveyRelayerClient`. The server-side gateway uses
 | `POST /v1/claims/authorize` | Signs one claim-scoped paymaster authorization for an unsigned operation; never returns the sponsor key |
 | `POST /v1/claims/estimate` | Forwards a scoped gas-estimation request to the private bundler |
 | `POST /v1/claims` | Preflights and then submits one signed sponsored UserOperation |
-| `GET /v1/claims/:userOperationHash` | Returns pending, confirmed, or failed receipt status |
+| `GET /v1/claims/:userOperationHash` | Returns pending, confirmed, or failed receipt/event status |
+| `POST /v1/exits/quote` | Returns a live verified-asset-to-USDT0 quote and expiry |
+| `POST /v1/exits/authorize` | Signs one exit-paymaster authorization for an unsigned operation |
+| `POST /v1/exits/estimate` | Forwards a scoped exit gas-estimation request |
+| `POST /v1/exits` | Preflights and submits one signed sponsored cash-out/withdrawal |
+| `GET /v1/exits/:userOperationHash` | Returns pending, confirmed, or failed receipt/event status |
 
-The gateway accepts only a signed, sponsored v0.7 operation that:
+The claim route accepts only a signed, sponsored v0.7 operation that:
 
 1. uses the configured EntryPoint and Convey claim paymaster;
 2. contains exactly one zero-value OKX `executeUserOp` call;
@@ -409,9 +418,10 @@ browser-to-browser mainnet claim are not yet recorded.
 ## Resume point
 
 The next work follows the product order in [`PROGRESS.md`](PROGRESS.md): finish
-the browser receiver enrollment/recovery proof, implement the live gasless exit
-paths, and execute one browser-to-browser mainnet flow. The live claim proof is
-complete; the gateway remains private behind the deployed web app.
+the browser receiver enrollment/recovery proof, implement and verify gasless
+withdrawal, and execute one browser-to-browser mainnet flow. The live claim and
+operator cash-out proofs are complete; the gateway remains private behind the
+deployed web app.
 
 ## Further documentation
 

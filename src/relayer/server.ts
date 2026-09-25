@@ -1,11 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { decodeAbiParameters, decodeFunctionData, encodeFunctionData, keccak256 } from "viem";
+import { decodeAbiParameters, decodeFunctionData, encodeFunctionData, keccak256, stringToBytes } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { checkRelayerHealth } from "./health.ts";
 import { assertClaimExecutionCalldata, decodeClaimExecutionCalldata } from "./claim-policy.ts";
 import { encodeClaimPaymasterData, signClaimPaymasterAuthorization } from "./claim-paymaster.ts";
-import { assertExitExecutionCalldata } from "./exit-policy.ts";
+import { assertExitExecutionCalldata, decodeExitCashOutCalldata } from "./exit-policy.ts";
 import { encodeExitPaymasterData, exitPaymasterActionHash, signExitPaymasterAuthorization } from "./exit-paymaster.ts";
 import { JsonRpcRequestError, JsonRpcTransportError } from "./rpc.ts";
 import { JsonRpcClient } from "./rpc.ts";
@@ -150,6 +150,9 @@ const ENTRYPOINT_HANDLE_OPS_ABI = [{
   outputs: [],
 }] as const;
 
+const ENTRYPOINT_USER_OPERATION_EVENT_TOPIC = keccak256(stringToBytes("UserOperationEvent(bytes32,address,address,uint256,bool,uint256,uint256)"));
+const ENTRYPOINT_STATUS_LOG_LOOKBACK_BLOCKS = 10_000n;
+
 function zeroPaymasterData(value: Hex | undefined): boolean {
   return value === undefined || value === "0x" || value === `0x${"00".repeat(141)}`;
 }
@@ -209,7 +212,7 @@ function decodeReserve(data: Hex): { remaining: bigint; state: number } {
 async function readPaymasterValue(rpc: JsonRpcClient, paymaster: Address, functionName: "maxClaimCost" | "maxExitCost" | "verifyingSigner"): Promise<bigint | Address> {
   const data = encodeFunctionData({ abi: CLAIM_PAYMASTER_READ_ABI, functionName, args: [] });
   const result = await rpc.request<Hex>("eth_call", [{ to: paymaster, data }, "latest"]);
-  return functionName === "maxClaimCost" ? decodeUint256(result, functionName) : decodeAddress(result, functionName);
+  return functionName === "verifyingSigner" ? decodeAddress(result, functionName) : decodeUint256(result, functionName);
 }
 
 async function readReserve(rpc: JsonRpcClient, paymaster: Address, giftId: bigint): Promise<{ remaining: bigint; state: number }> {
@@ -398,6 +401,71 @@ export function statusFromReceipt(userOperationHash: Hex, receipt: any): ClaimRe
   };
 }
 
+async function statusFromEntryPointEvent(
+  execution: JsonRpcClient,
+  entryPoint: Address,
+  userOperationHash: Hex,
+): Promise<ClaimRelayStatus | undefined> {
+  try {
+    const latestRaw = await execution.request<unknown>("eth_blockNumber");
+    if (!isQuantity(latestRaw)) return undefined;
+    const latest = BigInt(latestRaw);
+    const fromBlock = latest > ENTRYPOINT_STATUS_LOG_LOOKBACK_BLOCKS
+      ? latest - ENTRYPOINT_STATUS_LOG_LOOKBACK_BLOCKS
+      : 0n;
+    const logs = await execution.request<unknown[]>("eth_getLogs", [{
+      address: entryPoint,
+      fromBlock: toQuantity(fromBlock, "fromBlock"),
+      toBlock: "latest",
+      topics: [ENTRYPOINT_USER_OPERATION_EVENT_TOPIC, userOperationHash],
+    }]);
+    if (!Array.isArray(logs)) return undefined;
+    for (const value of logs) {
+      if (!isObject(value) || !Array.isArray(value.topics) || !isHex(value.data)) continue;
+      const topics = value.topics;
+      if (typeof topics[1] !== "string" || topics[1].toLowerCase() !== userOperationHash.toLowerCase()) continue;
+      if (typeof value.transactionHash !== "string" || !isHex(value.transactionHash)) continue;
+      if (typeof value.blockNumber !== "string" || !isQuantity(value.blockNumber)) continue;
+      let decoded: readonly unknown[];
+      try {
+        decoded = decodeAbiParameters([
+          { type: "uint256" },
+          { type: "bool" },
+          { type: "uint256" },
+          { type: "uint256" },
+        ], value.data);
+      } catch {
+        continue;
+      }
+      const success = decoded[1];
+      if (typeof success !== "boolean") continue;
+      return {
+        userOperationHash,
+        status: success ? "confirmed" : "failed",
+        success,
+        transactionHash: value.transactionHash,
+        blockNumber: value.blockNumber,
+      };
+    }
+  } catch {
+    // A temporary indexing/RPC failure must not turn a pending operation into
+    // a false failure. The bundler receipt remains the primary status source.
+  }
+  return undefined;
+}
+
+async function readUserOperationStatus(
+  bundler: SelfHostedBundlerClient,
+  execution: JsonRpcClient,
+  entryPoint: Address,
+  userOperationHash: Hex,
+): Promise<ClaimRelayStatus> {
+  const receipt = await bundler.getUserOperationReceipt(userOperationHash);
+  const status = statusFromReceipt(userOperationHash, receipt);
+  if (status.status !== "pending") return status;
+  return await statusFromEntryPointEvent(execution, entryPoint, userOperationHash) ?? status;
+}
+
 function pathOf(request: IncomingMessage): string {
   return new URL(request.url ?? "/", "http://convey-relayer").pathname;
 }
@@ -506,6 +574,22 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
       observedAt: new Date().toISOString(),
       source: "uniswap-v3-quoter-v2",
     };
+  }
+
+  async function assertLiveCashOutQuote(
+    exit: ReturnType<typeof requireExitConfig>,
+    callData: Hex,
+  ): Promise<void> {
+    const cashOut = decodeExitCashOutCalldata(callData);
+    if (!cashOut) return;
+    const configuredPath = exitRoute(exit.routes, cashOut.inputToken);
+    if (cashOut.path.toLowerCase() !== configuredPath.toLowerCase()) {
+      throw new HttpProblem(409, "exit_route_changed");
+    }
+    const quote = await quoteExit({ asset: cashOut.inputToken, amountIn: cashOut.amountIn });
+    if (cashOut.amountOutMinimum < BigInt(quote.amountOutMinimum)) {
+      throw new HttpProblem(409, "exit_quote_stale");
+    }
   }
 
   async function claimGasSeed(): Promise<ClaimGasSeed> {
@@ -655,6 +739,7 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
     } catch {
       throw new HttpProblem(400, "invalid_exit_target");
     }
+    await assertLiveCashOutQuote(exit, request.userOperation.callData);
     const maxExitCost = await readPaymasterValue(execution, exit.paymaster, "maxExitCost");
     if (typeof maxExitCost !== "bigint" || maxExitCost <= 0n) throw new HttpProblem(503, "exit_paymaster_policy_unavailable");
     const paymasterVerificationGasLimit = BigInt(request.userOperation.paymasterVerificationGasLimit!);
@@ -733,8 +818,7 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
     if (request.method === "GET" && /^\/v1\/exits\/0x[0-9a-fA-F]{64}$/.test(path)) {
       const userOperationHash = path.slice("/v1/exits/".length) as Hex;
       assertUserOperationHash(userOperationHash);
-      const receipt = await bundler.getUserOperationReceipt(userOperationHash);
-      json(response, 200, statusFromReceipt(userOperationHash, receipt));
+      json(response, 200, await readUserOperationStatus(bundler, execution, config.entryPoint, userOperationHash));
       return;
     }
     if (request.method === "POST" && path === "/v1/claims/authorize") {
@@ -746,8 +830,7 @@ export function createRelayerServer(config: SelfHostedRelayerConfig): Server {
     if (request.method === "GET" && /^\/v1\/claims\/0x[0-9a-fA-F]{64}$/.test(path)) {
       const userOperationHash = path.slice("/v1/claims/".length) as Hex;
       assertUserOperationHash(userOperationHash);
-      const receipt = await bundler.getUserOperationReceipt(userOperationHash);
-      json(response, 200, statusFromReceipt(userOperationHash, receipt));
+      json(response, 200, await readUserOperationStatus(bundler, execution, config.entryPoint, userOperationHash));
       return;
     }
     if (request.method === "POST" && (path === "/v1/exits" || path === "/v1/exits/estimate")) {

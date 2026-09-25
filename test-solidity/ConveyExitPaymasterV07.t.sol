@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {ConveyExitPaymasterV07, ExitCall, IExitAssetRegistry} from "../contracts/paymaster/ConveyExitPaymasterV07.sol";
+import {ConveyExitPaymasterV07, ExitCall, ExitExactInput, IExitAssetRegistry} from "../contracts/paymaster/ConveyExitPaymasterV07.sol";
 import {PackedUserOperationV07} from "../contracts/bootstrap/ConveyBootstrapPaymasterV07.sol";
 
 interface VmExitPaymaster {
@@ -75,6 +75,21 @@ contract ConveyExitPaymasterV07Test {
         require(validationData != 1, "signature failed");
     }
 
+    function testAcceptsLiveCashOutPolicy() external {
+        bytes memory path = abi.encodePacked(asset, uint24(3000), usdt0);
+        ExitCall[] memory calls = new ExitCall[](3);
+        calls[0] = ExitCall({target: asset, value: 0, data: abi.encodeWithSelector(0x095ea7b3, router, 1 ether)});
+        calls[1] = ExitCall({target: router, value: 0, data: abi.encodeWithSelector(0xb858183f, ExitExactInput(path, receiver, 1 ether, 1))});
+        calls[2] = ExitCall({target: asset, value: 0, data: abi.encodeWithSelector(0x095ea7b3, router, 0)});
+        PackedUserOperationV07 memory userOp = _operation(_execute(calls));
+        bytes32 actionHash = keccak256(userOp.callData);
+        userOp.paymasterAndData = _paymasterData(userOp, actionHash, 0);
+
+        (bytes memory context, uint256 validationData) = ExitEntryPointMock(ENTRY_POINT).callValidate(paymaster, userOp, 1 ether);
+        context;
+        require(validationData != 1, "signature failed");
+    }
+
     function testRejectsWithdrawalToReceiverItself() external {
         ExitCall[] memory calls = new ExitCall[](1);
         calls[0] = ExitCall({target: asset, value: 0, data: abi.encodeWithSelector(0xa9059cbb, receiver, 1 ether)});
@@ -99,7 +114,7 @@ contract ConveyExitPaymasterV07Test {
         bytes memory path = abi.encodePacked(asset, uint24(500), usdt0);
         ExitCall[] memory calls = new ExitCall[](3);
         calls[0] = ExitCall({target: asset, value: 0, data: abi.encodeWithSelector(0x095ea7b3, router, 1 ether)});
-        calls[1] = ExitCall({target: router, value: 0, data: abi.encodeWithSelector(0xc04b8d59, path, receiver, block.timestamp + 60, 1 ether, 1)});
+        calls[1] = ExitCall({target: router, value: 0, data: abi.encodeWithSelector(0xb858183f, ExitExactInput(path, receiver, 1 ether, 1))});
         calls[2] = ExitCall({target: asset, value: 0, data: abi.encodeWithSelector(0x095ea7b3, router, 1)});
         PackedUserOperationV07 memory userOp = _operation(_execute(calls));
         bytes32 actionHash = keccak256(userOp.callData);

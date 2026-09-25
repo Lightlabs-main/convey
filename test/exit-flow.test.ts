@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCashOutCalls, buildWithdrawalCall, encodeOkxExitExecution, assertExitExecutionCalldata } from "../src/relayer/exit-policy.ts";
+import { buildCashOutCalls, buildWithdrawalCall, decodeExitCashOutCalldata, encodeOkxExitExecution, assertExitExecutionCalldata } from "../src/relayer/exit-policy.ts";
 import { encodeExitPaymasterData, exitPaymasterActionHash } from "../src/relayer/exit-paymaster.ts";
 import type { Address, Hex } from "../src/relayer/types.ts";
 
@@ -29,8 +29,27 @@ test("exit policy requires a three-call cash-out and reset", () => {
   });
   const callData = encodeOkxExitExecution(calls);
   assert.doesNotThrow(() => assertExitExecutionCalldata(callData, receiver, [asset], router, usdt0));
+  const details = decodeExitCashOutCalldata(callData);
+  assert.ok(details);
+  assert.equal(details.inputToken.toLowerCase(), asset);
+  assert.equal(details.path.toLowerCase(), path);
+  assert.equal(details.recipient.toLowerCase(), receiver);
+  assert.equal(details.amountIn, 10n);
+  assert.equal(details.amountOutMinimum, 9n);
   calls[2] = { ...calls[2], data: calls[0].data };
   assert.throws(() => assertExitExecutionCalldata(encodeOkxExitExecution(calls), receiver, [asset], router, usdt0), /cash-out approval reset/);
+});
+
+test("exit policy rejects an expired cash-out quote", () => {
+  assert.throws(() => buildCashOutCalls({
+    inputToken: asset,
+    router,
+    path,
+    recipient: receiver,
+    amountIn: 10n,
+    amountOutMinimum: 9n,
+    deadline: BigInt(Math.floor(Date.now() / 1000) - 1),
+  }), /cash-out quote has expired/);
 });
 
 test("exit paymaster payload binds the call hash and stays fixed width", () => {

@@ -2,6 +2,55 @@
 
 Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core, persistent private gateway, and public HTTPS web edge are now deployed; browser ceremony/recovery proof and browser mainnet proof remain open.
 
+## Live exit-paymaster deployment — 2026-09-25
+
+The corrected four-field X Layer SwapRouter02 `exactInput` policy was compiled
+with Foundry 1.8.3 and passed the complete Solidity regression suite (38 tests).
+The deployment script also verified that its Foundry artifact matched the
+current source before sending the transaction. Exit authorization rechecks the
+configured route and a fresh QuoterV2 minimum before signing.
+
+- Exit paymaster: `0xcfd241979d578e0b43f4c3f6b9b3fab83b41974c`
+- Deployment transaction: `0x35eb1f85dc8af1d9092f4ac20d506ce79e520e372302e1d13a7976d03b0186d1`
+- Deployment block: `71533700`; status `0x1`; gas used `2300846`; effective gas price `20000001 wei`
+- EntryPoint deposit transaction: `0xbf11746f8d6797e6375dba84c647b511e61cef7ef5284231e89e2a09374988bc`
+- Deposit block: `71533753`; status `0x1`; deposit `100000000000000 wei` (`0.0001 OKB`)
+- Stake transaction: `0x5df7855385e4d202f62ae70f5f203a5d7bf63c197e81d32222371eb3b3b03e23`
+- Stake block: `71533755`; status `0x1`; stake `1 wei`; unstake delay `86400 seconds`
+
+At NodeFlare block `71533860`, live readback found 10,275 bytes of runtime
+code, chain `196`, the canonical EntryPoint v0.7, the configured registry,
+SwapRouter02, USDT0, sponsor signer, `maxExitCost = 50000000000000 wei`,
+`UNISWAP_EXACT_INPUT_SELECTOR = 0xb858183f`, and a 300-second authorization
+window. The operator then completed one real gasless exit through the private
+gateway and OKBund:
+
+- UserOperation hash: `0xd37eba9f81db81b41bc81863a3e06ecffc7285e321b363a4aecabac650816b8f`
+- Manual OKBund bundle transaction: `0x8bbe7a11e439e8c9d18ce698871d2220231a51f124d58e3c80605a087e9099b0`
+- X Layer block: `71534842` (`0x44388fa`); transaction status `0x1`; gas used `415010`
+- EntryPoint `UserOperationEvent`: `success = true`, `actualGasUsed = 487219`, `actualGasCost = 10231599000000 wei`
+- `ExitSettled`: actual gas cost `9261966000000 wei`, precharged
+  `25824288000000 wei`, refunded `16562322000000 wei`
+- The receiver swapped its full `30965586663211895` NVDAx
+  (`0.030965586663211895`) and received `6932357` USDT0 (`6.932357`)
+
+The public gateway status endpoint now resolves the mined EntryPoint event and
+returns `confirmed` with the bundle transaction and block above, even though
+this OKBund build did not index the receipt through
+`eth_getUserOperationReceipt`. At NodeFlare block `71535386`, the receiver's
+NVDAx balance was `0`, its USDT0 balance was `6932357`, its EntryPoint nonce was
+`4`, and the exit paymaster remained staked with a `73206079000000 wei`
+deposit. This is operator-script proof of the gasless exit; browser PRF and
+browser-to-browser mainnet proof remain open.
+
+The supplied VPS gateway was updated to the corrected exit policy and new
+paymaster address, restarted, and returned authenticated `healthy = true` on
+chain `196`. The production web bundle was rebuilt with the new address and
+deployed atomically; `convey-web.service` remained active, public `/` and a
+claim route returned HTTP `200`, and the public relay health proxy returned
+HTTP `200`. This remains deployment evidence, not browser PRF or
+browser-to-browser mainnet proof.
+
 ## Live continuation checks — 2026-09-24
 
 The workspace resumed with read-only checks before any new gift or claim action:
