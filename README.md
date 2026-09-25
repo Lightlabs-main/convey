@@ -56,6 +56,30 @@ settles to the recipient's own ERC-4337 account, not to a Convey balance.
 4. **Own.** The recipient can hold the xStock, cash out to USDT0 with a live
    quote, or move it anywhere. The exits are gasless too.
 
+## For AI agents: Convey MCP server
+
+Convey also runs as an [MCP](https://modelcontextprotocol.io) server, so any
+agent (Claude, Cursor, or an OKX AI agent) can gift xStocks to a person. For
+example, it can reward a contributor, pay a bounty, or send a birthday share
+on a user's behalf. The recipient still needs no wallet and pays no gas.
+
+| Tool | |
+|---|---|
+| `list_xstocks` | Giftable xStocks with live issuer prices |
+| `get_gift` | Live state and USD value of any gift |
+| `agent_wallet` | Agent balances and per-gift cap |
+| `send_gift` | Creates a gift and returns its claim link |
+| `reclaim_gift` | Returns an unclaimed gift |
+
+```sh
+claude mcp add convey -- node /path/to/convey/mcp/server.ts
+```
+
+The read tools need no key. The spending tools need an agent key, a per-gift
+cap, and `confirm: true` on every call. The full send, cap, confirm and reclaim
+flow was exercised against the live v2 contracts on a mainnet fork. See
+[`mcp/README.md`](mcp/README.md).
+
 ## Security design
 
 - **Claims can't be front-run.** The link secret never goes on chain. It signs
@@ -119,6 +143,7 @@ app/                 Next.js app
   g/[secret]/        recipient claim screen
   lib/okx-wallet.ts  OKX Wallet discovery, X Layer switching, mobile deep link
   api/               same-origin relay proxy (rate-limited) and issuer price proxy
+mcp/                 MCP server for AI agents (send, check, reclaim gifts)
 contracts/
   core/              AssetRegistry, GiftEscrow, DropEscrow
   paymaster/         claim and exit paymasters (ERC-4337 v0.7)
@@ -139,7 +164,8 @@ docs/                design notes, verification record, operations
 pnpm install
 cp .env.example .env && chmod 600 .env   # fill in the addresses above
 pnpm dev                                  # http://localhost:3000
-pnpm test && forge test                   # 50 Node + 51 Foundry tests
+pnpm test && forge test                   # 52 Node + 51 Foundry tests
+pnpm mcp                                  # MCP server on stdio
 ```
 
 Operator commands for deployment, funding, the gateway and monitoring are in
@@ -154,4 +180,9 @@ in [`HANDOFF.md`](HANDOFF.md).
 - [`docs/sender-flow.md`](docs/sender-flow.md): sender module and gift creation
 - [`docs/receiver-flow.md`](docs/receiver-flow.md): passkey vault and claim flow
 - [`docs/drop-design.md`](docs/drop-design.md) · [`docs/recurring-authorization.md`](docs/recurring-authorization.md): designs that are not deployed
+- [`mcp/README.md`](mcp/README.md): MCP server for agents
 - [`PROGRESS.md`](PROGRESS.md): implementation history
+
+## License
+
+[MIT](LICENSE)

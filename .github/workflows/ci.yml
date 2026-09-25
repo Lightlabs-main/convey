@@ -31,6 +31,8 @@ jobs:
         run: pnpm typecheck
       - name: Operator script typecheck
         run: pnpm scripts:typecheck
+      - name: MCP server typecheck
+        run: pnpm mcp:typecheck
       - name: Operator script syntax
         run: pnpm scripts:syntax
       - name: Production build

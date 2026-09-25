@@ -2,6 +2,27 @@
 
 Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core, persistent private gateway, and public HTTPS web edge are now deployed; persistent browser enrollment/recovery proof, owner-revocation proof, and browser mainnet proof remain open.
 
+## MCP agent flow on a mainnet fork — 2026-09-25
+
+The Convey MCP server was driven by a real MCP client over stdio against an
+anvil fork of X Layer mainnet (chain 196), which runs the deployed v2
+`GiftEscrow`, claim paymaster and registry code. A throwaway agent key was
+given 0.1 forked OKB and 0.05 wNVDAx, impersonating the wNVDAx/USDT0 0.3%
+Uniswap V3 pool `0xa575234CC82bE1DD41D133cA33E879287d6751A0`. Results:
+
+- `send_gift` was refused without `confirm: true`, and 0.03 was refused above
+  the 0.02 per-gift cap.
+- Two back-to-back 0.01 wNVDAx gifts succeeded, each with the 0.00002 OKB
+  reserve, with nonces tracked locally.
+- `get_gift` reported the gift open at a live issuer value of $2.25.
+- `reclaim_gift` returned gift 1, and `get_gift` then reported `reclaimed`.
+- The agent's final balance was 0.04 wNVDAx, which reconciles with one gift
+  still open.
+
+Against live mainnet (no key), `list_xstocks` returned all three xStocks as
+giftable with live issuer quotes. `get_gift` correctly reported that the v2
+escrow has no gift 1 yet. These are fork results, not mainnet transactions.
+
 ## Signature-bound escrow v2 migration — 2026-09-25
 
 The v1 `GiftEscrow.claim` accepted the raw link secret, so any observer of a

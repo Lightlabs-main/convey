@@ -2,6 +2,7 @@
   "name": "convey",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -37,7 +38,9 @@
     "exit:fund": "node --env-file=.env script/fund-exit-paymaster.ts",
     "exit:preflight": "node --env-file=.env script/debug-exit-preflight.ts",
     "exit:submit": "node --env-file=.env script/submit-exit-operation.ts",
-    "withdraw:submit": "node --env-file=.env script/submit-withdrawal-operation.ts"
+    "withdraw:submit": "node --env-file=.env script/submit-withdrawal-operation.ts",
+    "mcp": "node mcp/server.ts",
+    "mcp:typecheck": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --strict --skipLibCheck --esModuleInterop --allowImportingTsExtensions --types node mcp/server.ts"
   },
   "exports": {
     ".": "./src/index.ts",
@@ -47,15 +50,20 @@
     "./sender": "./src/sender/index.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.1",
     "next": "16.3.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "viem": "^2.56.8"
+    "viem": "^2.56.8",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "22.15.3",
     "@types/react": "19.1.2",
     "@types/react-dom": "19.1.2",
     "typescript": "5.9.3"
+  },
+  "bin": {
+    "convey-mcp": "./mcp/server.ts"
   }
 }
