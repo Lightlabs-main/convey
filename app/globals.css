@@ -672,6 +672,7 @@ button.xstock-option:hover:not(:disabled) { background: var(--surface-hover); tr
 }
 
 .gift-created h3 { font-size: 1.6rem; }
+.gift-created .eyebrow { justify-self: start; }
 
 .link-box {
   display: flex;

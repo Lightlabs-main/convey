@@ -14,7 +14,7 @@ This is proven on X Layer mainnet.
 
 **Live:** [conveyapp.site](https://conveyapp.site) · **App:** [conveyapp.site/app](https://conveyapp.site/app) · **Chain:** X Layer mainnet (196)
 
-<!-- Demo video: add the link here once recorded. -->
+**Demo video (3 min):** [`demo/convey-demo.mp4`](demo/convey-demo.mp4) · captions [`demo/convey-demo.srt`](demo/convey-demo.srt). It shows the problem, then the solution, then a real end-to-end mainnet claim.
 
 ---
 
@@ -175,9 +175,10 @@ Every hash, receipt and readback is recorded in
 [`docs/verification.md`](docs/verification.md) and
 [`docs/product-deployment.json`](docs/product-deployment.json).
 
-**Not yet proven on mainnet:**
-- passkey enrollment and recovery on a physical device;
-- removing an owner from the smart account on-chain.
+**Not yet proven on mainnet:** passkey enrollment and recovery on a physical
+device. The end-to-end claim above used Chromium's WebAuthn virtual
+authenticator. Removing an owner on-chain is proven: the recurring-gift proof's
+admin revoked the agent owner with `removeOwner`.
 
 Drop (multi-claim gifts) is implemented and tested, but deliberately not
 deployed.
