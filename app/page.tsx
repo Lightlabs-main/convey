@@ -68,6 +68,7 @@ export default function LandingPage() {
             ["01", "Pick an xStock", "Choose NVDAx, AAPLx or TSLAx from Convey's certified X Layer registry and fund the gift from OKX Wallet."],
             ["02", "Share one link", "The link holds a one-time key. It never touches the chain, so a copied claim cannot be redirected."],
             ["03", "They claim gasless", "A passkey creates their OKX Smart Wallet. Your small OKB reserve pays their gas through Convey's paymaster."],
+            ["04", "Or make it recurring", "Send a stock every week or month on a budget you approve once, enforced by your own OKX Smart Wallet."],
           ].map(([number, title, body], index) => (
             <Reveal className="step" key={number} delay={index * 120}>
               <span className="step-number">{number}</span>
@@ -76,6 +77,35 @@ export default function LandingPage() {
             </Reveal>
           ))}
         </div>
+      </section>
+
+      <section className="section" id="recurring">
+        <Reveal>
+          <span className="eyebrow"><i className="pulse" />Recurring gifts</span>
+          <h2 className="section-title">A stock every month.<br />On autopilot.</h2>
+          <p className="section-copy">
+            Set it once, for example 0.01 AAPLx to Maya every month with a 0.12 total. Convey sends each gift on schedule and
+            stops at the budget. Each gift arrives as its own link, claimed gasless like any other.
+          </p>
+        </Reveal>
+        <div className="steps">
+          {[
+            ["Approve once", "Choose the xStock, amount, schedule, recipient and total budget. That one approval covers the whole plan."],
+            ["Sent on schedule", "An AI agent sends each gift when it's due: never early, never twice, never over budget. Missed runs are skipped, not batched."],
+            ["Enforced by your wallet", "Your OKX Smart Wallet adds the agent as a restricted owner with an on-chain budget. It can't exceed it even with a leaked key, and you can revoke it any time."],
+          ].map(([title, body], index) => (
+            <Reveal className="step" key={title} delay={index * 120}>
+              <span className="step-number">{String(index + 1).padStart(2, "0")}</span>
+              <h3>{title}</h3>
+              <p>{body}</p>
+            </Reveal>
+          ))}
+        </div>
+        <Reveal className="recurring-proof">
+          <span className="chain-tag">Proven on X Layer mainnet</span>
+          <span>The agent sent 2 gifts within budget. A 3rd, an oversized gift and a token withdrawal were blocked by the wallet. Then it was revoked.</span>
+          <a className="text-link" href="https://www.oklink.com/xlayer/address/0x57804d8f2a97235de2f97af829a730d1c409c8e9" target="_blank" rel="noreferrer">View the hook ↗</a>
+        </Reveal>
       </section>
 
       <section className="section agents" id="agents">

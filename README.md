@@ -8,6 +8,10 @@ The recipient opens the link, confirms with a passkey, and owns the stock in
 their own OKX Smart Wallet. They don't need a wallet first, don't buy OKB, and
 don't pay gas.
 
+Gifts can also be **recurring**, for example a stock every month. The sender
+approves a budget once, and their own OKX Smart Wallet enforces it on-chain.
+This is proven on X Layer mainnet.
+
 **Live:** [conveyapp.site](https://conveyapp.site) · **App:** [conveyapp.site/app](https://conveyapp.site/app) · **Chain:** X Layer mainnet (196)
 
 <!-- Demo video: add the link here once recorded. -->
@@ -32,6 +36,7 @@ settles to the recipient's own ERC-4337 account, not to a Convey balance.
 | **Assets** | xStocks: NVDAx, AAPLx, TSLAx | Certified in Convey's on-chain `AssetRegistry`; live issuer prices |
 | **Sender wallet** | OKX Wallet | EIP-6963 discovery (`com.okex.wallet`), with `window.okxwallet` as fallback; adds or switches to X Layer automatically; on phones, opens in the OKX Wallet app via deep link |
 | **Receiver account** | OKX Smart Wallet (ERC-4337 v0.7) | Created from a device passkey; deployed on first claim |
+| **Recurring budget** | OKX Smart Wallet owner hooks | The agent is a restricted owner; `ConveyRecurringGiftHook` enforces asset, caps, total budget and expiry inside the sender's wallet |
 | **Bundler** | OKX OKBund (pinned) | Self-hosted, private; sponsored UserOperations only |
 | **AI agents** | Convey MCP server | Agents list xStocks, check gifts, and send or reclaim gifts under a per-gift cap with user confirmation |
 
@@ -59,6 +64,30 @@ settles to the recipient's own ERC-4337 account, not to a Convey balance.
    claim is a sponsored UserOperation, and the sender's reserve pays the gas.
 4. **Own.** The recipient can hold the xStock, cash out to USDT0 with a live
    quote, or move it anywhere. The exits are gasless too.
+
+### Recurring gifts
+
+```text
+ Sender's OKX Smart Wallet
+   ├─ admin owner (the sender): full control, can revoke the agent at any time
+   └─ agent owner (restricted) ──▶ ConveyRecurringGiftHook checks every call:
+                                     • target is GiftEscrow.createGift only
+                                     • one xStock, ≤ cap per gift, ≤ total budget
+                                     • native reserve ≤ cap, before expiry
+```
+
+1. **Approve once.** The sender sets the xStock, amount, schedule, recipient
+   and total budget. The wallet adds the agent as a restricted owner bound to
+   the hook, with a matching token allowance.
+2. **Sent on schedule.** The agent (through Convey's MCP server) sends each
+   gift when it's due. It never sends early, never twice, never over budget,
+   and it recovers from crashes. Each gift arrives as a normal link.
+3. **Enforced on-chain.** Even with a leaked agent key, the wallet refuses
+   anything outside the policy. The sender can revoke the agent at any time.
+
+On X Layer mainnet, the agent sent two gifts within budget. A third gift, an
+oversized gift and a token withdrawal were rejected. The agent was then
+revoked, and its next call failed. See [Onchain proof](#onchain-proof).
 
 ## For AI agents: Convey MCP server
 
@@ -112,6 +141,10 @@ against the live v2 contracts on a mainnet fork. See
     forwarded.
   - Sponsor signing is limited per account and per IP, and exit sponsorship has
     a daily spend cap.
+- **Recurring budgets are enforced by the wallet.** A recurring agent is a
+  non-admin owner of the sender's OKX Smart Wallet. Every call it makes passes
+  `ConveyRecurringGiftHook`, and it can never change owners or move funds
+  elsewhere.
 - **No mock data.** Prices, balances, quotes and claim state are read live.
   Anything that can't be read is shown as unavailable, never estimated.
 
