@@ -2,6 +2,15 @@
 
 ## Current checkpoint — 2026-09-25
 
+- Proved on-chain recurring gifts on X Layer mainnet:
+  - a disposable OKX Smart Wallet added a non-admin agent owner bound to
+    `ConveyRecurringGiftHook`;
+  - the agent sent two in-budget gifts (v2 escrow gifts 1 and 2);
+  - out-of-bounds calls and a third gift were rejected;
+  - the admin revoked the agent.
+
+  Also added agent-driven recurring plans to the MCP server (fork-verified,
+  including crash recovery). Evidence is in `docs/verification.md`.
 - Replaced the front-runnable secret-reveal claim with a signature-bound claim
   key (GiftEscrow v2) and redeployed the claim paymaster pair on mainnet after
   confirming zero open v1 gifts; the v1 surplus deposit funded the migration.

@@ -9,3 +9,4 @@ cache_forge/
 *.pem
 *.key
 id_*
+.recurring-proof*.json

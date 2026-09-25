@@ -2,6 +2,65 @@
 
 Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core, persistent private gateway, and public HTTPS web edge are now deployed; persistent browser enrollment/recovery proof, owner-revocation proof, and browser mainnet proof remain open.
 
+## On-chain recurring gifts with ConveyRecurringGiftHook (mainnet) — 2026-09-25
+
+A disposable OKX Smart Wallet acted as the sender. A second, non-admin agent
+owner was bound to `ConveyRecurringGiftHook`, which enforces the policy inside
+the wallet's own `execute` path:
+- the Convey v2 escrow is the only allowed target, and `createGift` the only
+  allowed call;
+- wNVDAx is the only allowed asset;
+- each gift is capped at 0.00035 wNVDAx, with a 0.0007 wNVDAx total budget;
+- the native reserve is capped at 0.00002 OKB;
+- the authorization expires on 2026-10-25.
+
+The whole sequence was run on a fork with mainnet gas pricing first, then on
+X Layer mainnet with the same script (`script/prove-recurring-hook.ts`).
+
+- Sender wallet: `0x542fB8E81924b4a2A43f07A893AfFfA511640557`
+  (admin `0xF79880fa5eb52135e4a70BA14c88E8f179DA6397`)
+- Agent key: `0xb3465Cd3965A36fb5eC6a514F1eFcC7e7C7F0779`
+- Hook: `0x57804d8f2a97235de2f97af829a730d1c409c8e9` (deployed in block 71583888)
+
+| Step | Transaction |
+|---|---|
+| fund admin | `0x7a624659a5a56e4b5cf3555ba6fbea120ffdf650e282bc42b311019748a0269e` |
+| create wallet | `0x67f6e7f49bf2854bc718a8697a50a5614a9267078a17fdfb96d56cd708ad73fc` |
+| swap OKB to wNVDAx | `0xb616a06b27fa8a644f625a1b66cad233b01d88afee3330b4c001b17218fd23dd` |
+| fund wallet reserves | `0xadfb2eb3cdb81bd9e13d7f95ea24c452635387fea7d3e5752fd2990262d3acf1` |
+| fund agent gas | `0xa43a8db5df2838a97cba0b5ce56f39830dcf82c28d7140c4d0ed0d3f7e6dbec2` |
+| deploy hook | `0x66e1d58ff0f954c4034dec0050f24cd70a33cee47cb88d039d4d85c003b126f7` |
+| add agent owner + approve budget | `0xfb1c104cb5985958a0a2e821c2b6288c179e17fe56dfb21ed7f1a371b32200f9` |
+| agent gift 1 | `0x2a461908e16ea31be3f0bf64e9a7f4acfbea88198763e54afd6cdffc88fb8cc7` |
+| top up agent gas | `0x80c8ebfc0186ab419349808871e36a7bb148e9270c978feb7ab98f99de8a5610` |
+| agent gift 2 | `0x2a1ec61d2860dd2ec9ad6317274f8882f7c250b538e4e6265154e9b3289d8516` |
+| revoke agent | `0xdcb09023ed92d8894a7d3e78421092e408635d6779d5778b062dd9b2e951dfe5` |
+
+The first attempt at agent gift 2 was refused by the RPC before broadcast,
+because the agent's balance was 0.00000012 OKB short of the gas limit
+reservation. The agent was topped up from the admin, and the run resumed.
+
+Rejections were simulated from the agent against live mainnet state before
+the gifts were sent:
+- removing the admin: `InvalidTarget`;
+- transferring tokens out: `InvalidTarget`;
+- a gift above the cap: `InvalidGiftAmount`;
+- an oversized reserve: `InvalidNativeReserve`.
+
+After two gifts, a third was rejected with `BudgetExceeded`. After the admin's
+mined `removeOwner`, the agent's next call was rejected with `InvalidCaller`.
+
+Independent readback:
+- the hook's `spent()` is `700000000000000`, equal to `totalBudget()`;
+- `hasOwner(keccak256(agent))` is `false`, and the admin is still an owner;
+- the v2 escrow's `nextGiftId` is `3`, and gifts 1 and 2 are 0.00035 wNVDAx
+  each from the sender wallet;
+- each gift transaction (blocks 71583894 and 71583918) carries one hook
+  `RecurringGiftApproved` event.
+
+These are the first gifts created on the v2 escrow. Their claim links are kept
+only in the ignored local file `.recurring-proof.mainnet.json`.
+
 ## MCP recurring gifts on a mainnet fork — 2026-09-25
 
 On a fresh anvil fork of X Layer mainnet, with a throwaway agent key holding

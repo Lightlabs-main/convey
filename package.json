@@ -11,7 +11,7 @@
     "verify": "node script/verify.ts",
     "verify:bundler-rpc": "node --env-file-if-exists=.env script/check-bundler-rpc.ts",
     "typecheck": "tsc --noEmit",
-    "scripts:typecheck": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --strict --skipLibCheck --esModuleInterop --types node script/deploy-drop.ts script/deploy-recurring-hook.ts",
+    "scripts:typecheck": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --strict --skipLibCheck --esModuleInterop --allowImportingTsExtensions --types node script/deploy-drop.ts script/deploy-recurring-hook.ts script/prove-recurring-hook.ts",
     "scripts:syntax": "node --check script/deploy-drop.ts && node --check script/deploy-recurring-hook.ts",
     "account:inspect": "node --env-file=.env script/account.ts",
     "account:owner-check": "node --env-file=.env script/account-owner-check.ts",
@@ -40,7 +40,8 @@
     "exit:submit": "node --env-file=.env script/submit-exit-operation.ts",
     "withdraw:submit": "node --env-file=.env script/submit-withdrawal-operation.ts",
     "mcp": "node mcp/server.ts",
-    "mcp:typecheck": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --strict --skipLibCheck --esModuleInterop --allowImportingTsExtensions --types node mcp/server.ts"
+    "mcp:typecheck": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --strict --skipLibCheck --esModuleInterop --allowImportingTsExtensions --types node mcp/server.ts",
+    "recurring:prove": "node --env-file=.env script/prove-recurring-hook.ts"
   },
   "exports": {
     ".": "./src/index.ts",

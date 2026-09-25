@@ -39,8 +39,11 @@ or an OKX AI agent task. Each run:
 Plans live in `~/.convey-agent/plans.json` (mode 600; override with
 `CONVEY_AGENT_STATE_DIR`). That file holds bearer links, so keep it private.
 
-The budget is enforced by the server. For a budget enforced by the sender's
-own smart wallet, see the on-chain hook in
+Here the budget is enforced by this server. For a budget the agent cannot
+exceed even with a leaked key, use the on-chain mode proven on X Layer
+mainnet: the sender's OKX Smart Wallet adds the agent as a restricted owner
+bound to `ConveyRecurringGiftHook`, which enforces the asset, caps, budget and
+expiry inside the wallet. See
 [`docs/recurring-authorization.md`](../docs/recurring-authorization.md).
 
 ## Safety

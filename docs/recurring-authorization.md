@@ -1,9 +1,10 @@
 # OKX-specific recurring authorization
 
-Status: the local policy hook and five invariant tests are implemented, but no
-hook is deployed and no recurring owner has been attached to the live receiver.
-The deployed receiver currently has one owner, so it must not be modified for
-this proof.
+Status: **proven on X Layer mainnet on 2026-09-25** with a disposable sender
+wallet: the hook was deployed, a non-admin agent owner was authorized, two
+in-budget gifts were sent, out-of-bounds calls were rejected, and the agent
+was revoked. Evidence is in [`verification.md`](verification.md). The
+production receiver was not modified.
 
 ## Wallet-specific model
 
@@ -81,8 +82,7 @@ batch shape, reserve/cap/budget/expiry bounds, rollback after an execution
 revert, and wallet-only callbacks. They compile against Solidity `0.8.23` as
 part of the current 47-test Foundry suite.
 
-Live proof remains open. It requires a disposable or already multi-owner OKX
-wallet, a deployed hook, an explicit secondary-owner authorization, a live
-bounded gift operation, an out-of-bounds rejection, expiry behavior, and a
-mined primary-admin revocation followed by a failed replay. No such state
-change was attempted on Convey's sole-owner receiver.
+The live proof covered everything except expiry at the exact timestamp, which
+remains covered by the local tests. The agent key signed ordinary
+transactions to the wallet's `execute`. The hook runs on that path and on the
+ERC-4337 `executeUserOp` path alike, because both go through `_batchCall`.

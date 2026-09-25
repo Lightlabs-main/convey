@@ -98,6 +98,29 @@
       "claimPaymaster": "0x655025c861C1848BA5324863D85BFA32cCF69e5B",
       "claimSelector": "0x08aa325f",
       "claimTypehash": "0x62d4a7084bfa22a326b2bf48afd5994a9e5740b4a66274e8edbcb31668ae472e"
+    },
+    "recurringGiftHookProof": {
+      "address": "0x57804d8f2a97235de2f97af829a730d1c409c8e9",
+      "senderWallet": "0x542fB8E81924b4a2A43f07A893AfFfA511640557",
+      "agentOwner": "0xb3465Cd3965A36fb5eC6a514F1eFcC7e7C7F0779",
+      "asset": "0xa8ddb5cd96b5222afe198316e9a57caa642850d5",
+      "maxGiftAmount": "350000000000000",
+      "totalBudget": "700000000000000",
+      "maxReserveWei": "20000000000000",
+      "transactions": {
+        "fund admin": "0x7a624659a5a56e4b5cf3555ba6fbea120ffdf650e282bc42b311019748a0269e",
+        "create wallet": "0x67f6e7f49bf2854bc718a8697a50a5614a9267078a17fdfb96d56cd708ad73fc",
+        "swap OKB to wNVDAx": "0xb616a06b27fa8a644f625a1b66cad233b01d88afee3330b4c001b17218fd23dd",
+        "fund wallet reserves": "0xadfb2eb3cdb81bd9e13d7f95ea24c452635387fea7d3e5752fd2990262d3acf1",
+        "fund agent gas": "0xa43a8db5df2838a97cba0b5ce56f39830dcf82c28d7140c4d0ed0d3f7e6dbec2",
+        "deploy hook": "0x66e1d58ff0f954c4034dec0050f24cd70a33cee47cb88d039d4d85c003b126f7",
+        "add agent owner + approve budget": "0xfb1c104cb5985958a0a2e821c2b6288c179e17fe56dfb21ed7f1a371b32200f9",
+        "agent gift 1": "0x2a461908e16ea31be3f0bf64e9a7f4acfbea88198763e54afd6cdffc88fb8cc7",
+        "top up agent gas": "0x80c8ebfc0186ab419349808871e36a7bb148e9270c978feb7ab98f99de8a5610",
+        "agent gift 2": "0x2a1ec61d2860dd2ec9ad6317274f8882f7c250b538e4e6265154e9b3289d8516",
+        "revoke agent": "0xdcb09023ed92d8894a7d3e78421092e408635d6779d5778b062dd9b2e951dfe5"
+      },
+      "status": "budget spent; agent revoked"
     }
   },
   "registeredAssets": [

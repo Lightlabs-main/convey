@@ -93,7 +93,11 @@ export default function LandingPage() {
             <li><code>reclaim_gift</code>Returns an unclaimed gift</li>
             <li><code>run_due_gifts</code>Recurring gifts on a schedule, within an approved budget</li>
           </ul>
-          <p className="fine-print">Sending needs the user&apos;s confirmation every time and never exceeds the per-gift cap you set.</p>
+          <p className="fine-print">
+            Sending needs the user&apos;s approval and never exceeds the cap you set. For recurring gifts, the sender&apos;s OKX
+            Smart Wallet can bind the agent to an on-chain budget it cannot exceed, even with a leaked key. This is proven on
+            X Layer mainnet.
+          </p>
           <div className="install-line">
             <code>claude mcp add convey -- node mcp/server.ts</code>
             <a className="text-link" href="https://github.com/Lightlabs-main/convey/tree/main/mcp" target="_blank" rel="noreferrer">Setup guide ↗</a>

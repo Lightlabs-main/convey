@@ -83,7 +83,13 @@ claude mcp add convey -- node /path/to/convey/mcp/server.ts
 
 The read tools need no key. The spending tools need an agent key, a per-gift
 cap, and `confirm: true`. For recurring gifts, one approval covers the whole
-plan, bounded by its total budget. The full send, cap, confirm and reclaim
+plan, bounded by its total budget.
+
+For a budget the agent cannot exceed even if its key leaks, Convey also has an
+**on-chain recurring mode**, proven on mainnet. The sender's OKX Smart Wallet
+adds the agent as a restricted owner, bound to `ConveyRecurringGiftHook`. The
+wallet then enforces the asset, the per-gift cap, the total budget and the
+expiry itself, and the admin can revoke the agent at any time. The full send, cap, confirm and reclaim
 flow and recurring plans (schedule, budget, and crash recovery) were exercised
 against the live v2 contracts on a mainnet fork. See
 [`mcp/README.md`](mcp/README.md).
@@ -129,18 +135,19 @@ third-party audit.
 | Gasless gift claim (Gift 2, 0.0309 NVDAx, v1 escrow) | [`docs/verification.md`](docs/verification.md) |
 | Gasless NVDAx → USDT0 cash-out through the exit paymaster | [`docs/verification.md`](docs/verification.md) |
 | v2 escrow deployment and migration | [`0x24175d02…0e69`](https://www.oklink.com/xlayer/tx/0x24175d022c6f34a01956d4c163c604366f4e9eb3b469c94b30dc8bbef9780e69) |
+| On-chain recurring gifts: an agent key bound by `ConveyRecurringGiftHook` sends 2 gifts in budget, the 3rd is rejected, then it is revoked | [gift 1](https://www.oklink.com/xlayer/tx/0x2a461908e16ea31be3f0bf64e9a7f4acfbea88198763e54afd6cdffc88fb8cc7) · [gift 2](https://www.oklink.com/xlayer/tx/0x2a1ec61d2860dd2ec9ad6317274f8882f7c250b538e4e6265154e9b3289d8516) · [revoke](https://www.oklink.com/xlayer/tx/0xdcb09023ed92d8894a7d3e78421092e408635d6779d5778b062dd9b2e951dfe5) |
 
 Every hash, receipt and readback is recorded in
 [`docs/verification.md`](docs/verification.md) and
 [`docs/product-deployment.json`](docs/product-deployment.json).
 
 **Not yet proven on mainnet:**
-- a claim through the v2 escrow;
+- a gasless claim through the v2 escrow (gifts 1 and 2 exist and are open);
 - passkey enrollment and recovery on a physical device;
 - removing an owner from the smart account on-chain.
 
-Drop (multi-claim gifts) and recurring gifts are implemented and tested, but
-deliberately not deployed.
+Drop (multi-claim gifts) is implemented and tested, but deliberately not
+deployed.
 
 ## Repository
 
@@ -156,7 +163,7 @@ contracts/
   core/              AssetRegistry, GiftEscrow, DropEscrow
   paymaster/         claim and exit paymasters (ERC-4337 v0.7)
   bootstrap/         one-operation account bootstrap paymaster
-  recurring/         bounded recurring-gift hook (not deployed)
+  recurring/         on-chain recurring-gift hook for agent owners
 src/
   sender/            OKX Wallet sender SDK
   receiver/          passkey vault, claim and exit builders
