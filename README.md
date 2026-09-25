@@ -1,8 +1,8 @@
 # Convey
 
-**Gift real stocks in one link, from you or your AI agent.** Convey sends
+**Gift real stocks in one link, from you or your AI agent.** Convey gifts
 tokenized xStocks (NVDAx, AAPLx, TSLAx) on X Layer. People send from OKX
-Wallet. AI agents send through Convey's MCP server, one-off or on a recurring
+Wallet. AI agents gift through Convey's MCP server, one-off or on a recurring
 schedule, after the user approves.
 The recipient opens the link, confirms with a passkey, and owns the stock in
 their own OKX Smart Wallet. They don't need a wallet first, don't buy OKB, and
@@ -79,13 +79,13 @@ settles to the recipient's own ERC-4337 account, not to a Convey balance.
 1. **Approve once.** The sender sets the xStock, amount, schedule, recipient
    and total budget. The wallet adds the agent as a restricted owner bound to
    the hook, with a matching token allowance.
-2. **Sent on schedule.** The agent (through Convey's MCP server) sends each
-   gift when it's due. It never sends early, never twice, never over budget,
+2. **Gifted on schedule.** The agent (through Convey's MCP server) gifts each
+   one when it's due. It never sends early, never twice, never over budget,
    and it recovers from crashes. Each gift arrives as a normal link.
 3. **Enforced on-chain.** Even with a leaked agent key, the wallet refuses
    anything outside the policy. The sender can revoke the agent at any time.
 
-On X Layer mainnet, the agent sent two gifts within budget. A third gift, an
+On X Layer mainnet, the agent gave two gifts within budget. A third gift, an
 oversized gift and a token withdrawal were rejected. The agent was then
 revoked, and its next call failed. See [Onchain proof](#onchain-proof).
 

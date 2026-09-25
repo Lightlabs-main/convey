@@ -31,7 +31,7 @@ export default function LandingPage() {
           <span className="eyebrow"><i className="pulse" />Live on X Layer mainnet</span>
           <h1>Gift real stocks.<br /><span className="gradient-text">In one link.</span></h1>
           <p className="lede">
-            Send tokenized xStocks like NVDAx, AAPLx and TSLAx from OKX Wallet, or let your AI agent send them for you.
+            Gift tokenized xStocks like NVDAx, AAPLx and TSLAx from OKX Wallet, or let your AI agent gift them for you.
             Your recipient opens a link, taps their fingerprint, and owns the stock in their own smart account. No
             wallet to install, no OKB to buy, no gas to pay.
           </p>
@@ -68,7 +68,7 @@ export default function LandingPage() {
             ["01", "Pick an xStock", "Choose NVDAx, AAPLx or TSLAx from Convey's certified X Layer registry and fund the gift from OKX Wallet."],
             ["02", "Share one link", "The link holds a one-time key. It never touches the chain, so a copied claim cannot be redirected."],
             ["03", "They claim gasless", "A passkey creates their OKX Smart Wallet. Your small OKB reserve pays their gas through Convey's paymaster."],
-            ["04", "Or make it recurring", "Send a stock every week or month on a budget you approve once, enforced by your own OKX Smart Wallet."],
+            ["04", "Or make it recurring", "Gift a stock every week or month on a budget you approve once, enforced by your own OKX Smart Wallet."],
           ].map(([number, title, body], index) => (
             <Reveal className="step" key={number} delay={index * 120}>
               <span className="step-number">{number}</span>
@@ -84,14 +84,14 @@ export default function LandingPage() {
           <span className="eyebrow"><i className="pulse" />Recurring gifts</span>
           <h2 className="section-title">A stock every month.<br />On autopilot.</h2>
           <p className="section-copy">
-            Set it once, for example 0.01 AAPLx to Maya every month with a 0.12 total. Convey sends each gift on schedule and
+            Set it once, for example 0.01 AAPLx to Maya every month with a 0.12 total. Convey delivers each gift on schedule and
             stops at the budget. Each gift arrives as its own link, claimed gasless like any other.
           </p>
         </Reveal>
         <div className="steps">
           {[
             ["Approve once", "Choose the xStock, amount, schedule, recipient and total budget. That one approval covers the whole plan."],
-            ["Sent on schedule", "An AI agent sends each gift when it's due: never early, never twice, never over budget. Missed runs are skipped, not batched."],
+            ["Sent on schedule", "An AI agent gifts on schedule when each one is due: never early, never twice, never over budget. Missed runs are skipped, not batched."],
             ["Enforced by your wallet", "Your OKX Smart Wallet adds the agent as a restricted owner with an on-chain budget. It can't exceed it even with a leaked key, and you can revoke it any time."],
           ].map(([title, body], index) => (
             <Reveal className="step" key={title} delay={index * 120}>
@@ -111,9 +111,9 @@ export default function LandingPage() {
       <section className="section agents" id="agents">
         <Reveal className="agents-copy">
           <span className="eyebrow"><i className="pulse" />For AI agents</span>
-          <h2 className="section-title">Your agent can send stocks too.</h2>
+          <h2 className="section-title">Your agent can gift stocks too.</h2>
           <p className="section-copy">
-            Convey runs as an MCP server. Claude, Cursor or an OKX AI agent can reward a contributor, pay a bounty, send a
+            Convey runs as an MCP server. Claude, Cursor or an OKX AI agent can reward a contributor, pay a bounty, give a
             birthday gift, or gift a stock every month in xStocks. The recipient still needs no wallet and pays no gas.
           </p>
           <ul className="agent-tools">
@@ -124,7 +124,7 @@ export default function LandingPage() {
             <li><code>run_due_gifts</code>Recurring gifts on a schedule, within an approved budget</li>
           </ul>
           <p className="fine-print">
-            Sending needs the user&apos;s approval and never exceeds the cap you set. For recurring gifts, the sender&apos;s OKX
+            Gifting needs the user&apos;s approval and never exceeds the cap you set. For recurring gifts, the sender&apos;s OKX
             Smart Wallet can bind the agent to an on-chain budget it cannot exceed, even with a leaked key. This is proven on
             X Layer mainnet.
           </p>
@@ -135,9 +135,9 @@ export default function LandingPage() {
         </Reveal>
         <Reveal className="agent-chat" delay={150}>
           <div className="chat-bar"><i /><i /><i /><span>Example conversation</span></div>
-          <div className="chat-line user">Send Maya 0.01 AAPLx for her birthday.</div>
+          <div className="chat-line user">Gift Maya 0.01 AAPLx for her birthday.</div>
           <div className="chat-line tool"><code>list_xstocks</code> → AAPLx giftable, live issuer price</div>
-          <div className="chat-line agent">That's 0.01 AAPLx from the agent wallet, plus a 0.00002 OKB claim reserve. Send it?</div>
+          <div className="chat-line agent">That's 0.01 AAPLx from the agent wallet, plus a 0.00002 OKB claim reserve. Gift it?</div>
           <div className="chat-line user">Yes.</div>
           <div className="chat-line tool"><code>send_gift</code> · <code>confirm: true</code> → gift created on X Layer</div>
           <div className="chat-line agent">Done. Here&apos;s Maya&apos;s link: <span className="chat-link">conveyapp.site/g/…</span></div>
@@ -172,7 +172,7 @@ export default function LandingPage() {
 
       <Reveal className="cta-band">
         <h2>Someone deserves a share of the future.</h2>
-        <a className="button" href="/app?connect=1">Send your first xStock</a>
+        <a className="button" href="/app?connect=1">Gift your first xStock</a>
       </Reveal>
 
       <footer className="footer">
