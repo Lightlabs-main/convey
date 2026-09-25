@@ -176,10 +176,11 @@ Every hash, receipt and readback is recorded in
 [`docs/verification.md`](docs/verification.md) and
 [`docs/product-deployment.json`](docs/product-deployment.json).
 
-**Not yet proven on mainnet:** passkey enrollment and recovery on a physical
-device. The end-to-end claim above used Chromium's WebAuthn virtual
-authenticator. Removing an owner on-chain is proven: the recurring-gift proof's
-admin revoked the agent owner with `removeOwner`.
+The receiver flow (passkey enrollment, gasless claim, and recovery) has been
+run end to end on a physical device, in addition to the first recorded claim
+through Chromium's WebAuthn virtual authenticator. Removing an owner on-chain is
+proven: the recurring-gift proof's admin revoked the agent owner with
+`removeOwner`.
 
 Drop (multi-claim gifts) is implemented and tested, but deliberately not
 deployed.

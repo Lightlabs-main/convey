@@ -2,8 +2,9 @@
 
 Status: the encrypted vault and receiver flow are implemented and live. A
 browser claim with a WebAuthn passkey (virtual authenticator) is proven on
-mainnet, and a state-changing owner revocation was mined on a disposable wallet.
-The ceremony on a physical device remains open.
+mainnet, a state-changing owner revocation was mined on a disposable wallet,
+and the full enrollment, claim and recovery ceremony has been completed on a
+physical device.
 
 Convey's deployed OKX Smart Wallet uses its built-in ECDSA validator. Each
 receiver therefore needs a dedicated secp256k1 owner key. Convey must never

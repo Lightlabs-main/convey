@@ -6,8 +6,8 @@ passed on X Layer mainnet. The registry, single-gift escrow, claim paymaster,
 persistent private gateway, and browser-facing edge are deployed. The minimal
 multi-claim Drop escrow is implemented and locally tested but is not deployed.
 A browser claim by a new recipient and the on-chain recurring authorization are
-proven on mainnet. Physical-device enrollment/recovery, a direct withdrawal
-proof, and Drop integration remain ahead.
+proven on mainnet, and the receiver flow is completed on a physical device. A
+direct withdrawal proof and Drop integration remain ahead.
 
 ## Accounts and claim routing
 

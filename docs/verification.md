@@ -5,9 +5,16 @@ Status: **account-abstraction and private gasless product-claim gates passed on 
 **Current state (2026-09-25):**
 - a new recipient's browser claim through the v2 escrow is proven on mainnet (Gift 2, `0x47236b16…0283`);
 - on-chain owner revocation and the recurring-gift hook are proven on mainnet;
-- only enrollment and recovery on a physical device remain open.
+- the full receiver flow (passkey enrollment, claim and recovery) is completed on a physical device.
 
 This file is a dated log, so earlier entries that say a proof "remains open" describe the state on that date and are superseded by later entries.
+
+## Physical-device receiver flow — 2026-09-25
+
+The operator ran the complete receiver flow on a physical device against
+`conveyapp.site`: platform-passkey enrollment, the gasless claim through the
+production gateway, OKBund and the claim paymaster, and recovery. This closes
+the physical-device gap left by the virtual-authenticator claim below.
 
 ## First end-to-end browser claim through the v2 escrow (mainnet) — 2026-09-25
 
