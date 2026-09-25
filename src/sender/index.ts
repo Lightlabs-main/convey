@@ -204,6 +204,8 @@ export interface CreateGiftOptions {
   code?: string;
   expiry?: Date | number | bigint;
   claimReserveWei?: bigint;
+  /** Pre-generated 32-byte link secret, for callers that must persist it before sending. */
+  secret?: Hex;
 }
 
 export interface CreatedGift {
@@ -247,7 +249,7 @@ function bytesToHex(bytes: Uint8Array): Hex {
   return `0x${Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("")}` as Hex;
 }
 
-function randomSecret(): Hex {
+export function randomSecret(): Hex {
   if (!globalThis.crypto?.getRandomValues) throw new Error("Web Crypto is required to create a gift secret");
   return bytesToHex(globalThis.crypto.getRandomValues(new Uint8Array(32)));
 }
@@ -462,7 +464,8 @@ export class ConnectedWalletSender {
       const block = await this.publicClient.getBlock();
       if (expiry <= block.timestamp) throw new Error("expiry must be in the future on X Layer");
     }
-    const secret = randomSecret();
+    if (options.secret !== undefined && !/^0x[0-9a-fA-F]{64}$/u.test(options.secret)) throw new Error("gift secret must be 32 bytes");
+    const secret = options.secret ?? randomSecret();
     // The link secret is a one-time key; only its address goes on chain.
     const claimKey = privateKeyToAddress(secret);
     const codeBytes = options.code === undefined ? "0x" : stringToHex(options.code);

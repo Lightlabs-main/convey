@@ -83,14 +83,15 @@ export default function LandingPage() {
           <span className="eyebrow"><i className="pulse" />For AI agents</span>
           <h2 className="section-title">Your agent can send stocks too.</h2>
           <p className="section-copy">
-            Convey runs as an MCP server. Claude, Cursor or an OKX AI agent can reward a contributor, pay a bounty or send a
-            birthday gift in xStocks. The recipient still needs no wallet and pays no gas.
+            Convey runs as an MCP server. Claude, Cursor or an OKX AI agent can reward a contributor, pay a bounty, send a
+            birthday gift, or gift a stock every month in xStocks. The recipient still needs no wallet and pays no gas.
           </p>
           <ul className="agent-tools">
             <li><code>list_xstocks</code>Giftable xStocks and live prices</li>
             <li><code>get_gift</code>Live state and value of any gift</li>
             <li><code>send_gift</code>Creates a gift and returns its link</li>
             <li><code>reclaim_gift</code>Returns an unclaimed gift</li>
+            <li><code>run_due_gifts</code>Recurring gifts on a schedule, within an approved budget</li>
           </ul>
           <p className="fine-print">Sending needs the user&apos;s confirmation every time and never exceeds the per-gift cap you set.</p>
           <div className="install-line">

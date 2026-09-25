@@ -33,10 +33,10 @@ is immutable and bound to one wallet, one registered asset, and one deployed
 `GiftEscrow`. It permits exactly one call per execution:
 
 1. the target must be the configured `GiftEscrow`;
-2. the selector must be `createGift(address,uint256,bytes32,bytes32,uint64,bytes32)`;
+2. the selector must be `createGift(address,uint256,address,bytes32,uint64,bytes32)`;
 3. the native claim reserve must be nonzero and no larger than
    `maxReserveWei`;
-4. the asset and nonzero secret hash must match policy;
+4. the asset must match policy and the claim key must be nonzero;
 5. the gift amount must be no larger than `maxGiftAmount` and the cumulative
    amount must remain within `totalBudget`; and
 6. the gift expiry must be in the future and strictly before the recurring

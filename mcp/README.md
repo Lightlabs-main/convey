@@ -4,8 +4,8 @@ Lets AI agents gift tokenized xStocks on X Layer to people by link. The
 recipient needs no wallet and pays no gas: they open the link, confirm with a
 passkey, and own the asset in their own OKX Smart Wallet.
 
-Typical uses: an agent rewarding a contributor, paying a bounty, or sending a
-birthday share of a stock on a user's behalf.
+Typical uses: an agent rewarding a contributor, paying a bounty, sending a
+birthday share of a stock, or gifting a stock every month on a user's behalf.
 
 ## Tools
 
@@ -16,6 +16,32 @@ birthday share of a stock on a user's behalf.
 | `agent_wallet` | read | Agent address, OKB balance, xStock balances, per-gift cap |
 | `send_gift` | spends | Creates a gift from the agent wallet and returns its claim link |
 | `reclaim_gift` | spends | Returns an unclaimed gift to the agent wallet |
+| `create_recurring_plan` | spends | Sets up a recurring gift, e.g. 0.01 AAPLx every 30 days, with a total budget |
+| `list_recurring_plans` | read | Plans with budget used, gifts remaining, next run and links sent |
+| `cancel_recurring_plan` | safe | Stops a plan |
+| `run_due_gifts` | spends | Sends every gift that is due now and returns the new links |
+
+## Recurring gifts
+
+The user approves a whole plan once: which xStock, how much per gift, how
+often, for whom, and the total budget. The agent host then calls
+`run_due_gifts` on a schedule, for example a daily Claude Code routine, cron
+or an OKX AI agent task. Each run:
+
+- sends at most one gift per plan, and only when it is due;
+- never exceeds the plan's total budget or the per-gift cap, and completes the
+  plan when the budget is spent;
+- skips missed periods instead of sending a burst after downtime;
+- never overlaps another run (lock file) and never double-sends. The link
+  secret is saved before each transaction, so a crash is reconciled against
+  the chain and the full link is recovered.
+
+Plans live in `~/.convey-agent/plans.json` (mode 600; override with
+`CONVEY_AGENT_STATE_DIR`). That file holds bearer links, so keep it private.
+
+The budget is enforced by the server. For a budget enforced by the sender's
+own smart wallet, see the on-chain hook in
+[`docs/recurring-authorization.md`](../docs/recurring-authorization.md).
 
 ## Safety
 

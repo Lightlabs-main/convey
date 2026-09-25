@@ -2,6 +2,27 @@
 
 Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core, persistent private gateway, and public HTTPS web edge are now deployed; persistent browser enrollment/recovery proof, owner-revocation proof, and browser mainnet proof remain open.
 
+## MCP recurring gifts on a mainnet fork — 2026-09-25
+
+On a fresh anvil fork of X Layer mainnet, with a throwaway agent key holding
+0.05 wNVDAx:
+
+- `create_recurring_plan` was refused without `confirm: true` and refused
+  above the 0.02 cap.
+- A plan of 0.01 NVDAx every 30 days with a 0.02 budget behaved as follows:
+  - run 1 sent gift 1;
+  - an immediate run 2 sent nothing;
+  - after the schedule was moved into the past, run 3 sent gift 2 and the plan
+    became `completed`;
+  - run 4 sent nothing.
+- Crash after send: a gift was created on chain with the plan's saved
+  in-flight secret, and nothing was recorded. The next run found gift 3 by its
+  claim-key address and recovered the full link, with no second send.
+- Crash before send: an 11-minute-old in-flight marker with no on-chain gift
+  was cleared, and the plan sent gift 4 normally.
+
+These are fork results, not mainnet transactions.
+
 ## MCP agent flow on a mainnet fork — 2026-09-25
 
 The Convey MCP server was driven by a real MCP client over stdio against an

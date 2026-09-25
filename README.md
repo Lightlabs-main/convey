@@ -2,7 +2,8 @@
 
 **Gift real stocks in one link, from you or your AI agent.** Convey sends
 tokenized xStocks (NVDAx, AAPLx, TSLAx) on X Layer. People send from OKX
-Wallet. AI agents send through Convey's MCP server, after the user approves.
+Wallet. AI agents send through Convey's MCP server, one-off or on a recurring
+schedule, after the user approves.
 The recipient opens the link, confirms with a passkey, and owns the stock in
 their own OKX Smart Wallet. They don't need a wallet first, don't buy OKB, and
 don't pay gas.
@@ -73,14 +74,18 @@ on a user's behalf. The recipient still needs no wallet and pays no gas.
 | `agent_wallet` | Agent balances and per-gift cap |
 | `send_gift` | Creates a gift and returns its claim link |
 | `reclaim_gift` | Returns an unclaimed gift |
+| `create_recurring_plan` · `run_due_gifts` | Recurring gifts, e.g. 0.01 AAPLx every month, under an approved total budget |
+| `list_recurring_plans` · `cancel_recurring_plan` | Review or stop plans |
 
 ```sh
 claude mcp add convey -- node /path/to/convey/mcp/server.ts
 ```
 
 The read tools need no key. The spending tools need an agent key, a per-gift
-cap, and `confirm: true` on every call. The full send, cap, confirm and reclaim
-flow was exercised against the live v2 contracts on a mainnet fork. See
+cap, and `confirm: true`. For recurring gifts, one approval covers the whole
+plan, bounded by its total budget. The full send, cap, confirm and reclaim
+flow and recurring plans (schedule, budget, and crash recovery) were exercised
+against the live v2 contracts on a mainnet fork. See
 [`mcp/README.md`](mcp/README.md).
 
 ## Security design
