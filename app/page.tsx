@@ -29,15 +29,17 @@ export default function LandingPage() {
       <section className="hero">
         <div className="hero-copy">
           <span className="eyebrow"><i className="pulse" />Live on X Layer mainnet</span>
-          <h1>Gift a share of NVIDIA.<br /><span className="gradient-text">In one link.</span></h1>
+          <h1>Gift real stocks.<br /><span className="gradient-text">In one link.</span></h1>
           <p className="lede">
-            Send tokenized xStocks from OKX Wallet. Your recipient opens a link, taps their fingerprint, and owns the
-            asset in their own smart account. No wallet to install, no OKB to buy, no gas to pay.
+            Send tokenized xStocks like NVDAx, AAPLx and TSLAx from OKX Wallet, or let your AI agent send them for you.
+            Your recipient opens a link, taps their fingerprint, and owns the stock in their own smart account. No
+            wallet to install, no OKB to buy, no gas to pay.
           </p>
           <div className="hero-actions">
             <a className="button" href="/app?connect=1">Connect OKX Wallet</a>
-            <a className="button button-ghost" href="/app#open">I received a gift</a>
+            <a className="button button-ghost" href="#agents">For AI agents</a>
           </div>
+          <a className="text-link hero-received" href="/app#open">Received a gift? Open it here →</a>
           <dl className="hero-stats">
             <div><dt>0 OKB</dt><dd>receiver gas</dd></div>
             <div><dt>1 link</dt><dd>to deliver</dd></div>
@@ -55,6 +57,7 @@ export default function LandingPage() {
           <li><b>xStocks</b>assets</li>
           <li><b>OKX Smart Wallet</b>receiver</li>
           <li><b>OKBund</b>ERC-4337 bundler</li>
+          <li><b>MCP</b>AI agents</li>
         </ul>
       </Reveal>
 
@@ -73,6 +76,37 @@ export default function LandingPage() {
             </Reveal>
           ))}
         </div>
+      </section>
+
+      <section className="section agents" id="agents">
+        <Reveal className="agents-copy">
+          <span className="eyebrow"><i className="pulse" />For AI agents</span>
+          <h2 className="section-title">Your agent can send stocks too.</h2>
+          <p className="section-copy">
+            Convey runs as an MCP server. Claude, Cursor or an OKX AI agent can reward a contributor, pay a bounty or send a
+            birthday gift in xStocks. The recipient still needs no wallet and pays no gas.
+          </p>
+          <ul className="agent-tools">
+            <li><code>list_xstocks</code>Giftable xStocks and live prices</li>
+            <li><code>get_gift</code>Live state and value of any gift</li>
+            <li><code>send_gift</code>Creates a gift and returns its link</li>
+            <li><code>reclaim_gift</code>Returns an unclaimed gift</li>
+          </ul>
+          <p className="fine-print">Sending needs the user&apos;s confirmation every time and never exceeds the per-gift cap you set.</p>
+          <div className="install-line">
+            <code>claude mcp add convey -- node mcp/server.ts</code>
+            <a className="text-link" href="https://github.com/Lightlabs-main/convey/tree/main/mcp" target="_blank" rel="noreferrer">Setup guide ↗</a>
+          </div>
+        </Reveal>
+        <Reveal className="agent-chat" delay={150}>
+          <div className="chat-bar"><i /><i /><i /><span>Example conversation</span></div>
+          <div className="chat-line user">Send Maya 0.01 AAPLx for her birthday.</div>
+          <div className="chat-line tool"><code>list_xstocks</code> → AAPLx giftable, live issuer price</div>
+          <div className="chat-line agent">That's 0.01 AAPLx from the agent wallet, plus a 0.00002 OKB claim reserve. Send it?</div>
+          <div className="chat-line user">Yes.</div>
+          <div className="chat-line tool"><code>send_gift</code> · <code>confirm: true</code> → gift created on X Layer</div>
+          <div className="chat-line agent">Done. Here&apos;s Maya&apos;s link: <span className="chat-link">conveyapp.site/g/…</span></div>
+        </Reveal>
       </section>
 
       <section className="section" id="assets">

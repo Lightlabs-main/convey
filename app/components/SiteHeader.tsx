@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 const LINKS = {
-  landing: [["/#how", "How it works"], ["/#assets", "xStocks"], ["/#proof", "Onchain proof"]],
+  landing: [["/#how", "How it works"], ["/#agents", "For agents"], ["/#assets", "xStocks"], ["/#proof", "Onchain proof"]],
   app: [["/", "Home"], ["/app#send", "Send"], ["/app#open", "Open a gift"]],
 } as const;
 

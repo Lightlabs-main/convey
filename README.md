@@ -1,9 +1,11 @@
 # Convey
 
-**Gift a share of NVIDIA in one link.** Convey sends tokenized xStocks on
-X Layer from OKX Wallet. The recipient opens a link, confirms with a passkey,
-and owns the asset in their own OKX Smart Wallet. They don't need a wallet
-first, don't buy OKB, and don't pay gas.
+**Gift real stocks in one link, from you or your AI agent.** Convey sends
+tokenized xStocks (NVDAx, AAPLx, TSLAx) on X Layer. People send from OKX
+Wallet. AI agents send through Convey's MCP server, after the user approves.
+The recipient opens the link, confirms with a passkey, and owns the stock in
+their own OKX Smart Wallet. They don't need a wallet first, don't buy OKB, and
+don't pay gas.
 
 **Live:** [conveyapp.site](https://conveyapp.site) · **App:** [conveyapp.site/app](https://conveyapp.site/app) · **Chain:** X Layer mainnet (196)
 
@@ -30,6 +32,7 @@ settles to the recipient's own ERC-4337 account, not to a Convey balance.
 | **Sender wallet** | OKX Wallet | EIP-6963 discovery (`com.okex.wallet`), with `window.okxwallet` as fallback; adds or switches to X Layer automatically; on phones, opens in the OKX Wallet app via deep link |
 | **Receiver account** | OKX Smart Wallet (ERC-4337 v0.7) | Created from a device passkey; deployed on first claim |
 | **Bundler** | OKX OKBund (pinned) | Self-hosted, private; sponsored UserOperations only |
+| **AI agents** | Convey MCP server | Agents list xStocks, check gifts, and send or reclaim gifts under a per-gift cap with user confirmation |
 
 ## How it works
 

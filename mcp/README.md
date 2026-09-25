@@ -5,7 +5,7 @@ recipient needs no wallet and pays no gas: they open the link, confirm with a
 passkey, and own the asset in their own OKX Smart Wallet.
 
 Typical uses: an agent rewarding a contributor, paying a bounty, or sending a
-birthday share of NVIDIA on a user's behalf.
+birthday share of a stock on a user's behalf.
 
 ## Tools
 

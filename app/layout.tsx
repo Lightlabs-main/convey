@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Convey · Gift xStocks on X Layer",
-  description: "Send tokenized xStocks from OKX Wallet in one link. Recipients claim gasless into their own smart account on X Layer.",
+  description: "Gift tokenized xStocks on X Layer in one link, from OKX Wallet or an AI agent. Recipients claim gasless into their own smart account.",
 };
 
 export const viewport: Viewport = { themeColor: "#050505" };
