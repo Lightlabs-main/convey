@@ -171,7 +171,8 @@ export default function AppPage() {
         <span className="eyebrow"><i className="pulse" />Send studio · X Layer mainnet</span>
         <h1>Gift an <span className="gradient-text">xStock</span>.</h1>
         <p className="section-copy">Fund a gift from OKX Wallet. Your recipient claims it gasless with a passkey.</p>
-        <a className="text-link hero-received" href="/#agents">Prefer to let your AI agent gift it? Use the Convey MCP server →</a>
+        <a className="text-link hero-received" href="/#recurring">Want to gift a stock every month? The Convey Agent delivers recurring gifts →</a>
+        <a className="text-link hero-received" href="/#agents" style={{ marginLeft: 24 }}>Using your own AI agent? Connect the Convey MCP server →</a>
         {unavailable ? <WalletHelp unavailable={unavailable} /> : null}
         {error && !account ? <p className="notice notice-error" role="alert">{error}</p> : null}
       </section>

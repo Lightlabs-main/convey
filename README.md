@@ -9,7 +9,8 @@ their own OKX Smart Wallet. They don't need a wallet first, don't buy OKB, and
 don't pay gas.
 
 Gifts can also be **recurring**, for example a stock every month. The sender
-approves a budget once, and their own OKX Smart Wallet enforces it on-chain.
+approves a budget once, the **Convey Agent** delivers each gift on schedule,
+and the sender's own OKX Smart Wallet enforces the budget on-chain.
 This is proven on X Layer mainnet.
 
 **Live:** [conveyapp.site](https://conveyapp.site) · **App:** [conveyapp.site/app](https://conveyapp.site/app) · **Chain:** X Layer mainnet (196)
@@ -69,8 +70,8 @@ settles to the recipient's own ERC-4337 account, not to a Convey balance.
 
 ```text
  Sender's OKX Smart Wallet
-   ├─ admin owner (the sender): full control, can revoke the agent at any time
-   └─ agent owner (restricted) ──▶ ConveyRecurringGiftHook checks every call:
+   ├─ admin owner (the sender): full control, can revoke the Convey Agent at any time
+   └─ Convey Agent owner (restricted) ──▶ ConveyRecurringGiftHook checks every call:
                                      • target is GiftEscrow.createGift only
                                      • one xStock, ≤ cap per gift, ≤ total budget
                                      • native reserve ≤ cap, before expiry
@@ -79,13 +80,13 @@ settles to the recipient's own ERC-4337 account, not to a Convey balance.
 1. **Approve once.** The sender sets the xStock, amount, schedule, recipient
    and total budget. The wallet adds the agent as a restricted owner bound to
    the hook, with a matching token allowance.
-2. **Gifted on schedule.** The agent (through Convey's MCP server) gifts each
-   one when it's due. It never sends early, never twice, never over budget,
+2. **Gifted on schedule.** The Convey Agent (through Convey's MCP server) gifts
+   each one when it's due. It never sends early, never twice, never over budget,
    and it recovers from crashes. Each gift arrives as a normal link.
 3. **Enforced on-chain.** Even with a leaked agent key, the wallet refuses
    anything outside the policy. The sender can revoke the agent at any time.
 
-On X Layer mainnet, the agent gave two gifts within budget. A third gift, an
+On X Layer mainnet, the Convey Agent gave two gifts within budget. A third gift, an
 oversized gift and a token withdrawal were rejected. The agent was then
 revoked, and its next call failed. See [Onchain proof](#onchain-proof).
 

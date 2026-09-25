@@ -31,13 +31,13 @@ export default function LandingPage() {
           <span className="eyebrow"><i className="pulse" />Live on X Layer mainnet</span>
           <h1>Gift real stocks.<br /><span className="gradient-text">In one link.</span></h1>
           <p className="lede">
-            Gift tokenized xStocks like NVDAx, AAPLx and TSLAx from OKX Wallet, or let your AI agent gift them for you.
+            Gift tokenized xStocks like NVDAx, AAPLx and TSLAx from OKX Wallet, once or every month, or let your AI agent gift them for you.
             Your recipient opens a link, taps their fingerprint, and owns the stock in their own smart account. No
             wallet to install, no OKB to buy, no gas to pay.
           </p>
           <div className="hero-actions">
             <a className="button" href="/app?connect=1">Connect OKX Wallet</a>
-            <a className="button button-ghost" href="#agents">For AI agents</a>
+            <a className="button button-ghost" href="#agents">For your AI agents</a>
           </div>
           <a className="text-link hero-received" href="/app#open">Received a gift? Open it here →</a>
           <dl className="hero-stats">
@@ -68,7 +68,7 @@ export default function LandingPage() {
             ["01", "Pick an xStock", "Choose NVDAx, AAPLx or TSLAx from Convey's certified X Layer registry and fund the gift from OKX Wallet."],
             ["02", "Share one link", "The link holds a one-time key. It never touches the chain, so a copied claim cannot be redirected."],
             ["03", "They claim gasless", "A passkey creates their OKX Smart Wallet. Your small OKB reserve pays their gas through Convey's paymaster."],
-            ["04", "Or make it recurring", "Gift a stock every week or month on a budget you approve once, enforced by your own OKX Smart Wallet."],
+            ["04", "Or make it recurring", "Set up a stock every week or month on a budget you approve once. The Convey Agent delivers each gift, and your own OKX Smart Wallet enforces the budget."],
           ].map(([number, title, body], index) => (
             <Reveal className="step" key={number} delay={index * 120}>
               <span className="step-number">{number}</span>
@@ -84,15 +84,15 @@ export default function LandingPage() {
           <span className="eyebrow"><i className="pulse" />Recurring gifts</span>
           <h2 className="section-title">A stock every month.<br />On autopilot.</h2>
           <p className="section-copy">
-            Set it once, for example 0.01 AAPLx to Maya every month with a 0.12 total. Convey delivers each gift on schedule and
+            You set it up once, for example 0.01 AAPLx to Maya every month with a 0.12 total. The Convey Agent delivers each gift on schedule and
             stops at the budget. Each gift arrives as its own link, claimed gasless like any other.
           </p>
         </Reveal>
         <div className="steps">
           {[
-            ["Approve once", "Choose the xStock, amount, schedule, recipient and total budget. That one approval covers the whole plan."],
-            ["Sent on schedule", "An AI agent gifts on schedule when each one is due: never early, never twice, never over budget. Missed runs are skipped, not batched."],
-            ["Enforced by your wallet", "Your OKX Smart Wallet adds the agent as a restricted owner with an on-chain budget. It can't exceed it even with a leaked key, and you can revoke it any time."],
+            ["You approve once", "Choose the xStock, amount, schedule, recipient and total budget. That one approval covers the whole plan."],
+            ["The Convey Agent delivers", "Convey's own agent gifts each one when it's due: never early, never twice, never over budget. Missed runs are skipped, not batched."],
+            ["Enforced by your wallet", "Your OKX Smart Wallet adds the Convey Agent as a restricted owner with an on-chain budget. It can't exceed it even with a leaked key, and you can revoke it any time."],
           ].map(([title, body], index) => (
             <Reveal className="step" key={title} delay={index * 120}>
               <span className="step-number">{String(index + 1).padStart(2, "0")}</span>
@@ -103,14 +103,14 @@ export default function LandingPage() {
         </div>
         <Reveal className="recurring-proof">
           <span className="chain-tag">Proven on X Layer mainnet</span>
-          <span>The agent sent 2 gifts within budget. A 3rd, an oversized gift and a token withdrawal were blocked by the wallet. Then it was revoked.</span>
+          <span>The Convey Agent gave 2 gifts within budget. A 3rd, an oversized gift and a token withdrawal were blocked by the wallet. Then it was revoked.</span>
           <a className="text-link" href="https://www.oklink.com/xlayer/address/0x57804d8f2a97235de2f97af829a730d1c409c8e9" target="_blank" rel="noreferrer">View the hook ↗</a>
         </Reveal>
       </section>
 
       <section className="section agents" id="agents">
         <Reveal className="agents-copy">
-          <span className="eyebrow"><i className="pulse" />For AI agents</span>
+          <span className="eyebrow"><i className="pulse" />For your AI agents</span>
           <h2 className="section-title">Your agent can gift stocks too.</h2>
           <p className="section-copy">
             Convey runs as an MCP server. Claude, Cursor or an OKX AI agent can reward a contributor, pay a bounty, give a
@@ -125,7 +125,7 @@ export default function LandingPage() {
           </ul>
           <p className="fine-print">
             Gifting needs the user&apos;s approval and never exceeds the cap you set. For recurring gifts, the sender&apos;s OKX
-            Smart Wallet can bind the agent to an on-chain budget it cannot exceed, even with a leaked key. This is proven on
+            Smart Wallet binds the Convey Agent to an on-chain budget it cannot exceed, even with a leaked key. This is proven on
             X Layer mainnet.
           </p>
           <div className="install-line">
