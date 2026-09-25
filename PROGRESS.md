@@ -3,11 +3,17 @@
 ## Current checkpoint — 2026-09-25
 
 - Implemented the scoped gasless exit path: live Uniswap V3 quote plumbing, withdrawal/cash-out policy, separate v0.7 exit paymaster contract, relay endpoints, receiver actions, and tests. The existing claim paymaster remains claim-only.
+- The Namecheap DNS records for `conveyapp.site` and `www.conveyapp.site`
+  now point to the supplied VPS. Let's Encrypt covers both names, Nginx
+  forwards them to the loopback web service, and the verified blue/white
+  animated frontend build is live at both HTTPS URLs. The live checks returned
+  `200` for both hosts at `2026-09-25T13:57:50Z`; no chain write was made.
 - Corrected the X Layer SwapRouter02 `exactInput` ABI to the deployed four-field
   shape, added quote-expiry enforcement, and made exit deployment refuse a stale
   Foundry artifact. Exit authorization now also rechecks the configured route
   and a fresh QuoterV2 minimum. The corrected source compiled and the full
-  Foundry suite passed on the supplied VPS (38 tests).
+  Foundry suite passed on the supplied VPS (47 tests, including the new
+  DropEscrow and recurring-hook suites).
 - The corrected exit paymaster is deployed at
   `0xcfd241979d578e0b43f4c3f6b9b3fab83b41974c` (transaction
   `0x35eb1f85dc8af1d9092f4ac20d506ce79e520e372302e1d13a7976d03b0186d1`,
@@ -17,7 +23,79 @@
   `0x8bbe7a11e439e8c9d18ce698871d2220231a51f124d58e3c80605a087e9099b0`
   (UserOperation `0xd37eba9f81db81b41bc81863a3e06ecffc7285e321b363a4aecabac650816b8f`,
   block `71534842`). The corrected web bundle is live.
-- Browser WebAuthn PRF proof and browser-to-browser mainnet proof remain open.
+- Added read-only paymaster/bundler operations monitoring, a guarded
+  shortfall-based top-up command, five-minute systemd timer templates, CI, and
+  the public `convey/receiver` SDK export. The monitor was installed and
+  exercised successfully on the supplied VPS; its latest run at
+  `2026-09-25T10:15:54.816Z` returned `healthy = true` with no failures, and
+  no live top-up was sent.
+- A deployed-edge Chromium virtual-authenticator WebAuthn PRF capability proof
+  passed at `2026-09-25T11:10:27.355Z`: enrollment reported PRF enabled, repeated
+  assertions returned stable 32-byte output, and user verification succeeded.
+  Persistent browser storage/recovery, physical-device behavior, owner revocation,
+  and browser-to-browser mainnet proof remain open.
+- Implemented the minimal `DropEscrow` contract and four invariant tests, plus
+  an immutable OKX-specific recurring-gift hook policy and five invariant tests.
+  Added source-matched, dry-run-by-default deployment commands for both paths;
+  the current Solidity suite passed on the supplied VPS with 47 tests. The Drop
+  dry-run revalidated chain `196`, the live registry, and the source-matched
+  `3846`-byte artifact at `2026-09-25T12:35:52.882Z`; with no confirmations it
+  returned `writeEnabled = false` and produced no deployment transaction. The
+  recurring dry-run remains intentionally unconfigured until a disposable or
+  multi-owner wallet is supplied. Drop and the recurring hook are not deployed
+  or integrated with the UI/gateway.
+- Added CI coverage for the guarded deployment scripts through dedicated strict
+  typecheck and Node syntax commands.
+- Fresh read-only checks at `2026-09-25T10:54:29.174Z` kept the operations
+  monitor healthy with no failures; the VPS services and public web edge were
+  still active at `10:55:37Z`.
+- The `2026-09-25T11:00:50.787Z` owner-state read again confirmed the deployed
+  receiver is sole-owner with no hook; the simulated revocation left state
+  unchanged.
+- The latest guarded withdrawal dry-run at `2026-09-25T11:56:19.202Z` again
+  prepared the full live `6932357`-unit USDT0 balance and completed live
+  authorization/estimation with `writeEnabled = false`; no UserOperation was
+  submitted.
+- `pnpm verify` passed again at `2026-09-25T12:39:21.894Z` against the same
+  pinned X Layer block; issuer and executable quote observations were refreshed
+  in `docs/verification.raw.json` and `docs/verification.md`.
+- The current Solidity sources were compiled and tested in an isolated supplied
+  VPS directory; the fresh Foundry run completed by `2026-09-25T11:19:27.379Z`
+  with all `47` tests passing. The temporary directory was removed.
+- Browser production review found and fixed the direct issuer-API CORS boundary
+  and the `wNVDAx`/`wAAPLx`/`wTSLAx` wrapper-symbol mapping. The allowlisted
+  same-origin valuation proxy was deployed; the final Chromium smoke at
+  `2026-09-25T11:51:29.979Z` had zero console/page/request errors and correctly
+  failed closed for closed Gift ID `2`.
+- The redacted `pnpm verify:bundler-rpc` probe passed at
+  `2026-09-25T12:20:49.878Z`; both required NodeFlare `debug_traceCall`
+  capabilities remained supported.
+- A fresh read-only owner check at `2026-09-25T12:20:32.805Z` again found one
+  active owner, zero hook, and unchanged state after the revocation simulation.
+  The VPS monitor at `11:23:00Z` was healthy with no failures, and the public
+  edge check at `11:24:20.378Z` returned `200` for `/` and `404` for the
+  unallowlisted relay path.
+- The latest supplied-host read-only check at `12:01:01Z` found OKBund,
+  relayer, web, and the monitoring timer active; the monitor oneshot exited
+  successfully. The unauthenticated local health boundary returned `401`, and
+  a public-edge check from the host at `12:04:48Z` returned `200` for `/` and
+  `404` for the unallowlisted relay path. No service or chain state changed.
+- A manually triggered read-only monitor run at `12:36:52.855Z` returned
+  `healthy = true` with no failures. The canonical EntryPoint code size was
+  `16035` bytes; claim paymaster deposit/stake were `197696031949403`/`1` wei,
+  exit paymaster deposit/stake were `73206079000000`/`1` wei, and the bundler
+  balance was `786293569236941` wei. The oneshot returned to `inactive (dead)`
+  and the timer stayed active. No chain write or managed-service restart was
+  performed.
+- Fixed same-device receiver resume: a live claimed gift now re-derives its
+  deterministic OKX account from the persisted owner and requires a fresh
+  passkey unlock before gasless exit actions are enabled. The rebuilt bundle was
+  deployed without chain writes; read-only edge checks at `12:16:30Z` returned
+  `200` for home and valuation routes, `400` for invalid valuation network, and
+  `404` for the unallowlisted relay path. A direct read-only helper check at
+  `12:22:51.149Z` re-derived the deployed receiver address exactly. The
+  subsequent chain-196 guard redeploy passed the same edge checks at `12:28:05Z`
+  and the live helper matched again at `12:28:11.185Z`.
 
 ## Done
 
@@ -27,9 +105,9 @@
 - Documented the EVM/Token-2022 distinction.
 - Verified the deployed OKX Smart Wallet factory and implementation at the pinned block and confirmed it uses ERC-4337 EntryPoint v0.7.
 - Inspected the deployed wallet's published source and found that it is modular but does not implement ERC-7579, contrary to the requested stack description.
-- Re-ran `pnpm verify` successfully on 2026-09-22 and again on 2026-09-24 at
-  `2026-09-24T16:55:00Z`. The on-chain reads remain pinned; issuer API values
-  are live and timestamped.
+- Re-ran `pnpm verify` successfully on 2026-09-22, 2026-09-24, and
+  2026-09-25 at `2026-09-25T12:39:21.894Z`. The on-chain reads remain pinned;
+  issuer API values are live and timestamped.
 - Corrected quote terminology: comparison with an issuer-derived nominal amount is an executable delta, not AMM price impact.
 - Selected the deployed OKX Smart Wallet as the account path, as allowed by the specification's explicit mismatch resolution. Convey describes it accurately as an OKX-specific modular ERC-4337 v0.7 account, not ERC-7579.
 - Researched X Layer sponsor and account options. Particle was retired as a bootstrap dependency; the current provider assessment is in [`docs/aa-provider-research.md`](docs/aa-provider-research.md).
@@ -42,7 +120,10 @@
 - Selected the operator-controlled OKX OKBund v0.7 source at pinned commit `77ac3770ba7dd4be949975b142623540e28f60e4`; its multi-module build completed locally with Java 21 and Maven.
 - Added a live `pnpm verify:bundler-rpc` probe; the public X Layer RPC does not expose the tracing capabilities required for safe bundling, while the keyed NodeFlare endpoint now passes the required probes.
 - Configured the capability probe to derive the keyed NodeFlare X Layer endpoint from the local `NODEFLARE_API_KEY`, while redacting credential-bearing RPC paths from logs and verification records.
-- Verified the keyed NodeFlare endpoint on 2026-09-23: chain ID `196`, JavaScript-tracer `debug_traceCall`, and state-override `debug_traceCall` pass. `trace_call` is unsupported; the two required OKBund trace capabilities pass.
+- Verified the keyed NodeFlare endpoint on 2026-09-23 and again at
+  `2026-09-25T12:20:49.878Z`: chain ID `196`, JavaScript-tracer
+  `debug_traceCall`, and state-override `debug_traceCall` pass. `trace_call` is
+  unsupported; the two required OKBund trace capabilities pass.
 - Added a fail-closed OKBund launcher and an address-only operator credential check. The launcher refuses the upstream development-key fallback, wrong chain, wrong EntryPoint, disabled safe mode, or missing EIP-1559 configuration.
 - Built pinned OKBund source with Java 21 and passed `mvn verify` on 2026-09-23; its upstream modules contain no tests. Packaged JAR hash and runtime evidence are recorded in [`docs/verification.md`](docs/verification.md).
 - Started that package through the checked-in launcher, bound to loopback, against the verified NodeFlare RPC using a generated unfunded throwaway key. `pnpm bundler:check` returned chain `196` and the selected EntryPoint v0.7; no UserOperation was submitted.
@@ -131,13 +212,25 @@
   vault unlock and recovery rewrap, live escrow gift preview,
   `/g/<secret>?giftId=<id>` parsing, claim calldata, live-estimate conversion,
   and the two-pass private gateway authorization needed to sign a gasless
-  claim. The receiver private key remains local; browser ceremony and
-  on-chain owner-revocation proof are still not claimed as complete.
+  claim. The receiver private key remains local; persistent production browser
+  enrollment/recovery and state-changing on-chain owner-revocation proof are
+  still not claimed as complete.
+- Added `pnpm account:owner-check`, which read the deployed receiver's live
+  owner list, validator, hook, expiration, admin flag, and EntryPoint without a
+  chain write. Its read-only `owner EOA -> execute -> removeOwner` simulation
+  succeeded and left live state unchanged. Added deterministic passkey
+  API-boundary tests; these supplement the recorded virtual-authenticator
+  capability proof but do not replace persistent/physical browser integration or
+  a mined disposable/multi-owner revocation test.
 - Added iterative live claim preparation: the receiver gets live seed fields,
   signs the exact sponsor authorization locally, asks OKBund for a live
   estimate, and re-authorizes only if the returned limits grow. The enrollment
   ceremony keeps a short-lived signer in memory so it does not ask for a second
   passkey ceremony before the claim.
+- Fixed the guarded withdrawal command's owner-EOA versus smart-account address
+  validation. A live dry-run read the full USDT0 balance and completed private
+  authorization/estimation without submitting; mined withdrawal inclusion still
+  requires explicit destination/amount approval.
 - Added replacement-device recovery to the receiver surface: enrollment offers
   an encrypted recovery bundle download, same-device unlock uses the existing
   passkey, and migration accepts the bundle plus separately saved recovery key.
@@ -147,22 +240,27 @@
   once with an encrypted recovery bundle and explicit save confirmation, calls
   the live claim route, and keeps relay credentials server-side. The production
   build is deployed behind the
-  public HTTPS web edge; the browser PRF ceremony and browser mainnet claim
-  remain open.
+  public HTTPS web edge; persistent production browser enrollment/recovery and
+  the browser mainnet claim remain open.
 
 ## Next
 
-- Exercise the real browser WebAuthn PRF ceremony and persistent storage, then
-  prove the inspected OKX owner-revocation path. The library path and local
-  tests are in place; see `docs/receiver-flow.md`.
-- Implement and verify live-quoted gasless withdrawal (distinct from the
-  completed cash-out).
+- Exercise the production receiver UI with persistent browser storage or a
+  physical authenticator, complete recovery, and prove the inspected OKX
+  owner-revocation path on a disposable or multi-owner account. The isolated
+  virtual-authenticator capability proof is recorded in `docs/verification.md`;
+  the library path and local tests are in place.
+- Submit and record the direct gasless withdrawal route after explicit
+  destination/amount approval; the operator cash-out proof is complete and is a
+  separate path.
 - Execute one complete browser-to-browser mainnet flow through the persistent
   private gateway, recording every receipt.
-- Add gateway/paymaster monitoring and a documented top-up operation before
-  starting Drop.
-- Then build Drop, prove an OKX-specific recurring authorization design, and
-  finish the SDK, CI, README, and production review.
+- Keep the installed gateway/paymaster monitoring timer healthy and review
+  refill shortfalls before integrating Drop.
+- Review the guarded `pnpm drop:deploy` dry-run, decide its anti-bot/access and
+  gas policy, then integrate and explicitly deploy Drop; run the disposable-
+  wallet recurring-hook proof with mined revocation and finish the production
+  review.
 
 ## Blocked
 
@@ -173,23 +271,39 @@
 - A later workspace `pnpm bundler:check` through the temporary SSH tunnel passed for chain 196 and EntryPoint v0.7. An earlier generic connection failure is superseded; the persistent gateway health check is now recorded in `docs/verification.md`.
 - The relay SDK and gateway are implemented. The persistent gateway health check
   passed against live X Layer/OKBund, and the public web edge is deployed at
-  `https://convey.13-62-181-128.sslip.io`; the browser PRF ceremony and browser
-  mainnet proof are still required.
-- The account-standard decision is settled on the deployed OKX modular ERC-4337 v0.7 account; it is not labeled ERC-7579. The encrypted receiver signer vault is implemented and locally tested; the browser ceremony and on-chain owner revocation proof remain open.
+  `https://convey.13-62-181-128.sslip.io`; persistent production browser
+  enrollment/recovery and browser mainnet proof are still required.
+- The account-standard decision is settled on the deployed OKX modular ERC-4337 v0.7 account; it is not labeled ERC-7579. The encrypted receiver signer vault and read-only owner-call simulation are implemented and tested; the browser ceremony and state-changing owner revocation proof remain open.
 - Product escrow and claim-reserve code are deployed and funded. The private claim route now has a successful sender-funded Gift ID `2` claim; browser receiver integration remains open.
-- The Codespace still does not have `forge`; the Solidity suite was compiled and run on the supplied Lightsail host. Product constructor, cross-contract readbacks, and the successful live Gift ID `2` claim are recorded.
+- Implemented the minimal `DropEscrow` contract and four invariant tests. It
+  pre-funds every slot, enforces one claim per account address, and returns
+  only unclaimed slots after expiry. It is not deployed or integrated with the
+  UI; the design boundary is in [`docs/drop-design.md`](docs/drop-design.md).
+- Added the local `ConveyRecurringGiftHook` policy with exact GiftEscrow target
+  and selector checks, per-gift/native-reserve/cumulative-budget/expiry bounds,
+  wallet-only callbacks, and rollback coverage. It is not deployed or attached
+  to the sole-owner receiver; the live proof is in
+  [`docs/recurring-authorization.md`](docs/recurring-authorization.md).
+- The Codespace still does not have `forge`; the current Solidity sources were
+  compiled and the full 47-test suite was run in an isolated temporary
+  directory on the supplied Lightsail host. Product constructor,
+  cross-contract readbacks, and the successful live Gift ID `2` claim are
+  recorded.
 
 ## Verification results
 
 `pnpm test` passed after the Convey rename and signature-recovery fix. The
-10-test Foundry suite passed with Solidity 0.8.23 and Foundry 1.8.3; the expiry
-case uses a local EntryPoint stub. The pinned OKBund source passed `mvn verify`
+current 47-test Foundry suite passed with Solidity 0.8.23 and Foundry 1.8.3;
+the expiry case uses a local EntryPoint stub. The four Drop tests and five
+recurring-hook tests cover the new product invariants locally, but neither
+feature has live deployment evidence.
+The pinned OKBund source passed `mvn verify`
 with Java 21 (no upstream tests are present), and its local read-only runtime
 probe returned chain `196` and the selected v0.7 EntryPoint. `pnpm verify`
 passed against X Layer mainnet at
-`2026-09-24T16:55:00Z` with the same pinned block; the latest raw report is in
+`2026-09-25T12:39:21.894Z` with the same pinned block; the latest raw report is in
 `docs/verification.raw.json`. `pnpm verify:bundler-rpc` passed against the
-keyed NodeFlare X Layer endpoint at `2026-09-23T04:32:18Z`; both required
+keyed NodeFlare X Layer endpoint at `2026-09-25T12:20:49.878Z`; both required
 `debug_traceCall` variants succeeded. The latest raw capability report is in
 `docs/verification.rpc-capabilities.json`. `pnpm bundler:check` passed against
 the locally launched pinned OKBund service through its checked-in launcher.
@@ -197,9 +311,10 @@ the locally launched pinned OKBund service through its checked-in launcher.
 During the latest continuation, `pnpm test` passed, the receipt and operation
 record scripts passed `node --check`, and the final `pnpm bootstrap:wait`
 reported `included-success`. Foundry is not installed in the current workspace,
-so Solidity tests could not be rerun; the earlier handoff records 12 passing
-Solidity tests with Foundry 1.8.3. The final sponsored operation, receipt, and
-post-inclusion live state are recorded in `docs/verification.md`. A tunneled
+but the current sources were freshly compiled and all 47 Solidity tests passed
+on the supplied VPS at `2026-09-25T11:19:27.379Z`. The final sponsored
+operation, receipt, and post-inclusion live state are recorded in
+`docs/verification.md`. A tunneled
 `pnpm bundler:check` passed for chain 196 and EntryPoint v0.7.
 The registry, escrow, and claim-paymaster suites passed on the supplied
 Lightsail host with Foundry 1.8.3: 33 tests passed, 0 failed. The Codespace
@@ -224,4 +339,5 @@ on `127.0.0.1:3001`, with Nginx TLS at
 `https://convey.13-62-181-128.sslip.io`. A live public GET returned `200` and
 the public unallowlisted relay path returned `404`; `convey-okbund.service`,
 `convey-relayer.service`, and `convey-web.service` were all active. This is
-deployment evidence, not a browser PRF or browser mainnet claim proof.
+deployment evidence, not persistent production browser enrollment/recovery or a
+browser mainnet claim proof.

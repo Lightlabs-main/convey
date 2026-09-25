@@ -8,7 +8,7 @@ import {
   type Address,
   type Hex,
 } from "viem";
-import { buildOkxClaimUserOperation, buildOkxExitUserOperation, type BuiltOkxClaimUserOperation, type BuiltOkxExitUserOperation, type OkxClaimGas, type OkxEcdsaMessageSigner } from "../relayer/okx.ts";
+import { buildOkxClaimUserOperation, buildOkxExitUserOperation, okxOwnerKeyHash, OKX_ECDSA_VALIDATOR, type BuiltOkxClaimUserOperation, type BuiltOkxExitUserOperation, type OkxClaimGas, type OkxEcdsaMessageSigner } from "../relayer/okx.ts";
 import { buildCashOutCalls, buildWithdrawalCall, type ExitCall } from "../relayer/exit-policy.ts";
 import { exitPaymasterActionHash } from "../relayer/exit-paymaster.ts";
 import { ConveyRelayerClient } from "../relayer/client.ts";
@@ -71,6 +71,24 @@ const ESCROW_ABI = [
     outputs: [],
   },
 ] as const;
+
+const FACTORY_ABI = [{
+  type: "function",
+  name: "getAddress",
+  stateMutability: "view",
+  inputs: [
+    {
+      name: "initialOwners",
+      type: "tuple[]",
+      components: [
+        { name: "keyHash", type: "bytes32" },
+        { name: "validator", type: "address" },
+      ],
+    },
+    { name: "salt", type: "uint256" },
+  ],
+  outputs: [{ name: "account", type: "address" }],
+}] as const;
 
 const REGISTRY_ABI = [{
   type: "function",
@@ -267,6 +285,41 @@ function randomUserId(): Uint8Array {
   return globalThis.crypto.getRandomValues(new Uint8Array(32));
 }
 
+/**
+ * Re-derives the receiver's deterministic OKX account from the persisted
+ * owner address. This is read-only and lets a returning browser recover the
+ * live account address before it unlocks the encrypted signer session.
+ */
+export async function readReceiverAccountAddress(
+  executionRpcUrl: string,
+  factory: Address,
+  owner: Address,
+  salt: bigint,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Address> {
+  if (!isAddress(factory) || !isAddress(owner)) throw new Error("factory and owner must be EVM addresses");
+  if (typeof salt !== "bigint" || salt < 0n) throw new Error("salt must be a non-negative bigint");
+  const client = createPublicClient({
+    chain: defineChain({
+      id: XLAYER_CHAIN_ID,
+      name: "X Layer",
+      nativeCurrency: { name: "OKB", symbol: "OKB", decimals: 18 },
+      rpcUrls: { default: { http: [executionRpcUrl] } },
+    }),
+    transport: http(executionRpcUrl, { fetchFn: fetchImpl }),
+  });
+  const chainId = await client.getChainId();
+  if (chainId !== XLAYER_CHAIN_ID) throw new Error(`execution RPC must be X Layer chain ${XLAYER_CHAIN_ID}`);
+  const account = await client.readContract({
+    address: factory,
+    abi: FACTORY_ABI,
+    functionName: "getAddress",
+    args: [[{ keyHash: okxOwnerKeyHash(owner), validator: OKX_ECDSA_VALIDATOR }], salt],
+  });
+  if (!isAddress(account)) throw new Error("OKX factory returned an invalid receiver account");
+  return account;
+}
+
 function positiveGiftId(value: bigint): bigint {
   if (typeof value !== "bigint" || value <= 0n) throw new Error("giftId must be greater than zero");
   return value;
@@ -391,6 +444,21 @@ function finiteNumber(value: unknown, name: string): number {
   return result;
 }
 
+const ISSUER_SYMBOLS: Record<string, string> = {
+  NVDAx: "NVDAx",
+  wNVDAx: "NVDAx",
+  TSLAx: "TSLAx",
+  wTSLAx: "TSLAx",
+  AAPLx: "AAPLx",
+  wAAPLx: "AAPLx",
+};
+
+export function issuerApiSymbol(assetSymbol: string): string {
+  const issuerSymbol = ISSUER_SYMBOLS[assetSymbol];
+  if (!issuerSymbol) throw new Error(`issuer API does not support asset symbol ${assetSymbol}`);
+  return issuerSymbol;
+}
+
 /**
  * Reads the display value for a wrapped xStock from the live wrapper and the
  * live issuer API. Wrapper conversion supplies accounting units only; the API
@@ -400,6 +468,7 @@ export async function readLiveGiftValuation(
   executionRpcUrl: string,
   preview: ReceiverGiftPreview,
   fetchImpl: typeof fetch = fetch,
+  issuerApiBase = "https://api.backed.fi/api/v2/public",
 ): Promise<ReceiverGiftValuation> {
   if (!preview.isWrapped || preview.valuation !== 1) {
     throw new Error("this asset does not have a live issuer valuation path");
@@ -413,14 +482,16 @@ export async function readLiveGiftValuation(
     }),
     transport: http(executionRpcUrl),
   });
+  const issuerBase = issuerApiBase.replace(/\/$/u, "");
+  const issuerAssetBase = `${issuerBase}/assets/${encodeURIComponent(issuerApiSymbol(preview.symbol))}`;
   const [underlyingAmount, underlyingDecimals, priceResponse, multiplierResponse] = await Promise.all([
     client.readContract({ address: preview.asset, abi: WRAPPER_ABI, functionName: "convertToAssets", args: [preview.amount] }),
     client.readContract({ address: preview.underlying, abi: ERC20_METADATA_ABI, functionName: "decimals" }),
-    fetchImpl(`https://api.backed.fi/api/v2/public/assets/${encodeURIComponent(preview.symbol)}/price-data`).then(async (response) => {
+    fetchImpl(`${issuerAssetBase}/price-data`).then(async (response) => {
       if (!response.ok) throw new Error(`issuer price API returned HTTP ${response.status}`);
       return response.json() as Promise<unknown>;
     }),
-    fetchImpl(`https://api.backed.fi/api/v2/public/assets/${encodeURIComponent(preview.symbol)}/multiplier?network=XLayer`).then(async (response) => {
+    fetchImpl(`${issuerAssetBase}/multiplier?network=XLayer`).then(async (response) => {
       if (!response.ok) throw new Error(`issuer multiplier API returned HTTP ${response.status}`);
       return response.json() as Promise<unknown>;
     }),

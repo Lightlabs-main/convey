@@ -21,6 +21,18 @@ now proceed under its separate claim-paymaster and reserve design.
   local vault. Require a PRF-capable passkey before creating or unlocking this
   account. The browser support, enrollment, device migration, recovery, and
   account-owner revocation paths still need implementation-specific proof.
+- The pinned OKX implementation exposes `removeOwner(bytes32)` through its
+  `OwnerManager`, guarded by `onlySelf`. Its `executeUserOp` path decodes the
+  signed call array, and its admin owner path permits a self-call, so the
+  source-level revocation shape is an owner-signed self-call rather than an
+  external administrator call. A live `eth_call` simulation of
+  `owner EOA -> execute -> removeOwner` succeeded with unchanged post-call
+  state; this is not mined mutation evidence. Removing the sole active owner
+  would intentionally strand the account, so a safe state-changing integration
+  test needs a disposable account or a second owner.
+  See the pinned [`OwnerManager`](https://github.com/okxlabs/okx-smart-wallet-evm/blob/95aa59bbc22acd4573a9932e959384fe56c7b543/src/OwnerManager.sol#L80-L92)
+  and [`SmartWallet`](https://github.com/okxlabs/okx-smart-wallet-evm/blob/95aa59bbc22acd4573a9932e959384fe56c7b543/src/SmartWallet.sol#L91-L108)
+  source paths.
 - The operator has provisioned the intended receiver owner's
   `SMART_ACCOUNT_OWNER_PRIVATE_KEY` for the bootstrap account. Keep it separate
   from the bundler, deployer, and paymaster signer keys. This does not prove
@@ -128,10 +140,13 @@ rules.
 
 ## Local invariant tests before deployment
 
-`pnpm contracts:test` runs 10 Foundry tests. The local EntryPoint stub models
-the packed validity-window check so the expiry test covers the contract's
-returned range; it is not a substitute for the deployed EntryPoint or a live
-bundler simulation. The tests cover these properties:
+The current `pnpm contracts:test` suite contains 47 Foundry tests, including
+the 12 bootstrap paymaster tests, four local Drop escrow tests, and five
+recurring-hook policy tests. The
+local EntryPoint stub models the packed validity-window check so the expiry
+test covers the contract's returned range; it is not a substitute for the
+deployed EntryPoint or a live bundler simulation. The tests cover these
+properties in the bootstrap subset:
 
 1. Only the configured EntryPoint can call validation or post-operation hooks.
 2. The signature is invalid on another chain, EntryPoint, or paymaster.
@@ -142,6 +157,12 @@ bundler simulation. The tests cover these properties:
 6. A valid authorization succeeds once and cannot sponsor a second operation.
 7. An account operation that does not match the bootstrap policy cannot spend
    the paymaster deposit, even if it is signed by the receiver.
+
+The four Drop-specific invariants are documented in
+[`drop-design.md`](drop-design.md); the remaining registry, single-gift,
+claim-paymaster, exit-paymaster, and recurring-hook tests cover their
+respective contract boundaries. The recurring policy and its live-proof gap
+are documented in [`recurring-authorization.md`](recurring-authorization.md).
 
 The later claim paymaster needs separate tests for reserve accounting, failed
 execution, `postOp` accounting, duplicate settlement, concurrent reservations,

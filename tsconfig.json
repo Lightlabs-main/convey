@@ -42,7 +42,8 @@
     "src/relayer/config.ts",
     "src/relayer/okx.ts",
     "src/relayer/rpc.ts",
-    "src/relayer/types.ts"
+    "src/relayer/types.ts",
+    "src/relayer/operations.ts"
   ],
   "exclude": ["node_modules", ".next"]
 }

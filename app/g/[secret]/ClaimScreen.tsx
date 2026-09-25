@@ -12,6 +12,7 @@ import {
   buildReceiverWithdrawalCall,
   readReceiverTokenBalance,
   receiverClaimGasSeedFromLive,
+  readReceiverAccountAddress,
   readGiftPreview,
   readLiveGiftValuation,
   unlockReceiverAccount,
@@ -46,6 +47,7 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
   const [claiming, setClaiming] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [smartAccount, setSmartAccount] = useState<Address>();
+  const [storedOwner, setStoredOwner] = useState<Address>();
   const [exitQuote, setExitQuote] = useState<{ amountIn: bigint; amountOut: bigint; amountOutMinimum: bigint; observedAt: string }>();
   const [exitBusy, setExitBusy] = useState(false);
   const [exitStatus, setExitStatus] = useState("");
@@ -79,12 +81,37 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
         setPreview(livePreview);
         setStatus("Reading the current live value…");
         try {
-          const liveValuation = await readLiveGiftValuation(rpcUrl, livePreview);
+          const liveValuation = await readLiveGiftValuation(rpcUrl, livePreview, fetch, "/api/valuation");
           if (!cancelled) setValuation(liveValuation);
         } catch {
           if (!cancelled) setStatus("Gift details are live; current USD value is unavailable from the registered valuation source.");
         }
-        if (!cancelled) setStatus(livePreview.expired ? "This gift has expired." : livePreview.state === "open" ? "Your gift is ready to secure." : "This gift has already been closed.");
+        let localOwner: Address | undefined;
+        try {
+          const stored = createBrowserReceiverVaultStorage().load();
+          localOwner = stored?.vault.owner;
+          if (localOwner && livePreview.state === "claimed") {
+            try {
+              const accountAddress = await receiverAccountAddressFor(localOwner);
+              if (!cancelled) setSmartAccount(accountAddress);
+            } catch {
+              // The account address is re-derived again when the owner session unlocks.
+            }
+          }
+        } catch (cause) {
+          if (!cancelled) setError(cause instanceof Error ? cause.message : "The local receiver vault could not be read.");
+        }
+        if (!cancelled) {
+          setStoredOwner(localOwner);
+          setClaimed(livePreview.state === "claimed" && Boolean(localOwner));
+          setStatus(livePreview.expired
+            ? "This gift has expired."
+            : livePreview.state === "open"
+              ? "Your gift is ready to secure."
+              : livePreview.state === "claimed" && localOwner
+                ? "This gift was claimed. Unlock your receiver account to manage its live balance."
+                : "This gift has already been closed.");
+        }
       } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : "The live gift record could not be read.");
       }
@@ -106,6 +133,7 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
         rpName: "Convey",
       });
       setAccount(enrolled);
+      setStoredOwner(enrolled.owner);
       setStatus("Save your recovery key before continuing. It is shown once and is not stored by Convey.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Passkey enrollment was not completed.");
@@ -121,7 +149,11 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
       const stored = storage.load();
       if (!stored) throw new Error("No receiver account is enrolled on this device yet.");
       const session = await unlockReceiverAccount(storage);
+      const accountAddress = await receiverAccountAddressFor(stored.vault.owner);
       setAccount({ owner: stored.vault.owner, credentialId: stored.vault.credentialId, session });
+      setStoredOwner(stored.vault.owner);
+      setSmartAccount(accountAddress);
+      setClaimed(preview?.state === "claimed");
       setRecoverySaved(true);
       setRecoveryMode(false);
       setStatus("Your existing device-local owner key is ready for the sponsored claim.");
@@ -146,7 +178,10 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
         displayName: "Convey receiver",
         rpName: "Convey",
       });
+      const accountAddress = await receiverAccountAddressFor(recovered.owner);
       setAccount(recovered);
+      setStoredOwner(recovered.owner);
+      setSmartAccount(accountAddress);
       setRecoverySaved(true);
       setRecoveryMode(false);
       setRecoveryKeyInput("");
@@ -180,6 +215,17 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
     const value = process.env.NEXT_PUBLIC_CONVEY_RECEIVER_SALT;
     if (!value || !/^\d+$/u.test(value)) throw new Error("NEXT_PUBLIC_CONVEY_RECEIVER_SALT is not configured");
     return BigInt(value);
+  }
+
+  async function receiverAccountAddressFor(owner: Address): Promise<Address> {
+    const executionRpcUrl = process.env.NEXT_PUBLIC_XLAYER_RPC_URL;
+    if (!executionRpcUrl) throw new Error("The receiver screen is missing its live X Layer RPC");
+    return readReceiverAccountAddress(
+      executionRpcUrl,
+      requiredAddress("NEXT_PUBLIC_CONVEY_SMART_WALLET_FACTORY"),
+      owner,
+      requiredSalt(),
+    );
   }
 
   async function claimGift() {
@@ -321,9 +367,9 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
   return (
     <main>
       <div className="network-bar">X Layer mainnet · chain 196 · gasless receiver claim</div>
-      <div className="shell claim-wrap">
-        <nav className="nav"><span className="wordmark">convey.</span><span className="nav-note">your gift is waiting</span></nav>
-        <div className="claim-grid">
+      <div className="claim-shell">
+        <nav className="nav"><a className="wordmark" href="/">convey.</a><div className="nav-actions"><span className="nav-note">your gift is waiting</span><span className="live-pill">private claim</span></div></nav>
+        <div className="claim-main">
           <section className="claim-card">
             <div className="eyebrow">A real gift, on-chain</div>
             <h1 className="claim-title">Someone sent you a stock.</h1>
@@ -336,16 +382,19 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
             {error ? <div className="error" role="alert">{error}</div> : null}
             {account && !recoverySaved ? <div className="recovery"><div className="recovery-label">Save this recovery key once</div><code>{account.recoveryKey}</code><p>Keep the key separate from this encrypted bundle. The bundle contains ciphertext only and is needed on a replacement device.</p>{account.recoveryBundle ? <a className="recovery-download" href={`data:application/json;charset=utf-8,${encodeURIComponent(account.recoveryBundle)}`} download="convey-recovery-bundle.json">Download encrypted recovery bundle</a> : null}<button type="button" onClick={() => { setRecoverySaved(true); setStatus("Recovery key saved. Your device-local owner key is ready for the sponsored claim."); }}>I saved it</button></div> : null}
             {account && recoverySaved ? <div className="risk">Your device-local owner key is enrolled at {shortAddress(account.owner)}. The key never leaves this device.</div> : null}
-            {preview?.state === "open" && !preview.expired && !account && !recoveryMode ? <><button className="button" type="button" onClick={secureAccount}>Create secure account</button><button className="secondary-button" type="button" onClick={unlockExistingAccount}>Use existing account</button><button className="text-button" type="button" onClick={() => setRecoveryMode(true)}>Recover an existing account</button></> : null}
+            {preview?.state === "open" && !preview.expired && !account && !storedOwner && !recoveryMode ? <><button className="button" type="button" onClick={secureAccount}>Create secure account</button><button className="secondary-button" type="button" onClick={unlockExistingAccount}>Use existing account</button><button className="text-button" type="button" onClick={() => setRecoveryMode(true)}>Recover an existing account</button></> : null}
+            {preview?.state === "open" && !preview.expired && !account && storedOwner && !recoveryMode ? <><button className="secondary-button" type="button" onClick={unlockExistingAccount}>Use existing account</button><button className="text-button" type="button" onClick={() => setRecoveryMode(true)}>Recover an existing account</button></> : null}
+            {preview?.state === "claimed" && storedOwner && !account && !recoveryMode ? <><div className="risk">This gift is already claimed on X Layer. Your encrypted receiver vault is present on this device.</div><button className="secondary-button" type="button" onClick={unlockExistingAccount}>Unlock existing account</button><button className="text-button" type="button" onClick={() => setRecoveryMode(true)}>Recover an existing account</button></> : null}
             {preview?.state === "open" && !preview.expired && !account && recoveryMode ? <form className="recovery recovery-form" onSubmit={recoverAccount}><div className="recovery-label">Recover an existing account</div><p>Enter the recovery key you saved separately. Paste the encrypted bundle too when using a replacement device; on this device it may already be stored locally.</p><label>Recovery key<input value={recoveryKeyInput} onChange={(event) => setRecoveryKeyInput(event.target.value)} autoComplete="off" required /></label><label>Encrypted recovery bundle<textarea value={recoveryBundleInput} onChange={(event) => setRecoveryBundleInput(event.target.value)} placeholder="Paste the downloaded JSON bundle on a new device" rows={4} /></label><div><button className="button" type="submit">Recover account</button><button className="text-button" type="button" onClick={() => setRecoveryMode(false)}>Cancel</button></div></form> : null}
+            {preview?.state === "claimed" && storedOwner && !account && recoveryMode ? <form className="recovery recovery-form" onSubmit={recoverAccount}><div className="recovery-label">Recover an existing account</div><p>Enter the recovery key you saved separately. Paste the encrypted bundle too when using a replacement device; on this device it may already be stored locally.</p><label>Recovery key<input value={recoveryKeyInput} onChange={(event) => setRecoveryKeyInput(event.target.value)} autoComplete="off" required /></label><label>Encrypted recovery bundle<textarea value={recoveryBundleInput} onChange={(event) => setRecoveryBundleInput(event.target.value)} placeholder="Paste the downloaded JSON bundle on a new device" rows={4} /></label><div><button className="button" type="submit">Recover account</button><button className="text-button" type="button" onClick={() => setRecoveryMode(false)}>Cancel</button></div></form> : null}
             {preview?.state === "open" && !preview.expired && account && recoverySaved && !claimed ? <button className="button" type="button" onClick={claimGift} disabled={claiming}>{claiming ? "Claiming securely…" : "Claim this gift"}</button> : null}
             <p className="status" aria-live="polite">{status}</p>
             {exitStatus ? <p className="status" aria-live="polite">{exitStatus}</p> : null}
             {exitQuote ? <div className="risk">Live quote: {formatUnits(exitQuote.amountOut, 6)} USDT0 minimum after slippage · observed {new Date(exitQuote.observedAt).toLocaleTimeString()}</div> : null}
             <div className="actions">
               <button className="action" type="button" disabled={!claimed} onClick={() => setStatus("Your tokenized exposure is held in your smart account.")}><span><strong>Keep it</strong><br />Hold your tokenized exposure</span><span>{claimed ? "ready" : "after claim"}</span></button>
-              {preview?.cashOutRoute !== "0x0000000000000000000000000000000000000000" ? <button className="action" type="button" disabled={!claimed || exitBusy} onClick={cashOutGift}><span><strong>Cash out</strong><br />Live quote to USDT0</span><span>{exitBusy ? "working…" : "gasless"}</span></button> : null}
-              <button className="action" type="button" disabled={!claimed || exitBusy} onClick={() => setMoveMode((value) => !value)}><span><strong>Move it</strong><br />Send to any address</span><span>{moveMode ? "close" : "gasless"}</span></button>
+              {preview?.cashOutRoute !== "0x0000000000000000000000000000000000000000" ? <button className="action" type="button" disabled={!claimed || !account?.session || exitBusy} onClick={cashOutGift}><span><strong>Cash out</strong><br />Live quote to USDT0</span><span>{exitBusy ? "working…" : "gasless"}</span></button> : null}
+              <button className="action" type="button" disabled={!claimed || !account?.session || exitBusy} onClick={() => setMoveMode((value) => !value)}><span><strong>Move it</strong><br />Send to any address</span><span>{moveMode ? "close" : "gasless"}</span></button>
             </div>
             {moveMode ? <form className="recovery recovery-form" onSubmit={withdrawGift}><div className="recovery-label">Move a live balance</div><label>Asset<select value={moveToken} onChange={(event) => setMoveToken(event.target.value as "asset" | "usdt0")}><option value="asset">{preview?.symbol ?? "Gift asset"}</option><option value="usdt0">USDT0</option></select></label><label>Destination address<input value={moveRecipient} onChange={(event) => setMoveRecipient(event.target.value)} placeholder="0x…" autoComplete="off" required /></label><button className="button" type="submit" disabled={exitBusy}>{exitBusy ? "Sending gaslessly…" : "Move full live balance"}</button><p className="risk">Convey never receives the destination key. The smart account signs the transfer locally and the private gateway only routes the sponsored UserOperation.</p></form> : null}
           </section>

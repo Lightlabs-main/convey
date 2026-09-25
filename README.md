@@ -1,97 +1,104 @@
 # Convey
 
-## Give a stock, not a wallet tutorial
+## The product
 
-Convey is the link-native gifting layer for tokenized real-world assets,
-starting with xStocks. A sender chooses an asset, locks it into a gift, and
-shares one link. The recipient opens it, secures a smart account with a
-device-local passkey, and claims the asset without a pre-existing wallet, OKB,
-browser extension, or gas balance.
+> **Give someone real ownership in one link.**
 
-The result feels like a normal gift link, but the ownership is real and
-non-custodial: the asset settles into the recipient's ERC-4337 smart account,
-not a Convey account. Convey never takes custody of the recipient's key.
+**Live product:** [conveyapp.site](https://conveyapp.site) · [open the deployed app](https://www.conveyapp.site)
 
-## Why Convey
+Convey is a link-native gifting product for tokenized real-world assets,
+starting with xStocks. A sender chooses a certified asset, funds a gift, and
+shares one link. The recipient opens it and receives real ownership in a
+device-secured ERC-4337 smart account—without first installing a wallet,
+buying OKB, finding an address, or learning blockchain infrastructure.
 
-Tokenized assets make ownership programmable, but receiving them still feels
-like operating infrastructure. Wallet installation, seed phrases, chain
-switching, gas, and unfamiliar addresses are a terrible first experience for a
-gift.
+## The problem
 
-Convey removes that friction at the exact moment it matters. Senders get a
-simple shareable gift; recipients get an asset they can actually own. The
-onchain settlement, escrow, account creation, sponsorship, and recovery model
-stay underneath the experience.
+Tokenized assets make ownership programmable, but receiving one still feels
+like an infrastructure task. A recipient is expected to understand wallets,
+seed phrases, network switching, gas, smart-account deployment, and unfamiliar
+addresses before they can receive something as simple as a gift.
 
-## Product proof
+That is the wrong first impression for an asset meant to move between people.
+Convey hides the operational complexity at the moment of delivery while
+keeping the important property intact: the asset settles to the recipient's
+account, not to a Convey custodial balance. The sender gets a shareable gift
+link; the recipient gets an ownable asset.
 
-Convey is a live X Layer mainnet build, not a mock flow:
+## Why this build is different
 
-- Real registry, escrow, paymaster, and smart-account infrastructure is
-  deployed on chain `196`.
-- A sender-funded gift was claimed through the private sponsored path, with
-  the full NVDAx asset delivered to the receiver account and no native gas
-  supplied by the receiver.
-- The same account completed a gasless NVDAx-to-USDT0 cash-out through the
-  deployed exit paymaster.
-- The production web application and private gateway are running on the
-  supplied VPS.
+Convey connects a consumer-grade gift experience to real mainnet settlement:
 
-The remaining proof is deliberately explicit: a real browser PRF/recovery
-ceremony and a browser-to-browser mainnet gift flow still need to be completed.
+- **One-link delivery.** The sender creates a hashlocked gift and shares a
+  private link. The recipient does not need a pre-existing wallet or browser
+  extension.
+- **Non-custodial recipient ownership.** The receiver's device creates and
+  unlocks the local owner key; the asset lands in the selected OKX Smart
+  Wallet account at ERC-4337 EntryPoint v0.7.
+- **Gasless by design.** The sender funds a bounded claim reserve. Convey's
+  claim paymaster sponsors the receiver operation, so the receiver supplies no
+  native gas.
+- **Private, policy-bound execution.** A server-side gateway validates the
+  exact target, selector, EntryPoint, paymaster, and inner UserOperationEvent
+  before forwarding through pinned OKBund and a private NodeFlare execution
+  RPC. No public bundler or gateway credential is exposed.
+- **Ownership after claiming.** The receiver can keep the tokenized exposure,
+  use the separate sponsored exit path for a live NVDAx-to-USDT0 cash-out, or
+  move a live balance from the smart account.
+- **Live asset data.** The UI reads certified registry state, token balances,
+  issuer valuation, executable quotes, and claim state instead of presenting
+  mock prices or balances.
+- **Recovery-aware account UX.** The receiver flow includes device-local PRF
+  enrollment, encrypted recovery material, same-device unlock, and explicit
+  recovery confirmation.
 
-The authoritative continuation record is [`HANDOFF.md`](HANDOFF.md). Detailed
-architecture, deployment, and live evidence are in [`docs/architecture.md`](docs/architecture.md),
-[`docs/product-deployment.json`](docs/product-deployment.json), and
-[`docs/verification.md`](docs/verification.md).
+## Live deployment proof
 
-## Current checkpoint
+This is a live X Layer mainnet deployment, not a mock product tour:
 
-As of 2026-09-25:
+| Proof | Status |
+|---|---|
+| Public product surface | [conveyapp.site](https://conveyapp.site) and [www.conveyapp.site](https://www.conveyapp.site) live over HTTPS |
+| Mainnet | X Layer, chain ID 196 |
+| Gift settlement | Registry, GiftEscrow, claim paymaster, and receiver account deployed and funded |
+| Sponsored claim | Gift ID 2 delivered the full 0.030965586663211895 NVDAx with no receiver gas |
+| Sponsored exit | Real gasless NVDAx-to-USDT0 cash-out completed through the exit paymaster |
+| Private execution | Pinned OKBund + NodeFlare on the supplied Lightsail VPS |
+| Production boundary | Authenticated gateway on loopback; relay credentials stay server-side |
 
-- X Layer mainnet, chain ID `196`, is the only supported deployment.
-- The selected receiver is the deployed OKX Smart Wallet at ERC-4337 EntryPoint
-  v0.7. It is an OKX-specific modular account and does **not** implement
-  ERC-7579.
-- The Convey registry, gift escrow, and claim paymaster are deployed and
-  funded.
-- OKBund is pinned, running on the supplied Lightsail VPS, and uses NodeFlare
-  as its private X Layer execution RPC.
-- The persistent claim gateway is enabled on that VPS, bound only to
-  `127.0.0.1:8800`, authenticated, and forwarding to loopback OKBund. No public
-  gateway endpoint is exposed.
-- The separate exit paymaster is deployed and funded/staked at
-  `0xcfd241979d578e0b43f4c3f6b9b3fab83b41974c`. The private gateway and web
-  bundle are wired to it. A real gasless exit completed through OKBund; the
-  UserOperation and bundle transaction are recorded in `docs/verification.md`.
-- The production-built web application is live at
-  [`https://convey.13-62-181-128.sslip.io`](https://convey.13-62-181-128.sslip.io).
-  Nginx terminates TLS and forwards only to the loopback Next.js service;
-  relay credentials remain server-side.
-- The connected-wallet sender surface now reads the live registry, token
-  balance, allowance, and claim reserve; it creates real hashlocked gifts
-  through the deployed escrow. QR rendering remains separate work.
-- The receiver flow library links PRF-backed local key enrollment and recovery
-  to live Gift preview, gas estimation, and private two-pass claim
-  authorization. The browser PRF/recovery ceremony and browser mainnet proof
-  remain separate work.
-- The Next.js receiver surface reads live GiftEscrow/issuer data, enrolls the
-  receiver key locally, offers an encrypted recovery bundle, and calls the live
-  gas seed/estimate/claim route through a same-origin proxy. Its relay URL and
-  bearer token remain server-side. A
-  browser mainnet claim is not recorded yet because the PRF-capable browser
-  test and fresh open gift remain open.
-- The claim gateway now performs event-aware `debug_traceCall` preflight before
-  forwarding a claim. It requires the matching EntryPoint
-  `UserOperationEvent.success` to be true and fails closed if tracing is
-  unavailable.
-- A live sender-funded acquisition and GiftEscrow setup were completed with
-  NVDAx, including the exact asset amount and native claim reserve.
-- Gift ID `2` was created and claimed successfully through a gasless sponsored
-  UserOperation on mainnet. The receiver
-  received the full `0.030965586663211895` NVDAx, while escrow and sender
-  balances returned to zero. The live hashes are in the verification record.
+The live transaction hashes, contract addresses, receipts, and readbacks are
+in [docs/verification.md](docs/verification.md) and
+[docs/product-deployment.json](docs/product-deployment.json).
+
+### Honest proof boundary
+
+The production UI and receiver flow are implemented, but three proofs remain
+deliberately separate from the claim above: persistent physical-device
+enrollment/recovery, state-changing owner revocation on a safe disposable or
+multi-owner account, and a fresh browser-to-browser mainnet gift flow. The
+deployed-edge Chromium virtual-authenticator PRF capability proof is recorded
+in [docs/verification.md](docs/verification.md).
+
+## What is deployed today
+
+- X Layer mainnet is the only supported deployment.
+- The receiver uses the deployed OKX-specific modular ERC-4337 account; it is
+  not described as ERC-7579.
+- The connected-wallet sender surface reads the live registry, balance,
+  allowance, and claim reserve, then creates real hashlocked gifts.
+- The receiver surface reads live GiftEscrow and issuer data, creates the
+  local account, exposes encrypted recovery material, and calls the live
+  gas-seed, estimate, and claim routes through same-origin proxies.
+- The claim gateway fails closed when event-aware EntryPoint preflight cannot
+  prove UserOperation success.
+- The read-only operations monitor watches both paymasters and the bundler
+  balance; top-ups require explicit confirmations.
+- DropEscrow and recurring-gift authorization are implemented and covered by
+  invariant tests, but intentionally remain undeployed and outside the
+  production UI.
+
+The authoritative continuation record is [HANDOFF.md](HANDOFF.md). The
+chronological implementation record is [PROGRESS.md](PROGRESS.md).
 
 ## Product flow
 
@@ -176,12 +183,14 @@ Private keys belong only in the ignored `.env` or an external secret manager.
 The existing Lightsail SSH key and VPS root environment are also secret
 material. Never print, paste, commit, or add them to documentation.
 
-The WebAuthn PRF vault, browser ceremony, encrypted browser persistence, and
-recovery rewrap foundation are implemented and tested. Browser support,
-credential migration in the real receiver UI, and on-chain owner revocation
-are not yet live-proven. Losing the receiver owner key currently means losing
-control of that account unless the separately stored recovery material is
-available.
+The WebAuthn PRF vault, browser ceremony foundation, encrypted browser
+persistence, and recovery rewrap foundation are implemented and tested. The
+deployed-edge virtual-authenticator capability proof passed, but persistent
+production receiver UI behavior, credential migration, and state-changing
+on-chain owner revocation are not yet live-proven; a read-only owner-call
+simulation is recorded in the verification log. Losing the receiver owner key
+currently means losing control of that account unless the separately stored
+recovery material is available.
 
 ## Claim relay
 
@@ -264,7 +273,8 @@ ask for or provision another server before checking that handoff.
 ```text
 contracts/
   bootstrap/       one-operation account gate paymaster
-  core/            AssetRegistry, GiftEscrow, and related escrow contracts
+  core/            AssetRegistry, GiftEscrow, DropEscrow, and related contracts
+  recurring/       local OKX-specific recurring-gift hook policy
   paymaster/       sender-funded ConveyClaimPaymasterV07
 docs/              architecture, design, deployment, and verification evidence
 infra/okbund/      pinned OKBund launcher and operator runbook
@@ -314,15 +324,28 @@ pnpm test
 pnpm verify
 pnpm verify:bundler-rpc
 pnpm account:inspect
+pnpm account:owner-check
 pnpm operator:addresses
+pnpm scripts:typecheck
+pnpm scripts:syntax
 pnpm bundler:check
 pnpm relayer:check
+pnpm ops:check
+CONVEY_TOPUP_TARGET=claim pnpm ops:topup
 ```
 
 `pnpm verify` uses the documented pinned X Layer block and writes raw evidence
 under `docs/`. `pnpm verify:bundler-rpc` redacts credential-bearing RPC paths.
 The account and operator commands derive public addresses without printing
 private keys.
+
+`pnpm account:owner-check` is read-only and verifies the live OKX owner list and
+validator settings for the configured receiver.
+
+`pnpm ops:check` is the recommended recurring health check. `pnpm ops:topup`
+prints a live shortfall plan without writing by default; see
+[`docs/operations.md`](docs/operations.md) for the explicit confirmation
+required to fund a paymaster.
 
 ### Build and contract tests
 
@@ -365,6 +388,20 @@ pnpm product:register-assets
 These commands can deploy, fund, bind, or register contracts on X Layer. Use
 only after reviewing the live configuration and intended transaction scope.
 
+### Drop and recurring-hook deployment preparation
+
+```sh
+pnpm drop:deploy
+pnpm recurring:deploy
+```
+
+Both commands validate the live X Layer chain, deployed dependencies, and
+source-matched Foundry artifacts, then print a dry-run plan. They send a
+transaction only when invoked with `--confirm` and the matching exact
+confirmation environment variable. The recurring-hook path is restricted to a
+disposable or already multi-owner OKX wallet; neither command has been used to
+deploy a new contract yet.
+
 ### Gateway
 
 ```sh
@@ -374,7 +411,7 @@ pnpm relayer:serve
 The default bind address is loopback. The persistent private service is deployed
 on the supplied VPS with authentication, a capacity check, and the private
 OKBund endpoint. The web app is available at
-[`https://convey.13-62-181-128.sslip.io`](https://convey.13-62-181-128.sslip.io);
+[https://conveyapp.site](https://conveyapp.site);
 it uses a same-origin server proxy to reach the private gateway. No public
 gateway endpoint is exposed.
 
@@ -404,8 +441,9 @@ claim reserve, and escrow held the exact asset amount under its accounting.
 
 The private relay and event-aware preflight are now proven by the successful
 Gift ID `2` claim. The receiver application is now connected to this path and
-deployed at the public HTTPS web edge. A real browser PRF ceremony and
-browser-to-browser mainnet claim are not yet recorded.
+deployed at the public HTTPS web edge. The virtual-authenticator PRF capability
+proof is recorded in [`docs/verification.md`](docs/verification.md), but a
+browser-to-browser mainnet claim is not yet recorded.
 
 ## Security and operating rules
 
@@ -429,10 +467,10 @@ browser-to-browser mainnet claim are not yet recorded.
 ## Resume point
 
 The next work follows the product order in [`PROGRESS.md`](PROGRESS.md): finish
-the browser receiver enrollment/recovery proof, implement and verify gasless
-withdrawal, and execute one browser-to-browser mainnet flow. The live claim and
-operator cash-out proofs are complete; the gateway remains private behind the
-deployed web app.
+the browser receiver enrollment/recovery proof, record a direct gasless
+withdrawal, execute one browser-to-browser mainnet flow, and then integrate the
+locally tested Drop contract. The live claim and operator cash-out proofs are
+complete; the gateway remains private behind the deployed web app.
 
 ## Further documentation
 
@@ -442,6 +480,10 @@ deployed web app.
 - [`docs/architecture.md`](docs/architecture.md) — contract and account model.
 - [`docs/claim-paymaster-design.md`](docs/claim-paymaster-design.md) — reserve,
   validation, and `postOp` accounting.
+- [`docs/drop-design.md`](docs/drop-design.md) — local multi-claim escrow
+  invariant and deployment boundary.
+- [`docs/recurring-authorization.md`](docs/recurring-authorization.md) —
+  OKX-specific bounded owner/hook design and live-proof boundary.
 - [`docs/relayer.md`](docs/relayer.md) — gateway, SDK, and preflight boundary.
 - [`docs/sender-flow.md`](docs/sender-flow.md) — connected-wallet sender module
   and live gift-creation boundary.
@@ -449,5 +491,7 @@ deployed web app.
   sponsorship design.
 - [`docs/verification.md`](docs/verification.md) — live evidence and verification
   record.
+- [`docs/operations.md`](docs/operations.md) — monitoring and guarded top-up
+  runbook.
 - [`infra/okbund/README.md`](infra/okbund/README.md) — pinned OKBund and VPS
   operating runbook.

@@ -9,7 +9,11 @@
     "start": "next start",
     "verify": "node script/verify.ts",
     "verify:bundler-rpc": "node --env-file-if-exists=.env script/check-bundler-rpc.ts",
+    "typecheck": "tsc --noEmit",
+    "scripts:typecheck": "tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --strict --skipLibCheck --esModuleInterop --types node script/deploy-drop.ts script/deploy-recurring-hook.ts",
+    "scripts:syntax": "node --check script/deploy-drop.ts && node --check script/deploy-recurring-hook.ts",
     "account:inspect": "node --env-file=.env script/account.ts",
+    "account:owner-check": "node --env-file=.env script/account-owner-check.ts",
     "operator:addresses": "node --env-file=.env script/operator-addresses.ts",
     "test": "node --test test/*.test.ts",
     "contracts:build": "forge build",
@@ -21,19 +25,25 @@
     "bootstrap:wait": "node --env-file=.env script/wait-bootstrap-operation.ts",
     "bundler:check": "node --env-file=.env script/bundler-check.ts",
     "relayer:check": "node --env-file=.env script/relayer-check.ts",
+    "ops:check": "node --env-file=.env script/operations-check.ts",
+    "ops:topup": "node --env-file=.env script/topup-paymasters.ts",
     "relayer:serve": "node --env-file=.env script/relayer-server.ts",
     "product:deploy": "node --env-file=.env script/deploy-product.ts",
     "product:fund": "node --env-file=.env script/fund-product-paymaster.ts",
     "product:register-assets": "node --env-file=.env script/register-launch-assets.ts",
+    "drop:deploy": "node --env-file=.env script/deploy-drop.ts",
+    "recurring:deploy": "node --env-file=.env script/deploy-recurring-hook.ts",
     "exit:deploy": "node --env-file=.env script/deploy-exit-paymaster.ts",
     "exit:fund": "node --env-file=.env script/fund-exit-paymaster.ts",
     "exit:preflight": "node --env-file=.env script/debug-exit-preflight.ts",
-    "exit:submit": "node --env-file=.env script/submit-exit-operation.ts"
+    "exit:submit": "node --env-file=.env script/submit-exit-operation.ts",
+    "withdraw:submit": "node --env-file=.env script/submit-withdrawal-operation.ts"
   },
   "exports": {
     ".": "./src/index.ts",
     "./relayer": "./src/relayer/index.ts",
     "./relayer/server": "./src/relayer/server-index.ts",
+    "./receiver": "./src/receiver/index.ts",
     "./sender": "./src/sender/index.ts"
   },
   "dependencies": {

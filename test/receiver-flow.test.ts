@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decodeFunctionData, stringToHex } from "viem";
-import { buildClaimCalldata, liveGasFromEstimate, parseClaimLink } from "../src/receiver/flow.ts";
+import { decodeFunctionData, encodeAbiParameters, stringToHex } from "viem";
+import { buildClaimCalldata, issuerApiSymbol, liveGasFromEstimate, parseClaimLink, readReceiverAccountAddress } from "../src/receiver/flow.ts";
+
+test("receiver maps wrapper symbols to the issuer API symbols", () => {
+  assert.equal(issuerApiSymbol("wNVDAx"), "NVDAx");
+  assert.equal(issuerApiSymbol("AAPLx"), "AAPLx");
+  assert.throws(() => issuerApiSymbol("unknown"), /issuer API does not support/);
+});
 
 test("receiver parses the bearer secret and non-secret gift lookup hint", () => {
   const secret = "ab".repeat(32);
@@ -55,4 +61,30 @@ test("receiver uses live bundler estimate fields without defaults", () => {
     maxFeePerGas: 1n,
     maxPriorityFeePerGas: 1n,
   }), /callGasLimit/);
+});
+
+test("receiver re-derives its deterministic account from the persisted owner", async () => {
+  const factory = "0x1111111111111111111111111111111111111111" as const;
+  const owner = "0x2222222222222222222222222222222222222222" as const;
+  const expected = "0x3333333333333333333333333333333333333333" as const;
+  let method = "";
+  const account = await readReceiverAccountAddress(
+    "https://rpc.example",
+    factory,
+    owner,
+    7n,
+    async (_input, init) => {
+      const request = JSON.parse(String(init?.body)) as { method: string; id: number };
+      method = request.method;
+      return new Response(JSON.stringify({
+        jsonrpc: "2.0",
+        id: request.id,
+        result: request.method === "eth_chainId"
+          ? "0xc4"
+          : encodeAbiParameters([{ type: "address" }], [expected]),
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  );
+  assert.equal(method, "eth_call");
+  assert.equal(account, expected);
 });

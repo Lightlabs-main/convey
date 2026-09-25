@@ -1,8 +1,8 @@
 # Receiver key enrollment and recovery
 
 Status: encrypted vault and receiver-flow integration implemented; the public
-HTTPS web edge is deployed, while the real browser ceremony and live
-owner-management proof remain open.
+HTTPS web edge is deployed. A live read-only owner-revocation simulation passes;
+the real browser ceremony and state-changing owner-management proof remain open.
 
 Convey's deployed OKX Smart Wallet uses its built-in ECDSA validator. Each
 receiver therefore needs a dedicated secp256k1 owner key. Convey must never
@@ -35,7 +35,9 @@ as server authentication.
 
 The module fails closed on the wrong PRF output, wrong recovery key, modified
 ciphertext, modified owner metadata, or unsupported record version. Tests cover
-normal unlock, wrong-PRF rejection, recovery and migration, and tampering.
+normal unlock, wrong-PRF rejection, recovery and migration, tampering, and the
+WebAuthn API boundary with a deterministic credential double. That boundary
+test is not a real browser or authenticator proof.
 
 ## Deliberate boundary
 
@@ -44,15 +46,20 @@ owner rotation. It does not establish that a browser supports the WebAuthn PRF
 extension or that a credential is synchronized safely across devices. The
 sender/receiver application must:
 
-1. integrate the PRF-capable WebAuthn ceremony into the receiver UI and test
-   the supported browser/authenticator matrix;
+1. run the integrated PRF-capable WebAuthn ceremony in the supported
+   browser/authenticator matrix;
 2. persist only the encrypted vault, PRF salt, and recovery envelope;
 3. show the recovery key once, export the encrypted bundle, and require an
    explicit save confirmation;
 4. keep decrypted key material in memory only for the shortest signing window;
 5. prove enrollment, migration, and claim signing in supported browsers; and
-6. separately inspect and test the deployed OKX owner-management calls before
-   claiming on-chain owner revocation or replacement.
+6. the pinned OKX source now identifies `removeOwner(bytes32)` as a self-call
+   guarded by the wallet's admin path; test that path against a disposable or
+   multi-owner account before claiming on-chain owner revocation or replacement.
 
-Until those browser and on-chain checks pass, receiver enrollment and recovery
-remain in progress rather than product-complete.
+The read-only `pnpm account:owner-check` command records the current deployed
+owner, validator, hook, expiration, admin, and EntryPoint state without changing
+the account. It does not substitute for the live revocation test.
+
+Until those browser and state-changing on-chain checks pass, receiver enrollment
+and recovery remain in progress rather than browser-proof complete.

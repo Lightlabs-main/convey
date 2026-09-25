@@ -1,11 +1,104 @@
 # X Layer mainnet verification
 
-Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core, persistent private gateway, and public HTTPS web edge are now deployed; browser ceremony/recovery proof and browser mainnet proof remain open.
+Status: **account-abstraction and private gasless product-claim gates passed on X Layer mainnet.** One sponsored UserOperation deployed the selected receiver account. Gift ID `2` was then claimed successfully through Convey's private gateway, OKBund, and the funded claim paymaster; the receiver supplied no native gas. The receiver vault core, persistent private gateway, and public HTTPS web edge are now deployed; persistent browser enrollment/recovery proof, owner-revocation proof, and browser mainnet proof remain open.
+
+## Latest pinned-block verification rerun — 2026-09-25
+
+`pnpm verify` passed at `2026-09-25T12:39:21.894Z`. All on-chain reads remain
+pinned to block `71,272,554` (`0x43f886a`), chain ID `196`, and the canonical
+OKX EntryPoint v0.7 relationship. The latest issuer observations were NVDAx
+`$225.735` with multiplier `1.001701196801074`, TSLAx `$381.445` with
+multiplier `1`, and AAPLx `$336.280` with multiplier `1.0032690125398187`.
+
+The best current executable USDG routes at the tested sizes returned `$5.033280`,
+`$20.133074`, and `$50.332443` for NVDAx; `$4.388300`, `$5.338550`, and
+`$5.338550` for TSLAx; and `$5.033631`, `$20.134333`, and `$50.334858` for
+AAPLx. NVDAx and AAPLx remain
+suitable for the tested cash-out sizes; TSLAx remains thin and hold-only. These
+issuer and quote values are live observations;
+the machine-readable raw report is authoritative for deploy-time decisions.
+
+## Latest private execution-RPC capability probe — 2026-09-25
+
+The redacted `pnpm verify:bundler-rpc` probe passed at
+`2026-09-25T12:20:49.878Z` against the keyed NodeFlare X Layer endpoint. It
+returned chain `196`, the canonical EntryPoint v0.7, and support for both
+`debug_traceCall` with a JavaScript tracer and `debug_traceCall` state
+overrides. `trace_call` returned JSON-RPC `-32601`; it is not required by the
+selected OKBund safe-mode path. The endpoint path and credential remain
+redacted in [`docs/verification.rpc-capabilities.json`](verification.rpc-capabilities.json).
+
+## Chromium virtual-authenticator WebAuthn PRF capability proof — 2026-09-25
+
+At `2026-09-25T11:10:27.355Z`, Chrome for Testing `153.0.8010.12` loaded
+`https://convey.13-62-181-128.sslip.io` and completed a WebAuthn ceremony with
+Chromium's virtual internal CTAP2.2 authenticator configured with PRF support.
+The ceremony used the deployed edge's hostname as the relying-party ID, returned
+`creationPrfEnabled = true`, and two assertions using the same salt each returned
+32 bytes with identical output. User verification was required and reported
+successful.
+
+This proves the deployed origin and current Chromium WebAuthn/PRF request shape
+can complete an enrollment and assertion against a virtual authenticator. The
+browser context and credential were ephemeral; this is not physical security-key
+evidence, persistent client-storage or replacement-device recovery evidence, an
+owner-revocation proof, or a browser-to-browser mainnet claim.
+
+## Latest deployed receiver-surface smoke — 2026-09-25
+
+The first deployed browser smoke exposed that direct browser requests to the
+Backed issuer API were blocked by CORS, and that the on-chain wrapper symbols
+(`wNVDAx`, `wAAPLx`, `wTSLAx`) needed mapping to the issuer symbols without the
+`w` prefix. Convey then deployed an allowlisted same-origin valuation proxy and
+the explicit symbol mapping.
+
+At `2026-09-25T11:51:29.979Z`, Chromium loaded the deployed home page and the
+closed Gift ID `2` receiver route. The proxy returned live NVDAx price and
+multiplier data with HTTP `200`; an invalid network returned HTTP `400`. The
+receiver displayed `This gift has already been closed.`, exposed no claim,
+enrollment, or recovery action, and reported zero console errors, page errors, or
+failed requests. Rendered HTML contained no operator credential variable names.
+
+A separate read-only HTTPS check of the deployed origin returned HTTP `200` at
+`2026-09-25T12:55:10Z`. The receiver leaves the WebAuthn `rpId` unset, so the
+browser uses this HTTPS origin as the relying-party ID; no additional domain
+deployment is required before a persistent passkey ceremony.
+
+This verifies the deployed receiver surface and valuation boundary only. Gift ID
+`2` is closed, so this remains neither a fresh browser enrollment/recovery proof
+nor a browser-to-browser mainnet claim.
+
+## Same-device receiver resume hardening — 2026-09-25
+
+The receiver bundle now rehydrates a returning same-device session without
+trusting browser state as on-chain truth. For a live `Claimed` gift, it reads
+the persisted encrypted vault's owner address, re-derives the deterministic OKX
+account through the configured factory, and requires a fresh passkey unlock
+before enabling cash-out or transfer actions. A browser with no local vault still
+sees no unlock, recovery, or claim controls on a closed gift.
+
+The change passed `pnpm test`, `pnpm typecheck`, and `pnpm build` and was deployed
+to the supplied web edge. From the supplied VPS at `2026-09-25T12:16:30Z`,
+read-only checks returned HTTP `200` for `/`, the wrapper valuation price and
+multiplier routes, HTTP `400` for an invalid multiplier network, and HTTP `404`
+for an unallowlisted relay path. No chain, wallet, or contract write was made.
+At `2026-09-25T12:22:51.149Z`, a direct read-only invocation of the new
+rehydration helper against X Layer derived
+`0x63B2A84d47cb07fb18EE72Ec386893506Fd963db`, matching the deployed receiver.
+A subsequent redeploy added an explicit chain-196 guard to that read-only helper.
+From the supplied VPS at `2026-09-25T12:28:05Z`, the replacement bundle again
+returned HTTP `200` for `/` and both valuation routes, HTTP `400` for an invalid
+valuation network, and HTTP `404` for an unallowlisted relay path; the live
+helper matched the receiver again at `2026-09-25T12:28:11.185Z`.
+This is implementation and boundary evidence, not persistent physical-device
+enrollment/recovery or a browser-to-browser mainnet claim.
 
 ## Live exit-paymaster deployment — 2026-09-25
 
 The corrected four-field X Layer SwapRouter02 `exactInput` policy was compiled
-with Foundry 1.8.3 and passed the complete Solidity regression suite (38 tests).
+with Foundry 1.8.3. The current complete Solidity regression suite contains 47
+tests, including the locally implemented Drop escrow and recurring-hook suites,
+and passed with no failures.
 The deployment script also verified that its Foundry artifact matched the
 current source before sending the transaction. Exit authorization rechecks the
 configured route and a fresh QuoterV2 minimum before signing.
@@ -40,16 +133,207 @@ this OKBund build did not index the receipt through
 `eth_getUserOperationReceipt`. At NodeFlare block `71535386`, the receiver's
 NVDAx balance was `0`, its USDT0 balance was `6932357`, its EntryPoint nonce was
 `4`, and the exit paymaster remained staked with a `73206079000000 wei`
-deposit. This is operator-script proof of the gasless exit; browser PRF and
-browser-to-browser mainnet proof remain open.
+deposit. This is operator-script proof of the gasless exit; persistent
+production browser enrollment/recovery and browser-to-browser mainnet proof
+remain open.
 
 The supplied VPS gateway was updated to the corrected exit policy and new
 paymaster address, restarted, and returned authenticated `healthy = true` on
 chain `196`. The production web bundle was rebuilt with the new address and
 deployed atomically; `convey-web.service` remained active, public `/` and a
 claim route returned HTTP `200`, and the public relay health proxy returned
-HTTP `200`. This remains deployment evidence, not browser PRF or
-browser-to-browser mainnet proof.
+HTTP `200`. This remains deployment evidence, not persistent production browser
+enrollment/recovery or browser-to-browser mainnet proof.
+
+## Live operations monitor — 2026-09-25
+
+The new read-only operations checker was installed on the supplied Lightsail
+VPS as `convey-ops-check.service` with the enabled five-minute
+`convey-ops-check.timer`. The first run completed successfully at
+`2026-09-25T09:17:31Z`; the oneshot service is expected to return to
+`inactive (dead)` after a successful run while the timer remains active.
+Existing Convey services were not restarted and no chain write was sent.
+
+The monitor reported chain `196`, EntryPoint code size `16035` bytes, and the
+canonical v0.7 EntryPoint advertised by OKBund. Its live floor checks found:
+
+- claim paymaster deposit `197696031949403` wei, stake `1` wei, staked;
+- exit paymaster deposit `73206079000000` wei, stake `1` wei, staked, against
+  the configured `50000000000000` wei minimum; and
+- bundler wallet balance `786293569236941` wei against the configured
+  `100000000000000` wei minimum.
+
+The separate dry-run top-up read found shortfalls to the configured refill
+targets of `2303968050597` wei for the claim paymaster and `26793921000000`
+wei for the exit paymaster. No top-up transaction was sent.
+
+At a read-only recheck at `2026-09-25T09:27:59Z`, `convey-okbund.service`,
+`convey-relayer.service`, `convey-web.service`, and the operations timer were
+all active. The monitor again returned `healthy = true` with no failures. The
+host reported approximately `417 MiB` available memory and `1.33 GiB` free
+swap; the monitor did not restart any service.
+
+The final read-only VPS check at `2026-09-25T09:38:56Z` found all four of those
+units active. The latest monitor run completed successfully, reported no
+failures, and deactivated normally as expected for the oneshot service.
+
+The monitor ran again at `2026-09-25T10:15:54.816Z` and returned `healthy =
+true` on chain `196` with no failures. It reported claim paymaster deposit
+`197696031949403` wei and stake `1` wei, exit paymaster deposit
+`73206079000000` wei and stake `1` wei, and bundler-wallet balance
+`786293569236941` wei. At `2026-09-25T10:16:59Z`, OKBund, the Convey gateway,
+the web service, and the operations timer were all active; no service or chain
+state was changed.
+
+Fresh read-only checks at `2026-09-25T10:54:29.174Z` again returned
+`healthy = true` with no failures and the same live deposits, stake values, and
+bundler-wallet balance. At `2026-09-25T10:55:37Z`, OKBund, the gateway, the web
+service, and the operations timer were active. The public web edge returned
+HTTP `200` for `/`, while an unlisted relay path returned HTTP `404`; no service
+or chain state was changed.
+
+A fresh monitor run at `2026-09-25T11:23:00Z` again returned `healthy = true`
+with no failures. It reported claim paymaster deposit `197696031949403` wei and
+stake `1` wei, exit paymaster deposit `73206079000000` wei and stake `1` wei,
+and bundler-wallet balance `786293569236941` wei. The oneshot service returned
+to `inactive (dead)` normally; no top-up or other chain write was sent.
+
+A read-only public-edge smoke check at `2026-09-25T11:24:20.378Z` found
+`convey-okbund.service`, `convey-relayer.service`, `convey-web.service`, and
+`convey-ops-check.timer` active. The public home page returned HTTP `200` and
+the unallowlisted relay path returned HTTP `404`.
+
+The latest supplied-host read-only check at `2026-09-25T12:01:01Z` found
+OKBund, the relayer, and the web service active, with the operations timer
+waiting for its next run. The monitor oneshot had completed successfully with
+exit status `0` at `12:01:01Z`; the host reported approximately `334 MiB`
+available memory. An unauthenticated local relayer health request returned
+HTTP `401`, as required by the private gateway boundary, while the local web
+service returned HTTP `200`. From the supplied host at `2026-09-25T12:04:48Z`,
+the public home page returned HTTP `200` and the unallowlisted relay path
+returned HTTP `404`. No service or chain state was changed.
+
+A manually triggered read-only monitor run completed successfully at
+`2026-09-25T12:36:52.855Z`: `healthy = true` with no failures, canonical
+EntryPoint code size `16035` bytes, claim paymaster deposit
+`197696031949403` wei and stake `1` wei, exit paymaster deposit
+`73206079000000` wei and stake `1` wei, and bundler-wallet balance
+`786293569236941` wei. The oneshot returned to `inactive (dead)` and the
+five-minute timer remained active; no chain write or managed-service restart
+was performed.
+
+## Live receiver owner-state read — 2026-09-25
+
+The read-only `pnpm account:owner-check` command completed at
+`2026-09-25T09:56:25.561Z` against X Layer mainnet. It derived the deployed
+receiver from the configured owner key, checked the deployed account bytecode,
+read the OKX owner-management getters, and simulated the revocation call without
+submitting a transaction:
+
+- receiver `0x63B2A84d47cb07fb18EE72Ec386893506Fd963db`, deployed on chain `196`;
+- canonical EntryPoint v0.7 `0x0000000071727de22e5e9d8baf0edac6f37da032`;
+- `ownerCount = 1`, with the derived owner key hash present and `hasOwner = true`;
+- validator `0x0000000000000000000000000000000000000001`, zero hook, expiration `0`,
+  `adminStatus = true`, `expired = false`, and the same verified validator.
+- an `eth_call` from the owner EOA through `wallet.execute` to
+  `wallet.removeOwner(keyHash)` succeeded, and the post-call read still reported
+  `ownerCount = 1` and `hasOwner = true`.
+
+This is a live read-only execution-path simulation, not mined revocation
+evidence. The inspected `removeOwner(bytes32)` path is still a wallet self-call;
+a safe state-changing proof requires a disposable or multi-owner account.
+
+A fresh read-only run at `2026-09-25T11:00:50.787Z` again found the same
+receiver with `ownerCount = 1`, the built-in ECDSA validator, zero hook, no
+expiration, and `adminStatus = true`. The revocation simulation succeeded and
+reported `stateUnchanged = true`; no owner mutation was submitted.
+
+The latest read-only run at `2026-09-25T12:20:32.805Z` reported the same
+receiver with `ownerCount = 1`, the derived owner present, the built-in ECDSA
+validator, zero hook, no expiration, and `adminStatus = true`. The owner-signed
+self-call revocation simulation succeeded and reported `stateUnchanged = true`;
+no owner mutation was submitted.
+
+## Direct withdrawal preparation — 2026-09-25
+
+The guarded `pnpm withdraw:submit` path completed its live dry-run at
+`2026-09-25T09:53:46.773Z` after correcting its owner-key guard to distinguish
+the receiver's EOA owner from the smart-account address. It read the live
+receiver balance and completed private-gateway authorization plus bundler
+estimation without submitting:
+
+- token: USDT0 `0x779ded0c9e1022225f8e0630b35a9b54be713736`;
+- receiver and prepared account: `0x63B2A84d47cb07fb18EE72Ec386893506Fd963db`;
+- live balance and requested withdrawal: `6932357` base units;
+- destination: the documented operator sender
+  `0x5fA8199ad34373A063c96D24a1BF5b4a105D3399`; and
+- `writeEnabled = false`; no UserOperation hash or transaction was produced.
+
+This proves live withdrawal construction and estimation, not on-chain transfer
+inclusion. A real withdrawal still requires explicit approval of the destination
+and amount immediately before the guarded write.
+
+A fresh guarded dry-run at `2026-09-25T11:01:52.184Z` prepared the same full
+`6932357`-unit USDT0 balance for the documented operator recipient, returned the
+deployed receiver as the prepared account, and reported `liveEstimatePrepared =
+true` with `writeEnabled = false`. No UserOperation hash or transaction was
+produced.
+
+The latest guarded dry-run at `2026-09-25T11:56:19.202Z` again read the live
+`6932357`-unit balance, prepared the deployed receiver as the account, completed
+live authorization and estimation, and reported `writeEnabled = false`. No
+UserOperation hash or transaction was produced.
+
+## Drop escrow implementation — 2026-09-25
+
+The local `DropEscrow` implementation in
+[`contracts/core/DropEscrow.sol`](../contracts/core/DropEscrow.sol) requires a
+future expiry, pre-funds every slot with exact ERC-20 accounting, records each
+claiming account address, rejects a second claim from that address, and lets the
+sender reclaim only the remaining slots after expiry. It has no X Layer address
+yet and was not deployed or connected to the gateway.
+
+The supplied Lightsail host compiled the current sources with Solidity `0.8.23`
+and ran the complete Foundry suite again in an isolated temporary directory;
+the run completed by `2026-09-25T11:19:27.379Z` with `47` tests passed, `0` failed.
+The four
+Drop-specific tests cover full pre-funding and exact slot delivery,
+duplicate-account rejection, partial expiry reclaim, early-reclaim rejection,
+and invalid creation inputs. This is isolated local contract evidence, not
+mainnet deployment or product-flow evidence.
+
+## Recurring authorization policy — 2026-09-25
+
+The local [`ConveyRecurringGiftHook`](../contracts/recurring/ConveyRecurringGiftHook.sol)
+implements the pinned OKX hook ABI and binds one non-admin owner key to exact
+`GiftEscrow.createGift` calls. It enforces the configured asset, target and
+selector, nonzero secret, native reserve cap, per-gift token cap, cumulative
+token budget, and a strict gift-expiry-before-owner-expiry boundary. Its budget
+reservation rolls back when the enclosing wallet execution reverts.
+
+The five recurring-hook tests passed as part of the 47-test Solidity suite.
+This remains local policy evidence only: no hook was deployed, no secondary
+owner was attached to the live receiver, and no owner or allowance state was
+changed on X Layer. A disposable or multi-owner OKX wallet is still required
+for mined in-bounds, out-of-bounds, expiry, and admin-revocation evidence; the
+full boundary is documented in [`docs/recurring-authorization.md`](recurring-authorization.md).
+
+The guarded `pnpm recurring:deploy` command validates the live dependencies and
+source-matched artifact but is dry-run by default. The Drop equivalent is
+`pnpm drop:deploy`; neither command has sent a deployment transaction.
+
+The Drop path was exercised read-only again at `2026-09-25T12:35:52.882Z`: it
+revalidated chain `196`, the live registry
+`0x156d160e004B7fb2021CFCA8fC6cF069c3b8b029`, and the source-matched
+`DropEscrow` artifact with `3846` bytes of deployable bytecode. With neither
+confirmation present it returned `writeEnabled = false`; no deployment
+transaction or other chain write was produced.
+
+The recurring-hook dry-run remains intentionally unconfigured because the local
+environment has no `CONVEY_RECURRING_WALLET`. The script refuses to substitute
+the sole-owner production receiver and requires a disposable or already
+multi-owner OKX wallet before it can validate live wallet dependencies. No hook
+deployment or wallet-state change was attempted.
 
 ## Live continuation checks — 2026-09-24
 
@@ -579,13 +863,37 @@ at approximately `2026-09-24T16:48:25Z`. The certificate expires on
 - `convey-okbund.service`: active.
 
 This proves the web deployment and the server-side relay boundary. It does not
-prove a real browser PRF ceremony or a browser-to-browser mainnet claim; no such
-claim is recorded yet.
+prove persistent production receiver enrollment/recovery or a browser-to-browser
+mainnet claim; the isolated virtual-authenticator capability proof is recorded
+near the top of this document and no browser mainnet claim is recorded yet.
 
 The receiver recovery update was redeployed and returned a public HTTPS `200`
 at `2026-09-24T17:02:33Z`. This update adds only encrypted-bundle handling and
 same-device unlock/recovery UI; it does not change the deployed contracts or
 claim paymaster.
+
+### Custom domain and frontend deployment — 2026-09-25
+
+Namecheap DNS now resolves both `conveyapp.site` and `www.conveyapp.site` to
+the supplied Lightsail VPS at `13.62.181.128`. Nginx was added as a separate
+site, and Let's Encrypt issued one certificate covering both names. The
+certificate is saved under the server-managed `conveyapp.site` lineage, expires
+on `2026-12-24`, and automatic renewal is enabled.
+
+The verified frontend production bundle was then activated in
+`convey-web.service`; the server-side environment and private relay were not
+copied or changed. At `2026-09-25T13:57:50Z`:
+
+- `https://conveyapp.site/`: HTTP `200`;
+- `https://www.conveyapp.site/`: HTTP `200`;
+- the redesigned home copy (`like a feeling`, `live on X Layer`, and
+  `No wallet needed`) was present;
+- `convey-web.service`, `convey-relayer.service`, and
+  `convey-okbund.service` were active;
+- `nginx -t` passed.
+
+This was a web/DNS deployment only. No wallet, gift, withdrawal, claim,
+contract, or other chain state was changed.
 
 ## Sources
 

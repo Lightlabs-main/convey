@@ -48,10 +48,22 @@ the retained encrypted envelope may be used without pasting the bundle. The
 application must rotate or revoke that recovery material as a separate product
 decision.
 
+When a receiver returns to a claimed gift URL on the same device, the UI reads
+the live escrow state and the persisted encrypted vault's owner address,
+re-derives the deterministic OKX account through the live factory, and requires
+the passkey to unlock the signer before enabling cash-out or transfer actions.
+The local vault is not treated as proof that a gift was claimed; the live gift
+state remains authoritative. A closed gift opened in a browser with no local
+vault exposes no unlock, recovery, or claim controls.
+
 The public HTTPS web edge is deployed at
-`https://convey.13-62-181-128.sslip.io`. The browser integration still needs a
-real PRF-capable browser/device test and a browser-to-browser mainnet claim;
-none is recorded yet.
+`https://convey.13-62-181-128.sslip.io`. An isolated Chromium
+virtual-authenticator PRF capability proof is recorded in
+[`docs/verification.md`](verification.md); persistent production browser
+enrollment/recovery and a browser-to-browser mainnet claim are not recorded yet.
+The deployed receiver now fetches issuer valuation through its allowlisted
+same-origin proxy; the closed-Gift browser smoke and its zero-error result are
+recorded in the verification log.
 
 The Next.js surface in `app/g/[secret]` reads the escrow and registry from the
 configured public X Layer RPC, fetches the issuer value for wrapped xStocks,
@@ -59,5 +71,6 @@ and never invents a balance or USD amount. After local key enrollment and
 explicit recovery-key confirmation it builds, live-estimates, and submits the
 gasless claim through the same-origin `/api/relay/*` proxy. The relay URL and
 bearer token are server-only environment variables. The live-quoted cash-out
-route is implemented and has one operator UserOperation proof; gasless
-withdrawal still needs implementation and live verification.
+route and direct gasless withdrawal route are implemented; the operator
+cash-out has one UserOperation proof, while browser withdrawal proof remains
+open.

@@ -104,6 +104,12 @@ The check does not claim the claim paymaster's pre-charge-max and `postOp`
 refund semantics by itself. Those semantics were exercised by the successful
 Gift ID `2` claim and recorded in the verification evidence.
 
+`pnpm ops:check` extends this read-only gate to the separate exit paymaster and,
+when configured, the OKBund wallet balance. Use the guarded
+`pnpm ops:topup` command from [`docs/operations.md`](operations.md) when a
+floor is breached; it is dry-run unless the operator supplies both explicit
+confirmation flags.
+
 ## Running it
 
 For a fresh environment, copy the self-hosted relay variables from
@@ -112,6 +118,7 @@ Convey paymaster, and fund its EntryPoint deposit and stake. Then run:
 
 ```sh
 pnpm relayer:check
+pnpm ops:check
 pnpm relayer:serve
 ```
 
@@ -121,9 +128,9 @@ claim paymasters have passed their recorded live checks, and Gift ID `2` was
 claimed successfully through the private route. The durable gateway is now
 active on the supplied VPS at loopback `127.0.0.1:8800`; the browser-facing
 HTTPS edge is deployed at the URL in the receiver documentation. The separate
-exit gateway path has also completed one operator gasless cash-out; browser
-PRF and browser-to-browser proof remain open. No fake endpoint is committed to
-make a health check appear green.
+exit gateway path has also completed one operator gasless cash-out; persistent
+production browser enrollment/recovery and browser-to-browser proof remain open.
+No fake endpoint is committed to make a health check appear green.
 
 ## Operator bundler gate
 

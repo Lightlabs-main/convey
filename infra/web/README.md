@@ -10,6 +10,7 @@ requests to this loopback service, so the browser can reach the same-origin
 relay proxy without learning the private gateway address or token.
 
 The current supplied-host deployment is
-[`https://convey.13-62-181-128.sslip.io`](https://convey.13-62-181-128.sslip.io).
+[https://conveyapp.site](https://conveyapp.site), with
+[https://www.conveyapp.site](https://www.conveyapp.site) also configured.
 Nginx owns TLS and proxies to `127.0.0.1:3001`; the private relay remains on
 `127.0.0.1:8800`.

@@ -122,39 +122,47 @@ export default function HomePage() {
     <main>
       <div className="network-bar">X Layer mainnet · chain 196 · gasless receiver claim</div>
       <div className="shell">
-        <nav className="nav"><span className="wordmark">convey.</span><span className="nav-note">a stock gift, in one link</span></nav>
+        <nav className="nav"><a className="wordmark" href="/">convey.</a><div className="nav-actions"><span className="nav-note">a stock gift, in one link</span><span className="live-pill">live on X Layer</span></div></nav>
         <section className="hero">
-          <div>
+          <div className="hero-copy">
             <div className="eyebrow">Real assets, warmly delivered</div>
-            <h1>Send a stock like you send a photo.</h1>
+            <h1>Send a stock<br /><span>like a feeling.</span></h1>
             <p className="lede">A sender pays. A receiver opens a link. The asset arrives in a smart account they never had to set up.</p>
-            <form className="link-form" onSubmit={openGift}>
+            <form className="link-form gift-form" onSubmit={openGift}>
               <input aria-label="Gift link" value={link} onChange={(event) => setLink(event.target.value)} placeholder="Paste a Convey gift link" inputMode="url" />
-              <button className="button" type="submit">Open gift</button>
+              <button className="primary-button" type="submit">Open the gift ↗</button>
             </form>
             {error ? <p className="error" role="alert">{error}</p> : <p className="fine-print">No wallet. No OKB. No gas. The link is the gift.</p>}
+            <div className="mini-proof" aria-label="Convey benefits"><span>real ownership</span><span>gasless claim</span><span>X Layer native</span></div>
           </div>
           <div className="hero-art" aria-hidden="true">
+            <div className="art-orbit" />
             <div className="art-card back"><div className="art-kicker">X Layer / 196</div></div>
-            <div className="art-card main"><div className="art-kicker">A gift for you</div><div className="art-name">Nvidia</div><div className="art-value">$ —</div><div className="art-footer"><span>tokenized exposure</span><span>gasless claim</span></div></div>
+            <div className="art-card main"><div className="art-kicker">A gift for you</div><div className="asset-top"><div className="asset-id"><div className="asset-icon">NV</div><div><div className="asset-name">NVDAx</div><div className="asset-sub">tokenized exposure</div></div></div><div className="asset-status">ready</div></div><div className="art-name">Live issuer value</div><div className="art-value">Live</div><div className="art-delta">verified at claim time</div><div className="chart-line" /><div className="art-footer"><span className="claim-stamp">✦ gasless claim</span><span>onchain gift</span></div></div>
+            <div className="art-badge">No wallet needed</div>
           </div>
         </section>
 
+        <section className="proof-grid" aria-label="How Convey works">
+          <div className="proof-step"><div className="proof-number">01</div><h2>Choose the feeling</h2><p>Pick a certified tokenized asset and add a note that makes the gift yours.</p></div>
+          <div className="proof-step"><div className="proof-number">02</div><h2>Send one link</h2><p>The receiver opens a private link. No wallet setup or gas balance required.</p></div>
+          <div className="proof-step"><div className="proof-number">03</div><h2>They own it</h2><p>A sponsored claim puts the live asset in their own smart account.</p></div>
+        </section>
         <section className="sender-panel" aria-labelledby="send-heading">
           <div className="eyebrow">For the sender</div>
           <h2 id="send-heading">Gift from the wallet you already use.</h2>
           <p className="panel-copy">Connect an existing wallet, choose a certified asset, and fund a real claim. Convey never creates or holds the sender&apos;s key.</p>
-          {!sender ? <button className="button" type="button" onClick={connectSender}>Connect wallet</button> : (
+          {!sender ? <button className="primary-button" type="button" onClick={connectSender}>Connect wallet</button> : (
             <>
               <div className="sender-meta"><span>Connected {shortAddress(sender)}</span><span>{status}</span></div>
               <div className="sender-asset-row">
                 <label>Asset<select value={assetAddress ?? ""} onChange={(event) => setAssetAddress(event.target.value as Address)}>{assets.map((value) => <option key={value} value={value}>{shortAddress(value)}</option>)}</select></label>
                 {asset ? <span className="live-balance">Live balance: {formatUnits(asset.balance, asset.decimals)} {asset.symbol}</span> : null}
               </div>
-              {asset ? <form className="gift-form" onSubmit={createGift}>
+              {asset ? <form className="gift-form sender-form" onSubmit={createGift}>
                 <label>Amount<input value={amount} onChange={(event) => setAmount(event.target.value)} placeholder={`e.g. 0.01 ${asset.symbol}`} inputMode="decimal" required /></label>
                 <label>Note <span className="optional">optional</span><input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Happy birthday" /></label>
-                <button className="button" type="submit" disabled={sending}>{sending ? "Sending…" : "Create real gift"}</button>
+                <button className="primary-button" type="submit" disabled={sending}>{sending ? "Sending…" : "Create real gift"}</button>
               </form> : null}
               {createdLink ? <div className="created-link"><span>Gift link</span><a href={createdLink}>{createdLink}</a></div> : null}
             </>

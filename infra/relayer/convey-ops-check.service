@@ -1,0 +1,22 @@
+[Unit]
+Description=Convey paymaster and bundler operations check
+After=network-online.target convey-okbund.service convey-relayer.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=convey-relayer
+Group=convey-relayer
+WorkingDirectory=/srv/convey/relayer
+EnvironmentFile=/etc/convey/relayer.env
+EnvironmentFile=-/etc/convey/operations.env
+Environment=BUNDLER_RPC_URL=http://127.0.0.1:3000/rpc
+ExecStart=/usr/bin/node /srv/convey/relayer/script/operations-check.ts
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target
