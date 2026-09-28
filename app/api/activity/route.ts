@@ -1,3 +1,4 @@
+import { unitValues, XSTOCK_TOKENS as TICKERS } from "@/app/lib/xstockValues";
 import { createPublicClient, formatUnits, http, parseAbiItem, parseEventLogs, type Address, type Hex } from "viem";
 
 /**
@@ -20,11 +21,6 @@ const CREATED = parseAbiItem("event GiftCreated(uint256 indexed giftId, address 
 const CLAIMED = parseAbiItem("event GiftClaimed(uint256 indexed giftId, address indexed claimer, uint256 amount)");
 const RECLAIMED = parseAbiItem("event GiftReclaimed(uint256 indexed giftId, address indexed sender, uint256 amount)");
 
-const TICKERS: Record<string, { ticker: string; issuer: string }> = {
-  "0xa8ddb5cd96b5222afe198316e9a57caa642850d5": { ticker: "NVDAx", issuer: "NVDAx" },
-  "0x943bf64d566c32a2bcd41ac92fb63c111cc9de8f": { ticker: "AAPLx", issuer: "AAPLx" },
-  "0xc3fdbe3a68ee5de461d30415a8165cf9aefe1171": { ticker: "TSLAx", issuer: "TSLAx" },
-};
 
 interface GiftRecord {
   giftId: string;
@@ -114,26 +110,20 @@ async function scan(): Promise<void> {
   scannedTo = head;
 }
 
-/** Live value of one wrapper unit: issuer price x wrapper multiplier. Undefined when either read fails. */
-async function unitValues(): Promise<Record<string, number>> {
-  const entries = await Promise.all(Object.values(TICKERS).map(async ({ ticker, issuer }) => {
+export async function GET(request: Request): Promise<Response> {
+  const giftId = new URL(request.url).searchParams.get("giftId");
+  if (giftId !== null) {
+    // One gift's settlement, so the claim screen can compare the on-chain claimer with this device's account.
+    if (!/^\d+$/u.test(giftId)) return Response.json({ error: "invalid_gift_id" }, { status: 400 });
     try {
-      const base = `https://api.backed.fi/api/v2/public/assets/${issuer}`;
-      const [price, multiplier] = await Promise.all([
-        fetch(`${base}/price-data`, { cache: "no-store" }).then((r) => r.json() as Promise<{ quote?: number }>),
-        fetch(`${base}/multiplier?network=XLayer`, { cache: "no-store" }).then((r) => r.json() as Promise<{ currentMultiplier?: number }>),
-      ]);
-      return typeof price.quote === "number" && typeof multiplier.currentMultiplier === "number"
-        ? [[ticker, price.quote * multiplier.currentMultiplier]] as const
-        : [];
+      scanning ??= scan().finally(() => { scanning = undefined; });
+      await scanning;
+      const gift = gifts.get(giftId);
+      return Response.json({ giftId, status: gift?.status ?? "unknown", recipient: gift?.recipient ?? null, settledTx: gift?.settledTx ?? null }, { headers: { "cache-control": "no-store" } });
     } catch {
-      return [];
+      return Response.json({ error: "activity_unavailable" }, { status: 503 });
     }
-  }));
-  return Object.fromEntries(entries.flat());
-}
-
-export async function GET(): Promise<Response> {
+  }
   if (cached && Date.now() - cached.at < CACHE_MS) return Response.json(cached.body, { headers: { "cache-control": "no-store" } });
   try {
     scanning ??= scan().finally(() => { scanning = undefined; });

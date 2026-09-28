@@ -25,6 +25,7 @@ import { ConveyRelayerClient } from "@/src/relayer/client";
 import { createBrowserReceiverVaultStorage } from "@/src/receiver/storage";
 import { LiveTicker } from "../../components/LiveTicker";
 import { SiteHeader } from "../../components/SiteHeader";
+import { Portfolio } from "../../components/Portfolio";
 
 function shortAddress(value: string): string {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
@@ -56,6 +57,9 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
   const [moveMode, setMoveMode] = useState(false);
   const [moveToken, setMoveToken] = useState<"asset" | "usdt0">("asset");
   const [moveRecipient, setMoveRecipient] = useState("");
+  const [balances, setBalances] = useState<{ asset: bigint; usdt0: bigint; assetUsd?: number; readAt: number }>();
+  const [claimer, setClaimer] = useState<Address>();
+  const [portfolioKey, setPortfolioKey] = useState(0);
   const [status, setStatus] = useState("Reading the live gift record…");
   const [error, setError] = useState("");
   const claim = useMemo(() => {
@@ -112,7 +116,9 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
               ? "Your gift is ready to secure."
               : livePreview.state === "claimed" && localOwner
                 ? "This gift was claimed. Unlock your receiver account to manage its live balance."
-                : "This gift has already been closed.");
+                : livePreview.state === "claimed"
+                  ? "This gift has already been claimed, so there are no stocks left to claim on this link."
+                  : "This gift has already been closed.");
         }
       } catch (cause) {
         if (!cancelled) {
@@ -125,6 +131,49 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
     })();
     return () => { cancelled = true; };
   }, [claim]);
+
+  async function refreshBalances() {
+    const executionRpcUrl = process.env.NEXT_PUBLIC_XLAYER_RPC_URL;
+    const usdt0 = process.env.NEXT_PUBLIC_CONVEY_EXIT_USDT0_ADDRESS;
+    if (!preview || !smartAccount || !executionRpcUrl) return;
+    try {
+      const [asset, stable] = await Promise.all([
+        readReceiverTokenBalance(executionRpcUrl, preview.asset, smartAccount),
+        usdt0 && isAddress(usdt0) ? readReceiverTokenBalance(executionRpcUrl, usdt0 as Address, smartAccount) : Promise.resolve(0n),
+      ]);
+      let assetUsd: number | undefined;
+      if (asset > 0n) {
+        try {
+          assetUsd = (await readLiveGiftValuation(executionRpcUrl, { ...preview, amount: asset }, fetch, "/api/valuation")).estimatedUsd;
+        } catch {
+          // The live issuer value is optional; the chain balance is still shown.
+        }
+      }
+      setBalances({ asset, usdt0: stable, assetUsd, readAt: Date.now() });
+      setPortfolioKey((value) => value + 1);
+      setMoveToken((current) => (current === "asset" && asset === 0n && stable > 0n ? "usdt0" : current === "usdt0" && stable === 0n && asset > 0n ? "asset" : current));
+    } catch {
+      setBalances(undefined);
+    }
+  }
+
+  useEffect(() => {
+    void refreshBalances();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [smartAccount, preview?.asset, preview?.state]);
+
+  useEffect(() => {
+    if (!preview || preview.state !== "claimed") return;
+    let cancelled = false;
+    void fetch(`/api/activity?giftId=${preview.giftId.toString()}`)
+      .then((response) => (response.ok ? response.json() as Promise<{ recipient: string | null }> : undefined))
+      .then((body) => { if (!cancelled && body?.recipient && isAddress(body.recipient)) setClaimer(body.recipient as Address); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [preview?.giftId, preview?.state]);
+
+  const portfolioAccount = preview?.state === "claimed" || claimed ? (claimer ?? smartAccount) : undefined;
+  const claimedElsewhere = Boolean(claimer && smartAccount && claimer.toLowerCase() !== smartAccount.toLowerCase());
 
   async function secureAccount() {
     if (!preview) return;
@@ -272,6 +321,7 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
       if (result.status !== "confirmed" || result.success !== true) throw new Error("the sponsored claim was included but did not succeed");
       setClaimed(true);
       setSmartAccount(prepared.account);
+      setClaimer(prepared.account);
       const refreshed = await readGiftPreview(executionRpcUrl, requiredAddress("NEXT_PUBLIC_CONVEY_CLAIM_ESCROW_ADDRESS"), claim);
       setPreview(refreshed);
       setStatus(`Claim confirmed in X Layer block ${result.blockNumber ?? ""}. Your asset is in ${prepared.account}.`);
@@ -333,7 +383,9 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
       const accepted = await relay.submitExit(prepared.userOperation.userOperation, { idempotencyKey: `cashout-${smartAccount.toLowerCase()}-${quote.observedAt}` });
       const result = await relay.waitForExit(accepted.userOperationHash);
       if (result.status !== "confirmed" || result.success !== true) throw new Error("the sponsored cash-out was included but did not succeed");
-      setExitStatus(`Cash-out confirmed in X Layer block ${result.blockNumber ?? ""}. USDT0 is now in your smart account.`);
+      setExitStatus(`Cash-out confirmed in X Layer block ${result.blockNumber ?? ""}. USDT0 is now in your smart account; use Move it to send it out.`);
+      setMoveToken("usdt0");
+      await refreshBalances();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The live gasless cash-out could not be completed.");
       setExitStatus("Your asset has not moved.");
@@ -361,6 +413,7 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
       if (result.status !== "confirmed" || result.success !== true) throw new Error("the sponsored withdrawal was included but did not succeed");
       setExitStatus(`Withdrawal confirmed in X Layer block ${result.blockNumber ?? ""}.`);
       setMoveMode(false);
+      await refreshBalances();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The gasless withdrawal could not be completed.");
       setExitStatus("Your asset has not moved.");
@@ -398,12 +451,14 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
             <p className="status" aria-live="polite">{status}</p>
             {exitStatus ? <p className="status" aria-live="polite">{exitStatus}</p> : null}
             {exitQuote ? <div className="risk">Live quote: {formatUnits(exitQuote.amountOut, 6)} USDT0 minimum after slippage · observed {new Date(exitQuote.observedAt).toLocaleTimeString()}</div> : null}
+            {claimedElsewhere ? <p className="error" role="alert">This gift was claimed by {shortAddress(claimer!)}, not by the account on this device ({shortAddress(smartAccount!)}). Open the link on the device that claimed it, or recover that account with its recovery key.</p> : null}
+            {portfolioAccount ? <Portfolio account={portfolioAccount} title={smartAccount && !claimedElsewhere ? "Your portfolio" : "Portfolio of the claiming account"} refreshKey={portfolioKey} /> : preview?.state === "claimed" ? <p className="status">Finding the account that claimed this gift…</p> : null}
             <div className="actions">
               <button className="action" type="button" disabled={!claimed} onClick={() => setStatus("Your tokenized exposure is held in your smart account.")}><span><strong>Keep it</strong><br />Hold your tokenized exposure</span><span>{claimed ? "ready" : "after claim"}</span></button>
-              {preview?.cashOutRoute !== "0x0000000000000000000000000000000000000000" ? <button className="action" type="button" disabled={!claimed || !account?.session || exitBusy} onClick={cashOutGift}><span><strong>Cash out</strong><br />Live quote to USDT0</span><span>{exitBusy ? "working…" : "gasless"}</span></button> : null}
-              <button className="action" type="button" disabled={!claimed || !account?.session || exitBusy} onClick={() => setMoveMode((value) => !value)}><span><strong>Move it</strong><br />Send to any address</span><span>{moveMode ? "close" : "gasless"}</span></button>
+              {preview?.cashOutRoute !== "0x0000000000000000000000000000000000000000" ? <button className="action" type="button" disabled={!claimed || !account?.session || exitBusy || claimedElsewhere || balances?.asset === 0n} onClick={cashOutGift}><span><strong>Cash out</strong><br />Live quote to USDT0</span><span>{exitBusy ? "working…" : "gasless"}</span></button> : null}
+              <button className="action" type="button" disabled={!claimed || !account?.session || exitBusy || claimedElsewhere || (balances?.asset === 0n && balances.usdt0 === 0n)} onClick={() => setMoveMode((value) => !value)}><span><strong>Move it</strong><br />Send to any address</span><span>{moveMode ? "close" : "gasless"}</span></button>
             </div>
-            {moveMode ? <form className="recovery recovery-form" onSubmit={withdrawGift}><div className="recovery-label">Move a live balance</div><label>Asset<select value={moveToken} onChange={(event) => setMoveToken(event.target.value as "asset" | "usdt0")}><option value="asset">{preview?.symbol ?? "Gift asset"}</option><option value="usdt0">USDT0</option></select></label><label>Destination address<input value={moveRecipient} onChange={(event) => setMoveRecipient(event.target.value)} placeholder="0x…" autoComplete="off" required /></label><button className="button" type="submit" disabled={exitBusy}>{exitBusy ? "Sending gaslessly…" : "Move full live balance"}</button><p className="risk">Convey never receives the destination key. The smart account signs the transfer locally and the private gateway only routes the sponsored UserOperation.</p></form> : null}
+            {moveMode ? <form className="recovery recovery-form" onSubmit={withdrawGift}><div className="recovery-label">Move a live balance</div><label>Asset<select value={moveToken} onChange={(event) => setMoveToken(event.target.value as "asset" | "usdt0")}>{!balances || balances.asset > 0n ? <option value="asset">{preview?.symbol ?? "Gift asset"}</option> : null}{!balances || balances.usdt0 > 0n ? <option value="usdt0">USDT0</option> : null}</select></label><label>Destination address<input value={moveRecipient} onChange={(event) => setMoveRecipient(event.target.value)} placeholder="0x…" autoComplete="off" required /></label><button className="button" type="submit" disabled={exitBusy}>{exitBusy ? "Sending gaslessly…" : "Move full live balance"}</button><p className="risk">Convey never receives the destination key. The smart account signs the transfer locally and the private gateway only routes the sponsored UserOperation.</p></form> : null}
           </section>
           <aside className="side-card">
             <h2 className="side-title">What happens next</h2>

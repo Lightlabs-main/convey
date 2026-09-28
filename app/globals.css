@@ -480,6 +480,31 @@ section[id] { scroll-margin-top: 80px; }
 }
 .recurring-proof > span:nth-child(2) { flex: 1; min-width: 240px; }
 
+/* ---------- Naira (coming soon) ---------- */
+
+.soon-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.naira-soon {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 32px;
+  border: 1px dashed rgba(198, 244, 50, 0.35);
+  border-radius: var(--radius);
+  background: linear-gradient(120deg, rgba(198, 244, 50, 0.08), transparent 60%), var(--bg-raised);
+}
+.naira-soon h2 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.4rem); }
+.naira-soon p { margin: 0; max-width: 56ch; color: var(--text-soft); }
+.site-links .soon-tag { margin-left: 4px; font-size: 0.6rem; vertical-align: middle; }
+
 /* ---------- Live activity ---------- */
 
 .activity { display: grid; gap: 16px; margin-top: 40px; }
@@ -999,3 +1024,10 @@ button.xstock-option:hover:not(:disabled) { background: var(--surface-hover); tr
   .paste-form { flex-direction: column; }
   .hero-stats { gap: 20px; }
 }
+
+.portfolio-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.portfolio-total { font-size: 1.25rem; }
+.portfolio-list { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 8px; }
+.portfolio-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+.portfolio-list li > span:first-child { display: grid; }
+.portfolio-list small { color: var(--text-soft); font-size: 0.8rem; }
