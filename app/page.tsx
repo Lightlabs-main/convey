@@ -109,6 +109,14 @@ export default function LandingPage() {
         </Reveal>
       </section>
 
+      <section className="section" id="naira">
+        <Reveal className="naira-soon">
+          <span className="soon-tag">Coming soon</span>
+          <h2>Claim stocks to naira.</h2>
+          <p>Gift an xStock as usual. Your recipient in Nigeria can keep it, or claim its value straight to their bank account in naira.</p>
+        </Reveal>
+      </section>
+
       <section className="section agents" id="agents">
         <Reveal className="agents-copy">
           <span className="eyebrow"><i className="pulse" />For your AI agents</span>

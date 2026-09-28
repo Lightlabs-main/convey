@@ -248,8 +248,8 @@ prove product claim reserve accounting or receiver recovery.
 
 The sender acquired `0.030965586663211895` NVDAx from `7` USDT0 through the
 verified X Layer route. The live approval, swap, escrow approval, and gift
-creation receipts are recorded in [`docs/verification.md`](docs/verification.md)
-and [`HANDOFF.md`](HANDOFF.md). Gift creation included the configured native
+creation receipts are recorded in [`docs/verification.md`](docs/verification.md).
+Gift creation included the configured native
 claim reserve, and escrow held the exact asset amount under its accounting.
 
 The private relay and event-aware preflight are now proven by the successful

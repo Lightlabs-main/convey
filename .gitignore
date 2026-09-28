@@ -10,3 +10,11 @@ cache_forge/
 *.key
 id_*
 .recurring-proof*.json
+
+# Internal working notes and media kept out of the repository
+AGENTS.md
+HANDOFF.md
+PROGRESS.md
+demo/
+.agents/
+.codex/

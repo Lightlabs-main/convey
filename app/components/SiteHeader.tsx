@@ -14,6 +14,7 @@ export function SiteHeader({ children, variant = "landing" }: { children?: React
       </a>
       <nav className="site-links" aria-label="Sections">
         {LINKS[variant].map(([href, label]) => <a key={href} href={href}>{label}</a>)}
+        {variant === "landing" ? <a href="/#naira">Claim to naira <span className="soon-tag">Soon</span></a> : null}
       </nav>
       <div className="site-actions">{children}</div>
     </header>
