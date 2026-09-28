@@ -165,11 +165,20 @@ export default function ClaimScreen({ secret, giftId }: { secret: string; giftId
   useEffect(() => {
     if (!preview || preview.state !== "claimed") return;
     let cancelled = false;
-    void fetch(`/api/activity?giftId=${preview.giftId.toString()}`)
-      .then((response) => (response.ok ? response.json() as Promise<{ recipient: string | null }> : undefined))
-      .then((body) => { if (!cancelled && body?.recipient && isAddress(body.recipient)) setClaimer(body.recipient as Address); })
-      .catch(() => undefined);
-    return () => { cancelled = true; };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // The server may still be indexing gift history after a restart, so keep asking until it knows the claimer.
+    const lookup = () => {
+      void fetch(`/api/activity?giftId=${preview.giftId.toString()}`)
+        .then((response) => (response.ok ? response.json() as Promise<{ recipient: string | null }> : undefined))
+        .catch(() => undefined)
+        .then((body) => {
+          if (cancelled) return;
+          if (body?.recipient && isAddress(body.recipient)) setClaimer(body.recipient as Address);
+          else timer = setTimeout(lookup, 10_000);
+        });
+    };
+    lookup();
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [preview?.giftId, preview?.state]);
 
   const portfolioAccount = preview?.state === "claimed" || claimed ? (claimer ?? smartAccount) : undefined;

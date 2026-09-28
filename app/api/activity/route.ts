@@ -77,37 +77,39 @@ async function scan(): Promise<void> {
   const head = await withRetry(() => client.getBlockNumber());
   const ranges: [bigint, bigint][] = [];
   for (let from = scannedTo + 1n; from <= head; from += CHUNK) ranges.push([from, from + CHUNK - 1n > head ? head : from + CHUNK - 1n]);
-  const results: Awaited<ReturnType<typeof scanRange>>[] = [];
+  // Each batch is applied and recorded as it lands, so a failed request
+  // resumes from the last good block instead of rescanning all history.
   for (let i = 0; i < ranges.length; i += CONCURRENCY) {
-    results.push(...await Promise.all(ranges.slice(i, i + CONCURRENCY).map(([from, to]) => scanRange(from, to))));
-  }
-  for (const { created } of results) {
-    for (const log of created) {
-      const asset = log.args.asset!.toLowerCase() as Address;
-      gifts.set(log.args.giftId!.toString(), {
-        giftId: log.args.giftId!.toString(),
-        ticker: TICKERS[asset]?.ticker ?? "xStock",
-        asset,
-        amount: formatUnits(log.args.amount!, 18),
-        sender: log.args.sender!,
-        createdAt: await blockTime(log.blockNumber),
-        createdTx: log.transactionHash,
-        status: "waiting",
-      });
+    const batch = ranges.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(batch.map(([from, to]) => scanRange(from, to)));
+    for (const { created } of results) {
+      for (const log of created) {
+        const asset = log.args.asset!.toLowerCase() as Address;
+        gifts.set(log.args.giftId!.toString(), {
+          giftId: log.args.giftId!.toString(),
+          ticker: TICKERS[asset]?.ticker ?? "xStock",
+          asset,
+          amount: formatUnits(log.args.amount!, 18),
+          sender: log.args.sender!,
+          createdAt: await blockTime(log.blockNumber),
+          createdTx: log.transactionHash,
+          status: "waiting",
+        });
+      }
     }
-  }
-  for (const { claimed, reclaimed } of results) {
-    for (const log of [...claimed, ...reclaimed]) {
-      const gift = gifts.get(log.args.giftId!.toString());
-      if (!gift) continue;
-      const isClaim = log.eventName === "GiftClaimed";
-      gift.status = isClaim ? "claimed" : "returned";
-      if (isClaim) gift.recipient = (log.args as { claimer: Address }).claimer;
-      gift.settledAt = await blockTime(log.blockNumber);
-      gift.settledTx = log.transactionHash;
+    for (const { claimed, reclaimed } of results) {
+      for (const log of [...claimed, ...reclaimed]) {
+        const gift = gifts.get(log.args.giftId!.toString());
+        if (!gift) continue;
+        const isClaim = log.eventName === "GiftClaimed";
+        gift.status = isClaim ? "claimed" : "returned";
+        if (isClaim) gift.recipient = (log.args as { claimer: Address }).claimer;
+        gift.settledAt = await blockTime(log.blockNumber);
+        gift.settledTx = log.transactionHash;
+      }
     }
+    scannedTo = batch[batch.length - 1][1];
   }
-  scannedTo = head;
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -117,7 +119,8 @@ export async function GET(request: Request): Promise<Response> {
     if (!/^\d+$/u.test(giftId)) return Response.json({ error: "invalid_gift_id" }, { status: 400 });
     try {
       scanning ??= scan().finally(() => { scanning = undefined; });
-      await scanning;
+      // A settled gift never changes, so answer as soon as the scan has reached it.
+      if (gifts.get(giftId)?.recipient === undefined) await scanning;
       const gift = gifts.get(giftId);
       return Response.json({ giftId, status: gift?.status ?? "unknown", recipient: gift?.recipient ?? null, settledTx: gift?.settledTx ?? null }, { headers: { "cache-control": "no-store" } });
     } catch {
